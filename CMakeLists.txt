@@ -4,8 +4,8 @@ Project(${PROJNAME})
 Message(STATUS "-------------------------------")
 Message(STATUS "Processing Project ${PROJNAME}:")
 
-SET(SUBMARINE_MODEL_DOWNLOAD_FORCED OFF CACHE BOOL "Forces the download operation of 3D models needed for this demo" )
-SET(SUBMARINE_MODEL_DOWNLOAD_DISABLED OFF CACHE BOOL "UNCHECK IT to download heavy 3D models needed for this demo" )
+SET(MODEL_DOWNLOAD_MORE OFF CACHE BOOL "CHECK IT if you want to download more models" )
+SET(MODEL_DOWNLOAD_SUBMARINE ON CACHE BOOL "CHECKED to download Submarine default 3D model needed for this demo" )
 #####################################################################################
 # offer the choice of having shared_sources as a sub-folder... good for packaging a sample
 #
@@ -65,7 +65,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/VK_nvidia)
 # download model for this demo to run. Avoids using GitHub for this
 # TODO: we need to put the models online. Should happen next week (>Dec.22)
 #
-if(${SUBMARINE_MODEL_DOWNLOAD_FORCED} OR (NOT ${SUBMARINE_MODEL_DOWNLOAD_DISABLED}) )
+if(${MODEL_DOWNLOAD_SUBMARINE})
   set(FILELIST 
   "SubMarine_134.bk3d.gz"
   )
@@ -73,7 +73,24 @@ if(${SUBMARINE_MODEL_DOWNLOAD_FORCED} OR (NOT ${SUBMARINE_MODEL_DOWNLOAD_DISABLE
     "${FILELIST}"
     "http://developer.download.nvidia.com/ProGraphics/nvpro-samples"
     ${DOWNLOAD_TARGET_DIR}
-    ${SUBMARINE_MODEL_DOWNLOAD_FORCED}
+    0
+  )
+endif()
+if(${MODEL_DOWNLOAD_MORE_MODELS})
+  set(FILELIST 
+  "Jet_134.bk3d.gz"
+  "Driveline_v134.bk3d.gz"
+  "Body_v134.bk3d.gz"
+  "Camera_134.bk3d.gz"
+  "ConceptCar_134.bk3d.gz"
+  "Eiffel_133.bk3d.gz"
+  "Smobby_134.bk3d.gz"
+  )
+  _download_files(
+    "${FILELIST}"
+    "http://developer.download.nvidia.com/ProGraphics/nvpro-samples"
+    ${DOWNLOAD_TARGET_DIR}
+    0
   )
 endif()
 #####################################################################################
