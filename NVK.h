@@ -41,7 +41,6 @@
 // VULKAN
 //------------------------------------------------------------------------------
 #include "vulkan/vulkan.h"
-#include <vulkan/vk_ext_debug_report.h>
 
 //------------------------------------------------------------------------------
 // Vulkan functions in a more "friendly" way

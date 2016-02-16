@@ -462,30 +462,30 @@ void NVK::vkResetCommandBuffer(VkCommandBuffer cmdBuffer, VkCommandBufferResetFl
 //
 //------------------------------------------------------------------------------
 VkBool32 dbgFunc(
-    VkFlags                             msgFlags,
-    VkDebugReportObjectTypeEXT          objType,
-    uint64_t                            srcObject,
-    size_t                              location,
-    int32_t                             msgCode,
-    const char*                         pLayerPrefix,
-    const char*                         pMsg,
-    const void*                         pUserData)
+    VkDebugReportFlagsEXT                       flags,
+    VkDebugReportObjectTypeEXT                  objectType,
+    uint64_t                                    object,
+    size_t                                      location,
+    int32_t                                     messageCode,
+    const char*                                 pLayerPrefix,
+    const char*                                 pMessage,
+    void*                                       pUserData)
 {
-    if (msgFlags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
+    if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
     {
-        if (strstr(pMsg, "Shader is not SPIR-V"))
+        if (strstr(pMessage, "Shader is not SPIR-V"))
         {
             return false;
         }
         //LOGE("ERROR: [%s] Code %d : %s\n", pLayerPrefix, msgCode, pMsg);
         return false;
-    } else if (msgFlags & VK_DEBUG_REPORT_WARN_BIT_EXT)
+    } else if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT)
     {
         //if (strstr(pMsg, "vkQueueSubmit parameter, VkFence fence, is null pointer"))
         //{
         //    return false;
         //}
-        LOGW("WARNING: [%s] Code %d : %s\n", pLayerPrefix, msgCode, pMsg);
+        LOGW("WARNING: [%s] Code %d : %s\n", pLayerPrefix, messageCode, pMessage);
         return false;
     } else {
         return false;
@@ -596,7 +596,7 @@ bool NVK::CreateDevice()
         dbgCreateInfo.pNext = NULL;
         dbgCreateInfo.pfnCallback = dbgFunc;
         dbgCreateInfo.pUserData = NULL;
-        dbgCreateInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARN_BIT_EXT;
+        dbgCreateInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
         result = m_CreateDebugReportCallback(
                   m_instance,
                   &dbgCreateInfo,
