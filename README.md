@@ -21,6 +21,8 @@ The OpenGL implementation doesn't take advantage of multi-threading: this API is
 
 NVIDIA Command-lists extension is good at executing token-buffers (equivalent of command-buffers but made of simple token andstructures); Command-lists are also fine with updating such token-bufers. However this extension relies on OpenGL and therefore is not the best candidate for multi-threaded rendering design.
 
+![Example](https://github.com/nvpro-samples/gl_vk_bk3dthreaded/blob/master/doc/sample.jpg)
+
 ````
     Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
 
