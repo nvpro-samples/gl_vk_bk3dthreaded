@@ -69,7 +69,6 @@
 #include "nv_dds.h"
 
 #include "mt/CThreadWork.h"
-extern CCriticalSection *  g_crs_VK;   // for concurrent access on Vulkan
 
 ///////////////////////////////////////////////////////////////////////////////
 // VULKAN: NVK.inl > vkfnptrinline.h > vulkannv.h > vulkan.h
@@ -1251,9 +1250,9 @@ void RendererVk::initFramebuffer(GLsizei width, GLsizei height, int MSAA)
     // Create the render passes
     //
     // example (commented in this case) where the VkSubpassDescription() would use pointers to these things
-    NVK::VkAttachmentReference color(0/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/);
-    NVK::VkAttachmentReference dst(1/*attachment*/, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL/*layout*/);
-    NVK::VkAttachmentReference colorResolved(2/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/);
+    //NVK::VkAttachmentReference color(0/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/);
+    //NVK::VkAttachmentReference dst(1/*attachment*/, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL/*layout*/);
+    //NVK::VkAttachmentReference colorResolved(2/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/);
     // later below, you'd reference them by pointer instead of using constructors:
     //NVK::VkSubpassDescription
     //(   VK_PIPELINE_BIND_POINT_GRAPHICS,//pipelineBindPoint
@@ -1281,24 +1280,25 @@ void RendererVk::initFramebuffer(GLsizei width, GLsizei height, int MSAA)
                 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL //initialLayout, finalLayout
             ),
         // Easy way
-        //NVK::VkSubpassDescription
-        //(   VK_PIPELINE_BIND_POINT_GRAPHICS,                                                                        //pipelineBindPoint
-        //    NVK::VkAttachmentReference(),                                                                           //inputAttachments
-        //    NVK::VkAttachmentReference(0/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/),        //colorAttachments
-        //    NVK::VkAttachmentReference(2/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/),        //resolveAttachments
-        //    NVK::VkAttachmentReference(1/*attachment*/, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL/*layout*/),//depthStencilAttachment
-        //    NVK::Uint32Array(),                                                                           //preserveAttachments
-        //    0                                                                                                       //flags
-        //),
         NVK::VkSubpassDescription
-        (   VK_PIPELINE_BIND_POINT_GRAPHICS,//pipelineBindPoint
-            NULL,                           //inputAttachments
-            &color,                         //colorAttachments
-            &colorResolved,                 //resolveAttachments
-            &dst,                           //depthStencilAttachment
-            NULL,                           //preserveAttachments
-            0                               //flags
+        (   VK_PIPELINE_BIND_POINT_GRAPHICS,                                                                        //pipelineBindPoint
+            NVK::VkAttachmentReference(),                                                                           //inputAttachments
+            NVK::VkAttachmentReference(0/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/),        //colorAttachments
+            NVK::VkAttachmentReference(2/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/),        //resolveAttachments
+            NVK::VkAttachmentReference(1/*attachment*/, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL/*layout*/),//depthStencilAttachment
+            NVK::Uint32Array(),                                                                           //preserveAttachments
+            0                                                                                                       //flags
         ),
+
+        //NVK::VkSubpassDescription
+        //(   VK_PIPELINE_BIND_POINT_GRAPHICS,//pipelineBindPoint
+        //    NULL,                           //inputAttachments
+        //    &color,                         //colorAttachments
+        //    &colorResolved,                 //resolveAttachments
+        //    &dst,                           //depthStencilAttachment
+        //    NULL,                           //preserveAttachments
+        //    0                               //flags
+        //),
         NVK::VkSubpassDependency(/*NONE*/)
     );
     m_scenePass     = nvk.vkCreateRenderPass(rpinfo);
