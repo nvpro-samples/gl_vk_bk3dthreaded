@@ -208,7 +208,6 @@ private:
 
 
     VkCommandBuffer             m_cmdSyncAndViewport;
-    VkCommandBuffer             m_cmdGlobalUniforms;
 	VkCommandBuffer				m_cmdBufferGrid;
 
     BufO                        m_gridBuffer;
@@ -1039,12 +1038,6 @@ bool RendererVk::buildPrimaryCmdBuffer()
     }
     vkEndCommandBuffer(m_cmdSyncAndViewport);
     //
-    // CMD-BUFFER to update of general uniforms: will be filled later at displayStart
-    //
-	if(m_cmdGlobalUniforms)
-        nvk.vkFreeCommandBuffer(m_perThreadData->m_cmdPool, m_cmdGlobalUniforms);
-    m_cmdGlobalUniforms = nvk.vkAllocateCommandBuffer(m_perThreadData->m_cmdPool, true);
-    //
     // CMD-BUFFER for the grid
     //
 	if(m_cmdBufferGrid)
@@ -1091,13 +1084,6 @@ void RendererVk::displayStart(const mat4f& world, const InertiaCamera& camera, c
     VkFramebuffer   framebuffer = m_framebuffer;
     NVK::VkRect2D   viewRect    = m_viewRect;
     float           lineWidth  = 1.0f;
-    if(m_cmdGlobalUniforms)
-    {
-        vkResetCommandBuffer    (m_cmdGlobalUniforms, 0/*FLAGS ??*/);
-        nvk.vkBeginCommandBuffer(m_cmdGlobalUniforms, false, NVK::VkCommandBufferInheritanceInfo(renderPass, 0, framebuffer, VK_FALSE, 0, 0) );
-        vkCmdUpdateBuffer       (m_cmdGlobalUniforms, m_matrix.buffer, 0, sizeof(g_globalMatrices), (uint32_t*)&g_globalMatrices);
-        nvk.vkEndCommandBuffer  (m_cmdGlobalUniforms);
-    }
     //
     // Create the primary command buffer
     //
@@ -1129,7 +1115,7 @@ void RendererVk::displayStart(const mat4f& world, const InertiaCamera& camera, c
                              (NVK::VkClearDepthStencilValue(1.0, 0))), 
         VK_SUBPASS_CONTENTS_INLINE );
     vkCmdExecuteCommands(m_cmdScene[m_cmdSceneIdx], 1, &m_cmdSyncAndViewport);
-    vkCmdExecuteCommands(m_cmdScene[m_cmdSceneIdx], 1, &m_cmdGlobalUniforms);
+    vkCmdUpdateBuffer   (m_cmdScene[m_cmdSceneIdx], m_matrix.buffer, 0, sizeof(g_globalMatrices), (uint32_t*)&g_globalMatrices);
 }
 //------------------------------------------------------------------------------
 //
@@ -1399,9 +1385,6 @@ bool RendererVk::terminateGraphics()
     m_cmdScene[0] = NULL;
     nvk.vkFreeCommandBuffer(m_perThreadData->m_cmdPool, m_cmdScene[1]);
     m_cmdScene[1] = NULL;
-
-	nvk.vkFreeCommandBuffer(m_perThreadData->m_cmdPool, m_cmdGlobalUniforms);
-    m_cmdGlobalUniforms = NULL;
 
     nvk.vkFreeCommandBuffer(m_perThreadData->m_cmdPool, m_cmdSyncAndViewport);
     m_cmdSyncAndViewport = NULL;
