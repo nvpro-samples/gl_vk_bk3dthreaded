@@ -88,7 +88,7 @@ Here are more details in separate sub-sections :
 : helper file that allows to write Vulkan code in a more compact fashion 
 * [Multithreading](https://github.com/nvpro-samples/gl_vk_bk3dthreaded/blob/master/doc/Multithreading.md "Multithreading")
 : based on "Thread-workers", and how to use Vulkan in this case
-* [Results / performances](https://github.com/nvpro-samples/gl_vk_bk3dthreaded/blob/master/doc/NSight_Captures.md "Results")
+* [Results / performances](https://github.com/nvpro-samples/gl_vk_bk3dthreaded/blob/master/doc/Results.md "Results")
 * [NSight captures](https://github.com/nvpro-samples/gl_vk_bk3dthreaded/blob/master/doc/NSight_Captures.md "NSight captures") : some NSight captures showing what is happening
 
 ````
