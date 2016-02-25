@@ -96,7 +96,7 @@ This sample is doing a bit of the latter: using a 2 caches of command-buffers an
 - Next frame, the CPU will check the Fence #1, to see if the GPU was done with it (normally it should... GPU would have already started to consume cmd-buffers from cache #2)
 - etc.
 
-![Fences](https://github.com/nvpro-samples/gl_vk_bk3dthreaded/blob/master/doc/Fences.jpg)
+![Fences](https://github.com/nvpro-samples/gl_vk_bk3dthreaded/blob/master/doc/Fences.JPG)
 
 This approach cannot allow building more than 1 frame ahead (in fact, many games artificially limit the # of frames ahead: to prevent lagging in game controls. Frame-ahead are Good for Benchmarks... not so good for gaming experience ;-). 
 
