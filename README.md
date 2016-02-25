@@ -1,8 +1,3 @@
-![logo](http://nvidianews.nvidia.com/_ir/219/20157/NV_Designworks_logo_horizontal_greenblack.png)
-
-> Author: Tristan Lorach (tlorach@nvidia.com)
-> - February 17th 2016
-
 # Vulkan & OpenGL & Command-list Sample using "Thread-Workers"
 
 With the official release of Vulkan, NVIDIA and the "Devtech-Proviz" Team released new samples on [professional graphics repository](https://github.com/nvpro-samples). 
