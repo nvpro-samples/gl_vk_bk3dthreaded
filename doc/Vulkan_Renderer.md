@@ -27,12 +27,12 @@ This sample doesn't implement this general case, but implements both of the 'ext
 the default one (see `#define USE_VKCMDBINDVERTEXBUFFERS_OFFSET`) will allocate *one VkBuffer for one chunk of Device Memory*; then offsets will be maintained for the 3D parts to find back their vertices/indices
 ![offsets](https://github.com/nvpro-samples/gl_vk_bk3dthreaded/blob/master/doc/offsets.JPG)
 
-the other approach will 'forget' about offsets in buffers and will naively create a VkBuffer for each required VBO/IBO. But a basic allocator will bind these buffers to the right offsets in the device memory chunk. 
+Another approach will 'forget' about offsets in buffers and naively create a VkBuffer for each required VBO/IBO. A basic allocator will bind these buffers to the right offsets in the device memory chunk: 
 ![offsets](https://github.com/nvpro-samples/gl_vk_bk3dthreaded/blob/master/doc/vkbuffers.JPG)
 
-It turns-out that, out of demonstrating how to bind buffers at different areas of a device memory, the latter approach could rapidly reach the limits of available objects (here VkBuffer). This is precisely what happened to me once, with a big model from a CAD application...
+It turns-out that, out of demonstrating how to bind buffers at different areas of a device memory, **this latter approach could rapidly reach the limits of available objects** (here VkBuffer). This is precisely what happened to me once, with a big model from a CAD application...
 
-In other words, it is not a good idea to blindly use object handles only: there are good reasons for why the *offset* parameter in command-binding exist. The renderer should be clever enough aggregate small buffers together thanks to the offset-binding in the command-buffer creation. The best solution would be *to mix both, depending on the requirements of the engine*.
+In other words, it is **not a good idea to blindly use object handles only**: there are good reasons for why the *offset* parameter in command-binding exist. The renderer should be clever enough aggregate small buffers together thanks to the offset-binding in the command-buffer creation. The best solution would be *to mix both, depending on the requirements of the engine*.
 
 ## Initialization of Vulkan components
 This section should be self-explanatory. Essentially the idea is to prepare things up-front, as much as possible (in fact: everything, except command-buffers) so that the *rendering loop doesn't involve any sort of expensive validation*. 
