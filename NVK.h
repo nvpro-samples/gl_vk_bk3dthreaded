@@ -1804,16 +1804,18 @@ public:
         VkSubmitInfo(
             uint32_t                                    waitSemaphoreCount,
             const VkSemaphore*                          pWaitSemaphores,
+            const VkPipelineStageFlags*                 pWaitDstStageMask,
             uint32_t                                    commandBufferCount,
             const VkCommandBuffer*                      pCommandBuffers,
             uint32_t                                    signalSemaphoreCount,
             const VkSemaphore*                          pSignalSemaphores)
         {
-            operator()(waitSemaphoreCount, pWaitSemaphores, commandBufferCount, pCommandBuffers, signalSemaphoreCount, pSignalSemaphores);
+            operator()(waitSemaphoreCount, pWaitSemaphores, pWaitDstStageMask, commandBufferCount, pCommandBuffers, signalSemaphoreCount, pSignalSemaphores);
         }
         VkSubmitInfo& operator()(
             uint32_t                                    waitSemaphoreCount,
             const VkSemaphore*                          pWaitSemaphores,
+            const VkPipelineStageFlags*                 pWaitDstStageMask,
             uint32_t                                    commandBufferCount,
             const VkCommandBuffer*                      pCommandBuffers,
             uint32_t                                    signalSemaphoreCount,
@@ -1822,8 +1824,9 @@ public:
         ::VkSubmitInfo ss;
         ss.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         ss.pNext = NULL;
-        ss.waitSemaphoreCount = 0;
+        ss.waitSemaphoreCount = waitSemaphoreCount;
         ss.pWaitSemaphores = pWaitSemaphores;
+        ss.pWaitDstStageMask = pWaitDstStageMask;
         ss.commandBufferCount = commandBufferCount;
         ss.pCommandBuffers = pCommandBuffers;
         ss.signalSemaphoreCount = signalSemaphoreCount;

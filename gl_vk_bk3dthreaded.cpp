@@ -438,6 +438,7 @@ bool MyWindow::init()
                     MyWindow* p = reinterpret_cast<MyWindow*>(pWin->GetUserData());
                     releaseThreadLocalVars();
                     s_pCurRenderer->terminateGraphics();
+                    g_profiler.reset(1);
                     s_pCurRenderer = g_renderers[selectedidx];
                     s_curRenderer = selectedidx;
                     s_pCurRenderer->initGraphics(p->m_winSz[0], p->m_winSz[1], g_MSAA);
@@ -458,6 +459,7 @@ bool MyWindow::init()
                     MyWindow* p = reinterpret_cast<MyWindow*>(pWin->GetUserData());
                     releaseThreadLocalVars();
                     s_pCurRenderer->terminateGraphics();
+                    g_profiler.reset(1);
                     s_pCurRenderer->initGraphics(p->m_winSz[0], p->m_winSz[1], g_MSAA);
                     initThreadLocalVars();
                     s_pCurRenderer->buildPrimaryCmdBuffer();

@@ -385,7 +385,7 @@ void RendererVk::TimerSetup(nv_helpers::Profiler::TimerIdx idx)
 
     nvk.vkEndCommandBuffer(timerCmd);
     
-    nvk.vkQueueSubmit(NVK::VkSubmitInfo(0, NULL, 1, &timerCmd, 0, NULL), NULL);
+    nvk.vkQueueSubmit(NVK::VkSubmitInfo(0, NULL, NULL, 1, &timerCmd, 0, NULL), NULL);
 }
 
 //------------------------------------------------------------------------------
@@ -546,6 +546,8 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
     }
     VkSemaphoreCreateInfo semCreateInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
     m_semOpenGLReadDone = nvk.vkCreateSemaphore();
+    // Signal Semaphore by default to avoid being stuck
+    glSignalVkSemaphoreNV((GLuint64)m_semOpenGLReadDone);
     m_semVKRenderingDone = nvk.vkCreateSemaphore();
     //--------------------------------------------------------------------------
     // Command pool for the main thread
@@ -1129,8 +1131,9 @@ void RendererVk::displayEnd()
     vkEndCommandBuffer(m_cmdScene[m_cmdSceneIdx]);
     }
     {
+    const VkPipelineStageFlags waitStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     nvk.vkQueueSubmit( NVK::VkSubmitInfo(
-        1, &m_semOpenGLReadDone, 
+        1, &m_semOpenGLReadDone, &waitStages,
         1, &m_cmdScene[m_cmdSceneIdx], 
         1, &m_semVKRenderingDone),  
       m_sceneFence[m_cmdSceneIdx]
