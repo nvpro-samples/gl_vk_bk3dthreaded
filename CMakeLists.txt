@@ -76,7 +76,7 @@ if(${MODEL_DOWNLOAD_SUBMARINE})
     0
   )
 endif()
-if(${MODEL_DOWNLOAD_MORE_MODELS})
+if(${MODEL_DOWNLOAD_MORE})
   set(FILELIST 
   "Jet_134.bk3d.gz"
   "Driveline_v134.bk3d.gz"
