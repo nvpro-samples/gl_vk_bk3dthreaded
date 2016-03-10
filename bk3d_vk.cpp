@@ -716,6 +716,13 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
          (BINDING_MATERIAL , VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1, VK_SHADER_STAGE_FRAGMENT_BIT) // BINDING_MATERIAL
     ) );
     //
+    // Framebuffer Initialization
+    //
+    m_viewRect = NVK::VkRect2D(NVK::VkOffset2D(0,0), NVK::VkExtent2D(w, h));
+    initFramebuffer(w, h, MSAA);
+    m_MSAA = MSAA;
+    VkRenderPass renderPass  = m_scenePass;
+    //
     // PipelineLayout
     //
     m_pipelineLayout = nvk.vkCreatePipelineLayout(m_descriptorSetLayouts, DSET_TOTALAMOUNT);
@@ -780,7 +787,7 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
     // GRID gfx pipeline
     //
     m_pipelineGrid = nvk.vkCreateGraphicsPipeline(NVK::VkGraphicsPipelineCreateInfo
-        (m_pipelineLayout,0)
+        (m_pipelineLayout, renderPass)
         (NVK::VkPipelineVertexInputStateCreateInfo(
             NVK::VkVertexInputBindingDescription    (0/*binding*/, sizeof(vec3f)/*stride*/, VK_VERTEX_INPUT_RATE_VERTEX),
             NVK::VkVertexInputAttributeDescription  (0/*location*/, 0/*binding*/, VK_FORMAT_R32G32B32_SFLOAT, 0) // pos
@@ -819,7 +826,7 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
     );
 
     m_pipelineMeshTri = nvk.vkCreateGraphicsPipeline(NVK::VkGraphicsPipelineCreateInfo
-        (m_pipelineLayout,0)
+        (m_pipelineLayout, renderPass)
         (vkPipelineVertexInputStateCreateInfo)
         (NVK::VkPipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE) )
         (NVK::VkPipelineShaderStageCreateInfo(
@@ -837,7 +844,7 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
     // create Mesh pipelines
     //
     m_pipelineMeshTriStrip = nvk.vkCreateGraphicsPipeline(NVK::VkGraphicsPipelineCreateInfo
-        (m_pipelineLayout,0)
+        (m_pipelineLayout, renderPass)
         (vkPipelineVertexInputStateCreateInfo)
         (NVK::VkPipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP, VK_TRUE) )
         (vkPipelineShaderStageCreateInfoVtx)
@@ -853,7 +860,7 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
     // create Mesh pipelines
     //
     m_pipelineMeshTriFan = nvk.vkCreateGraphicsPipeline(NVK::VkGraphicsPipelineCreateInfo
-        (m_pipelineLayout,0)
+        (m_pipelineLayout, renderPass)
         (vkPipelineVertexInputStateCreateInfoLines)
         (NVK::VkPipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN, VK_TRUE) )
         (vkPipelineShaderStageCreateInfoVtx)
@@ -869,7 +876,7 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
     // create Mesh pipelines
     //
     m_pipelineMeshLine = nvk.vkCreateGraphicsPipeline(NVK::VkGraphicsPipelineCreateInfo
-        (m_pipelineLayout,0)
+        (m_pipelineLayout, renderPass)
         (vkPipelineVertexInputStateCreateInfoLines)
         (NVK::VkPipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_LIST, VK_FALSE) )
         (vkPipelineShaderStageCreateInfoVtx)
@@ -885,7 +892,7 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
     // create Mesh pipelines
     //
     m_pipelineMeshLineStrip = nvk.vkCreateGraphicsPipeline(NVK::VkGraphicsPipelineCreateInfo
-        (m_pipelineLayout,0)
+        (m_pipelineLayout, renderPass)
         (vkPipelineVertexInputStateCreateInfoLines)
         (NVK::VkPipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_STRIP, VK_TRUE) )
         (vkPipelineShaderStageCreateInfoVtx)
@@ -933,9 +940,6 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
     m_sceneFence[1] = nvk.vkCreateFence(VK_FENCE_CREATE_SIGNALED_BIT);
     nvk.vkResetFences(2, m_sceneFence);
 
-    m_viewRect = NVK::VkRect2D(NVK::VkOffset2D(0,0), NVK::VkExtent2D(w, h));
-    initFramebuffer(w, h, MSAA);
-    m_MSAA = MSAA;
     return true;
 }
 //------------------------------------------------------------------------------
