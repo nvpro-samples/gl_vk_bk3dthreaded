@@ -48,6 +48,8 @@
 #include "NVK.h"
 #include "main.h" // for LOGI/E...
 
+template <typename T, size_t sz> inline size_t getArraySize(T(&t)[sz]) { return sz; }
+
 //--------------------------------------------------------------------------------
 NVK::VkGraphicsPipelineCreateInfo& operator<<(NVK::VkGraphicsPipelineCreateInfo& os, NVK::VkPipelineBaseCreateInfo& dt)
 {
@@ -500,6 +502,7 @@ VkBool32 dbgFunc(
 bool NVK::CreateDevice()
 {
     ::VkResult result;
+    int                         queueFamilyIndex= 0;
     ::VkApplicationInfo         appInfo         = { VK_STRUCTURE_TYPE_APPLICATION_INFO, NULL };
     ::VkInstanceCreateInfo      instanceInfo    = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, NULL };
     ::VkDeviceQueueCreateInfo   queueInfo       = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, NULL };
@@ -517,11 +520,14 @@ bool NVK::CreateDevice()
     //
     result = vkEnumerateInstanceLayerProperties(&count, NULL);
     assert(result == VK_SUCCESS);
-    instance_layers.resize(count);
-    result = vkEnumerateInstanceLayerProperties(&count, &instance_layers[0]);
-    for(int i=0; i<instance_layers.size(); i++)
+    if(count > 0)
     {
-        LOGI("%d: Layer %s: %s\n", i, instance_layers[i].layerName, instance_layers[i].description);
+        instance_layers.resize(count);
+        result = vkEnumerateInstanceLayerProperties(&count, &instance_layers[0]);
+        for(int i=0; i<instance_layers.size(); i++)
+        {
+            LOGI("%d: Layer %s: %s\n", i, instance_layers[i].layerName, instance_layers[i].description);
+        }
     }
     //
     // Instance Extensions
@@ -541,15 +547,21 @@ bool NVK::CreateDevice()
     // fill extension_names
 
     static char *instance_validation_layers[] = {
-        "VK_LAYER_LUNARG_draw_state",
-        "VK_LAYER_LUNARG_object_tracker",
-        "VK_LAYER_LUNARG_param_checker",
-        "VK_LAYER_LUNARG_mem_tracker",
-        "VK_LAYER_LUNARG_threading",
-        "VK_LAYER_LUNARG_swapchain",
+        //"VK_LAYER_LUNARG_api_dump",
+        "VK_LAYER_LUNARG_core_validation",
         "VK_LAYER_LUNARG_device_limits",
-        "VK_LAYER_LUNARG_image",
+        //"VK_LAYER_LUNARG_image",
+        //"VK_LAYER_LUNARG_object_tracker",
+        "VK_LAYER_LUNARG_parameter_validation",
+        //"VK_LAYER_LUNARG_screenshot",
+        "VK_LAYER_LUNARG_swapchain",
+        //"VK_LAYER_GOOGLE_threading",
+        //"VK_LAYER_GOOGLE_unique_objects",
+        //"VK_LAYER_LUNARG_vktrace",
+        //"VK_LAYER_RENDERDOC_Capture",
+        "VK_LAYER_LUNARG_standard_validation"
     };
+    static int instance_validation_layers_sz = 0;//getArraySize(instance_validation_layers);
     //
     // Instance creation
     //
@@ -557,11 +569,11 @@ bool NVK::CreateDevice()
     appInfo.applicationVersion = 1;
     appInfo.pEngineName = "...";
     appInfo.engineVersion = 1;
-    appInfo.apiVersion = VK_API_VERSION;
+    appInfo.apiVersion = VK_API_VERSION_1_0;
     instanceInfo.flags = 0;
     instanceInfo.pApplicationInfo = &appInfo;
     // add some layers here ?
-    instanceInfo.enabledLayerCount = 8;
+    instanceInfo.enabledLayerCount = instance_validation_layers_sz;
     instanceInfo.ppEnabledLayerNames = instance_validation_layers;
     instanceInfo.enabledExtensionCount = extension_names.size();
     instanceInfo.ppEnabledExtensionNames = &extension_names[0];
@@ -675,19 +687,24 @@ bool NVK::CreateDevice()
         //
         result = vkEnumerateDeviceLayerProperties(physical_devices[j], &count, NULL);
         assert(!result);
-        device_layers.resize(count);
-        result = vkEnumerateDeviceLayerProperties(physical_devices[j], &count, &device_layers[0]);
-        for(int i=0; i<device_layers.size(); i++)
+        if(count > 0)
         {
-            LOGI("%d: Device layer %s: %s\n", i,device_layers[i].layerName, device_layers[i].description);
+            device_layers.resize(count);
+            result = vkEnumerateDeviceLayerProperties(physical_devices[j], &count, &device_layers[0]);
+            for(int i=0; i<device_layers.size(); i++)
+            {
+                LOGI("%d: Device layer %s: %s\n", i,device_layers[i].layerName, device_layers[i].description);
+            }
         }
         result = vkEnumerateDeviceExtensionProperties(physical_devices[j], NULL, &count, NULL);
         assert(!result);
         device_extensions.resize(count);
         result = vkEnumerateDeviceExtensionProperties(physical_devices[j], NULL, &count, &device_extensions[0]);
+        extension_names.resize(device_extensions.size() );
         for(int i=0; i<device_extensions.size(); i++)
         {
             LOGI("%d: HW Device Extension: %s\n", i,device_extensions[i].extensionName);
+            extension_names[i] = device_extensions[i].extensionName;
         }
     }
     //
@@ -700,45 +717,50 @@ bool NVK::CreateDevice()
     vkGetPhysicalDeviceQueueFamilyProperties(m_gpu.device, &count, NULL);
     m_gpu.queueProperties.resize(count);
     vkGetPhysicalDeviceQueueFamilyProperties(m_gpu.device, &count, &m_gpu.queueProperties[0]);
-
+    //
+    // retain the queue type that can do graphics
+    //
+    for(int i=0; i<count; i++)
+    {
+        if(m_gpu.queueProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
+            queueFamilyIndex = i;
+            break;
+        }
+    }
+    //
+    // DeviceLayer Props
+    //
     result = vkEnumerateDeviceLayerProperties(m_gpu.device, &count, NULL);
     assert(!result);
-    device_layers.resize(count);
-    result = vkEnumerateDeviceLayerProperties(m_gpu.device, &count, &device_layers[0]);
-
+    if(count > 0)
+    {
+        device_layers.resize(count);
+        result = vkEnumerateDeviceLayerProperties(m_gpu.device, &count, &device_layers[0]);
+    }
     result = vkEnumerateDeviceExtensionProperties(m_gpu.device, NULL, &count, NULL);
     assert(!result);
+    //
+    // Device extensions
+    //
     device_extensions.resize(count);
     result = vkEnumerateDeviceExtensionProperties(m_gpu.device, NULL, &count, &device_extensions[0]);
     //
-    // Vulkan device: using only one queue.
-    // NVIDIA has only one queue type anyways
+    // Create the device
     //
-    assert(m_gpu.queueProperties.size() == 1);
-    queueInfo.queueFamilyIndex = 0;
-    queueInfo.queueCount =  m_gpu.queueProperties[0].queueCount;
-    devInfo.queueCreateInfoCount = m_gpu.queueProperties.size();
+    queueInfo.queueFamilyIndex = queueFamilyIndex;
+    queueInfo.queueCount =  m_gpu.queueProperties[queueFamilyIndex].queueCount;
+    devInfo.queueCreateInfoCount = 1;
     devInfo.pQueueCreateInfos = &queueInfo;
-    devInfo.enabledLayerCount = 0;
+    devInfo.enabledLayerCount = instance_validation_layers_sz;
     devInfo.ppEnabledLayerNames = instance_validation_layers;
+    devInfo.enabledExtensionCount = extension_names.size();
+    devInfo.ppEnabledExtensionNames = &(extension_names[0]);
     result = ::vkCreateDevice(m_gpu.device, &devInfo, NULL, &m_device);
     if (result != VK_SUCCESS) {
         return false;
     }
     vkGetDeviceQueue(m_device, 0, 0, &m_queue);
-
-    //
-    // get the pointers for extension functions
-    //
-    //GET_INSTANCE_PROC_ADDR(demo->inst, GetPhysicalDeviceSurfaceSupportKHR);
-    //GET_INSTANCE_PROC_ADDR(demo->inst, GetPhysicalDeviceSurfaceCapabilitiesKHR);
-    //GET_INSTANCE_PROC_ADDR(demo->inst, GetPhysicalDeviceSurfaceFormatsKHR);
-    //GET_INSTANCE_PROC_ADDR(demo->inst, GetPhysicalDeviceSurfacePresentModesKHR);
-    //GET_DEVICE_PROC_ADDR(demo->device, CreateSwapchainKHR);
-    //GET_DEVICE_PROC_ADDR(demo->device, DestroySwapchainKHR);
-    //GET_DEVICE_PROC_ADDR(demo->device, GetSwapchainImagesKHR);
-    //GET_DEVICE_PROC_ADDR(demo->device, AcquireNextImageKHR);
-    //GET_DEVICE_PROC_ADDR(demo->device, QueuePresentKHR);
 
     return true;
 }
