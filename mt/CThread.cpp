@@ -242,10 +242,8 @@ int	CSemaphore::num_Semaphores = 0;
 void CSemaphore::CreateSemaphore(NSemaphoreHandle &Semaphore, long initialCnt, long maxCnt) 
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	char name[60];
 	num_Semaphores++;
-	sprintf_s(name, 60, "CSemaphore_%d", num_Semaphores);
-	Semaphore = ::CreateSemaphoreA(NULL, initialCnt, maxCnt, name);
+	Semaphore = ::CreateSemaphoreA(NULL, initialCnt, maxCnt, NULL);
 }
 
 // DeleteSemaphore
@@ -289,10 +287,8 @@ CEvent::~CEvent()
 void CEvent::CreateEvent(NEventHandle &Event, bool manualReset, bool initialState)
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	char name[60];
 	num_events++;
-	sprintf_s(name, 60, "CEvent_%d", num_events);
-	Event = ::CreateEventA(NULL, manualReset, initialState, name);
+	Event = ::CreateEventA(NULL, manualReset, initialState, NULL);
 }
 void CEvent::DeleteEvent()
 {
@@ -457,9 +453,7 @@ int	CSemaphore::num_Semaphores = 0;
 // CreateSemaphore
 void CSemaphore::CreateSemaphore(NSemaphoreHandle &Semaphore, long initialCnt, long maxCnt) 
 {
-	char name[60];
 	num_Semaphores++;
-	sprintf(name, "CSemaphore_%d", num_Semaphores);
     sem_init(&Semaphore, 0, (unsigned int)initialCnt);
 }
 
@@ -530,9 +524,7 @@ CEvent::~CEvent()
 
 void CEvent::CreateEvent(NEventHandle &event, bool manualReset, bool initialState)
 {
-	char name[60];
 	num_events++;
-	sprintf(name, "CEvent_%d", num_events);
     pthread_cond_init(&event, NULL);
 }
 void CEvent::DeleteEvent()
