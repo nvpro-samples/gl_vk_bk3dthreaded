@@ -569,7 +569,7 @@ bool NVK::CreateDevice()
     appInfo.applicationVersion = 1;
     appInfo.pEngineName = "...";
     appInfo.engineVersion = 1;
-    appInfo.apiVersion = VK_API_VERSION_1_0;
+    appInfo.apiVersion = VK_MAKE_VERSION(1, 0, 0);
     instanceInfo.flags = 0;
     instanceInfo.pApplicationInfo = &appInfo;
     // add some layers here ?
