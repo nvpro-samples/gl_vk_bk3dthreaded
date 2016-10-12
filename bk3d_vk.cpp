@@ -160,13 +160,18 @@ private:
         int                                 m_threadId;
         // Command buffer pool must be local the the thread: for allocation and freeing
         #define CMDPOOL_BUFFER_SZ 3 // Ring buffer >= to swapchain so we are safe
-        VkCommandPool                       m_cmdPoolDynamic[CMDPOOL_BUFFER_SZ]; // 2 for ping-pong usage
-        VkCommandPool                       m_curCmdPoolDynamic;
+        // this pool is only for static allocation: we will never free the cmd-buffers
         VkCommandPool                       m_cmdPoolStatic;
+        // these pools are for dynamic allocations along the rendering
+        // we use a ring buffer of CMDPOOL_BUFFER_SZ and loop through it at each
+        // frame. we also keep track of where is the next available cmd-buffer
+        // (after a reset of cmd-buffer pool: we reuse allocated cmd-buffers)
+        VkCommandPool                       m_cmdPoolDynamic[CMDPOOL_BUFFER_SZ];
+        VkCommandPool                       m_curCmdPoolDynamic;
 		std::vector<::VkCommandBuffer>		m_dynamicallyAllocatedCmdBuffers[CMDPOOL_BUFFER_SZ];
 		std::vector<::VkCommandBuffer>		*m_curDynamicallyAllocatedCmdBuffers;
 		int									m_dynamicCmdBufferIdx[CMDPOOL_BUFFER_SZ];
-		int									*m_curDynamicCmdBufferIdx;
+		int									*m_nextAvailableCmdBuffer;
     };
 #ifdef USEWORKERS
     NThreadLocalVar<PerThreadData*> m_perThreadData;
@@ -1321,22 +1326,33 @@ void RendererVk::initFramebuffer(GLsizei width, GLsizei height, int MSAA)
 }
 
 //------------------------------------------------------------------------------
-// command-buffer dynamically allocated and re-used
+// threads might need command-buffers to the scene
+// this function will either create a new one if none available
+// or recycle existing ones : after a reset of cmd-buffer pools, the counter
+// of available cmd buffers will be set to 0
 //------------------------------------------------------------------------------
 VkCommandBuffer RendererVk::requestDynamicCommandBuffer()
 {
     ::VkCommandBuffer cb;
 	PerThreadData* p = m_perThreadData;
-	int &curDynamicCmdBufferIdx = p->m_curDynamicCmdBufferIdx[0];
+	int &curDynamicCmdBufferIdx = p->m_nextAvailableCmdBuffer[0];
 	if( curDynamicCmdBufferIdx < p->m_curDynamicallyAllocatedCmdBuffers->size() )
+    {
 		cb = (*p->m_curDynamicallyAllocatedCmdBuffers)[curDynamicCmdBufferIdx++];
-	else {
+    } else 
+    {
 		cb = nvk.vkAllocateCommandBuffer(p->m_curCmdPoolDynamic, true);
 		p->m_curDynamicallyAllocatedCmdBuffers->push_back(cb);
 		curDynamicCmdBufferIdx = p->m_curDynamicallyAllocatedCmdBuffers->size();
 	}
 	return cb;
 }
+//------------------------------------------------------------------------------
+// reset the current commandbuffer Pool
+// this will start with thread 0 : we will wait for a fence, to make sure we
+// don't reset anything that is still in use by the GPU
+// then other threads (dispatching workers) must also reset their pool
+//------------------------------------------------------------------------------
 void RendererVk::resetCommandBuffersPool()
 {
     PerThreadData* p = m_perThreadData;
@@ -1349,8 +1365,8 @@ void RendererVk::resetCommandBuffersPool()
     }
     p->m_curCmdPoolDynamic = p->m_cmdPoolDynamic[m_frameCounter];
 	p->m_curDynamicallyAllocatedCmdBuffers = p->m_dynamicallyAllocatedCmdBuffers + m_frameCounter;
-	p->m_curDynamicCmdBufferIdx = p->m_dynamicCmdBufferIdx + m_frameCounter;
-	p->m_curDynamicCmdBufferIdx[0] = 0;
+	p->m_nextAvailableCmdBuffer = p->m_dynamicCmdBufferIdx + m_frameCounter;
+	p->m_nextAvailableCmdBuffer[0] = 0;
     // This command resets all command-buffers that belong to it
     nvk.vkResetCommandPool(p->m_curCmdPoolDynamic, 0);
 }
@@ -1379,7 +1395,7 @@ bool RendererVk::initThreadLocalVars(int threadId)
     }
     m_perThreadData->m_curCmdPoolDynamic = m_perThreadData->m_cmdPoolDynamic[(CMDPOOL_BUFFER_SZ-1)];
 	m_perThreadData->m_curDynamicallyAllocatedCmdBuffers = &m_perThreadData->m_dynamicallyAllocatedCmdBuffers[(CMDPOOL_BUFFER_SZ-1)];
-	m_perThreadData->m_curDynamicCmdBufferIdx = &m_perThreadData->m_dynamicCmdBufferIdx[(CMDPOOL_BUFFER_SZ-1)];
+	m_perThreadData->m_nextAvailableCmdBuffer = &m_perThreadData->m_dynamicCmdBufferIdx[(CMDPOOL_BUFFER_SZ-1)];
     return true;
 }
 //------------------------------------------------------------------------------
