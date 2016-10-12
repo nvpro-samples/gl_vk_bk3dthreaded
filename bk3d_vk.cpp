@@ -157,11 +157,16 @@ private:
     // Vulkan stuff
     //
     struct PerThreadData {
+        int                                 m_threadId;
         // Command buffer pool must be local the the thread: for allocation and freeing
         #define CMDPOOL_BUFFER_SZ 3 // Ring buffer >= to swapchain so we are safe
         VkCommandPool                       m_cmdPoolDynamic[CMDPOOL_BUFFER_SZ]; // 2 for ping-pong usage
         VkCommandPool                       m_curCmdPoolDynamic;
         VkCommandPool                       m_cmdPoolStatic;
+		std::vector<::VkCommandBuffer>		m_dynamicallyAllocatedCmdBuffers[CMDPOOL_BUFFER_SZ];
+		std::vector<::VkCommandBuffer>		*m_curDynamicallyAllocatedCmdBuffers;
+		int									m_dynamicCmdBufferIdx[CMDPOOL_BUFFER_SZ];
+		int									*m_curDynamicCmdBufferIdx;
     };
 #ifdef USEWORKERS
     NThreadLocalVar<PerThreadData*> m_perThreadData;
@@ -189,6 +194,8 @@ private:
     VkFramebuffer               m_framebuffer;
 
     VkCommandBuffer             m_cmdScene;
+	VkFence					    m_cmdPoolFence[CMDPOOL_BUFFER_SZ];
+	VkFence						m_curCmdPoolFence;
     int                         m_frameCounter; // looping from 0 to CMDPOOL_BUFFER_SZ-1
 
     // Used for merging Vulkan image to OpenGL backbuffer 
@@ -227,6 +234,8 @@ private:
     void            releaseFramebuffer();
     bool            initResourcesGrid();
     bool            releaseResourcesGrid();
+
+	VkCommandBuffer		requestDynamicCommandBuffer();
 public:
 	RendererVk() {
         m_frameCounter = 0;
@@ -240,9 +249,10 @@ public:
     virtual bool valid()          { return m_bValid; };
 	virtual bool initGraphics(int w, int h, int MSAA);
 	virtual bool terminateGraphics();
-    virtual bool initThreadLocalVars();
+    virtual bool initThreadLocalVars(int threadId);
     virtual void releaseThreadLocalVars();
     virtual void destroyCommandBuffers(bool bAll);
+    virtual void resetCommandBuffersPool();
     virtual void waitForGPUIdle();
 
 	virtual bool attachModel(Bk3dModel* pModel);
@@ -378,7 +388,7 @@ void RendererVk::TimerSetup(nv_helpers::Profiler::TimerIdx idx)
         return;
 
     ::VkCommandBuffer timerCmd;
-    timerCmd = nvk.vkAllocateCommandBuffer(m_perThreadData->m_curCmdPoolDynamic, true);
+	timerCmd = requestDynamicCommandBuffer();
 
     nvk.vkBeginCommandBuffer(timerCmd, true);
 
@@ -387,7 +397,7 @@ void RendererVk::TimerSetup(nv_helpers::Profiler::TimerIdx idx)
 
     nvk.vkEndCommandBuffer(timerCmd);
     
-    nvk.vkQueueSubmit(NVK::VkSubmitInfo(0, NULL, NULL, 1, &timerCmd, 0, NULL), NULL);
+    nvk.vkQueueSubmit(NVK::VkSubmitInfo(0, NULL, NULL, 1, &timerCmd, 0, NULL), VK_NULL_HANDLE);
 }
 
 //------------------------------------------------------------------------------
@@ -554,7 +564,15 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
     //--------------------------------------------------------------------------
     // Command pool for the main thread
     //
-    initThreadLocalVars();
+    initThreadLocalVars(0);
+    //--------------------------------------------------------------------------
+    // initialize the Fences for command pools
+    //
+    for(int i=0; i<CMDPOOL_BUFFER_SZ; i++)
+    {
+		m_cmdPoolFence[i] = nvk.vkCreateFence(VK_FENCE_CREATE_SIGNALED_BIT);
+    }
+	m_curCmdPoolFence = m_cmdPoolFence[(CMDPOOL_BUFFER_SZ-1)];
 
     //--------------------------------------------------------------------------
     // TODO
@@ -1088,11 +1106,7 @@ void RendererVk::displayStart(const mat4f& world, const InertiaCamera& camera, c
     //
     // Create the primary command buffer
     //
-    m_perThreadData->m_curCmdPoolDynamic = m_perThreadData->m_cmdPoolDynamic[m_frameCounter];
-    // This command clears all command-buffers that belong to it
-    nvk.vkResetCommandPool(m_perThreadData->m_curCmdPoolDynamic, 0);
-
-    m_cmdScene = nvk.vkAllocateCommandBuffer(m_perThreadData->m_curCmdPoolDynamic, true);
+	m_cmdScene = requestDynamicCommandBuffer();
 
     nvk.vkBeginCommandBuffer(m_cmdScene, false, NVK::VkCommandBufferInheritanceInfo(renderPass, 0, framebuffer, VK_FALSE, 0, 0) );
     vkCmdBeginRenderPass(m_cmdScene,
@@ -1118,11 +1132,12 @@ void RendererVk::displayEnd()
     }
     {
     const VkPipelineStageFlags waitStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    PerThreadData* perThreadData = m_perThreadData;
     nvk.vkQueueSubmit( NVK::VkSubmitInfo(
         1, &m_semOpenGLReadDone, &waitStages,
         1, &m_cmdScene, 
         1, &m_semVKRenderingDone),  
-        VK_NULL_HANDLE);
+        m_curCmdPoolFence);
     }
     // allows us to loop through the next available pool for next frame
     m_frameCounter = (m_frameCounter + 1)%CMDPOOL_BUFFER_SZ;
@@ -1306,9 +1321,44 @@ void RendererVk::initFramebuffer(GLsizei width, GLsizei height, int MSAA)
 }
 
 //------------------------------------------------------------------------------
+// command-buffer dynamically allocated and re-used
+//------------------------------------------------------------------------------
+VkCommandBuffer RendererVk::requestDynamicCommandBuffer()
+{
+    ::VkCommandBuffer cb;
+	PerThreadData* p = m_perThreadData;
+	int &curDynamicCmdBufferIdx = p->m_curDynamicCmdBufferIdx[0];
+	if( curDynamicCmdBufferIdx < p->m_curDynamicallyAllocatedCmdBuffers->size() )
+		cb = (*p->m_curDynamicallyAllocatedCmdBuffers)[curDynamicCmdBufferIdx++];
+	else {
+		cb = nvk.vkAllocateCommandBuffer(p->m_curCmdPoolDynamic, true);
+		p->m_curDynamicallyAllocatedCmdBuffers->push_back(cb);
+		curDynamicCmdBufferIdx = p->m_curDynamicallyAllocatedCmdBuffers->size();
+	}
+	return cb;
+}
+void RendererVk::resetCommandBuffersPool()
+{
+    PerThreadData* p = m_perThreadData;
+    // when thread #0, let's wait for the Fence to be ready prior to proceed
+    if(p->m_threadId == 0)
+    {
+	    m_curCmdPoolFence = m_cmdPoolFence[m_frameCounter];
+	    while(nvk.vkWaitForFences(1, &m_curCmdPoolFence, VK_TRUE, 100000000) == false);
+        nvk.vkResetFences(1, &m_curCmdPoolFence);
+    }
+    p->m_curCmdPoolDynamic = p->m_cmdPoolDynamic[m_frameCounter];
+	p->m_curDynamicallyAllocatedCmdBuffers = p->m_dynamicallyAllocatedCmdBuffers + m_frameCounter;
+	p->m_curDynamicCmdBufferIdx = p->m_dynamicCmdBufferIdx + m_frameCounter;
+	p->m_curDynamicCmdBufferIdx[0] = 0;
+    // This command resets all command-buffers that belong to it
+    nvk.vkResetCommandPool(p->m_curCmdPoolDynamic, 0);
+}
+
+//------------------------------------------------------------------------------
 // create what is needed for thread-local storage
 //------------------------------------------------------------------------------
-bool RendererVk::initThreadLocalVars()
+bool RendererVk::initThreadLocalVars(int threadId)
 {
     VkResult result;
     if(!m_bValid)
@@ -1317,6 +1367,7 @@ bool RendererVk::initThreadLocalVars()
     // 2 Command pools per thread!
     //
     m_perThreadData = new PerThreadData;
+    m_perThreadData->m_threadId = threadId;
     VkCommandPoolCreateInfo cmdPoolInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
     cmdPoolInfo.queueFamilyIndex = 0;
     cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -1324,8 +1375,11 @@ bool RendererVk::initThreadLocalVars()
     for(int i=0; i<CMDPOOL_BUFFER_SZ; i++)
     {
         result = vkCreateCommandPool(nvk.m_device, &cmdPoolInfo, NULL, &m_perThreadData->m_cmdPoolDynamic[i]);
+		m_perThreadData->m_dynamicCmdBufferIdx[i] = 0;
     }
     m_perThreadData->m_curCmdPoolDynamic = m_perThreadData->m_cmdPoolDynamic[(CMDPOOL_BUFFER_SZ-1)];
+	m_perThreadData->m_curDynamicallyAllocatedCmdBuffers = &m_perThreadData->m_dynamicallyAllocatedCmdBuffers[(CMDPOOL_BUFFER_SZ-1)];
+	m_perThreadData->m_curDynamicCmdBufferIdx = &m_perThreadData->m_dynamicCmdBufferIdx[(CMDPOOL_BUFFER_SZ-1)];
     return true;
 }
 //------------------------------------------------------------------------------
@@ -1380,7 +1434,12 @@ bool RendererVk::terminateGraphics()
     m_bValid = false;
 
     for(int i=0; i<CMDPOOL_BUFFER_SZ; i++)
+    {
 	    nvk.vkDestroyCommandPool(m_perThreadData->m_cmdPoolDynamic[i]); // destroys commands that are inside, obviously
+        m_perThreadData->m_cmdPoolDynamic[i] = VK_NULL_HANDLE;
+		nvk.vkDestroyFence(m_cmdPoolFence[i]);
+		m_cmdPoolFence[i] = VK_NULL_HANDLE;
+    }
     m_perThreadData->m_curCmdPoolDynamic = VK_NULL_HANDLE;
 
 	for(int i=0; i<DSET_TOTALAMOUNT; i++)
@@ -2142,18 +2201,17 @@ bool Bk3dModelVk::buildCmdBuffer(Renderer *pRenderer, int bufIdx, int mstart, in
     //
     if(m_pGenericModel->m_meshFile)
     {
-        if(cmdBuffer.full == NULL)
+        //if(topologies & 0x20)
         {
-            cmdBuffer.full = nvk.vkAllocateCommandBuffer(pRendererVk->m_perThreadData->m_curCmdPoolDynamic, true);
-        }
-        nvk.vkBeginCommandBuffer(cmdBuffer.full, false);//, NVK::VkCommandBufferInheritanceInfo(renderPass, 0, framebuffer, VK_FALSE, 0,0) );
-        for(int i=0; i<5; i++)
+		    cmdBuffer.full = pRendererVk->requestDynamicCommandBuffer();
+            nvk.vkBeginCommandBuffer(cmdBuffer.full, false);//, NVK::VkCommandBufferInheritanceInfo(renderPass, 0, framebuffer, VK_FALSE, 0,0) );
+        } //else 
         {
-            if(cmdBuffer.SplitTopo[i] == NULL)
+            for(int i=0; i<5; i++)
             {
-                cmdBuffer.SplitTopo[i] = nvk.vkAllocateCommandBuffer(pRendererVk->m_perThreadData->m_curCmdPoolDynamic, true);
+			    cmdBuffer.SplitTopo[i] = pRendererVk->requestDynamicCommandBuffer();
+                nvk.vkBeginCommandBuffer(cmdBuffer.SplitTopo[i], false);//, NVK::VkCommandBufferInheritanceInfo(renderPass, 0, framebuffer, VK_FALSE, 0,0) );
             }
-            nvk.vkBeginCommandBuffer(cmdBuffer.SplitTopo[i], false);//, NVK::VkCommandBufferInheritanceInfo(renderPass, 0, framebuffer, VK_FALSE, 0,0) );
         }
         //
         // Now keep track of this command-buffer for the thread to release it later
@@ -2164,11 +2222,11 @@ bool Bk3dModelVk::buildCmdBuffer(Renderer *pRenderer, int bufIdx, int mstart, in
 
         res = feedCmdBuffer(pRendererVk, cmdBuffer.full, cmdBuffer.SplitTopo, mstart, mend);
 
-        nvk.vkEndCommandBuffer(cmdBuffer.full);
-        for(int i=0; i<5; i++)
-        {
+        //if(topologies & 0x20)
+            nvk.vkEndCommandBuffer(cmdBuffer.full);
+        //else 
+            for(int i=0; i<5; i++)
             nvk.vkEndCommandBuffer(cmdBuffer.SplitTopo[i]);
-        }
 
     } //if(m_pGenericModel->m_meshFile)
     return res;

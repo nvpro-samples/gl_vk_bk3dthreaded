@@ -41,7 +41,7 @@ IWindowFolding*   g_pTweakContainer = NULL;
 nv_helpers::Profiler      g_profiler;
 
 bool        g_bDisplayObject        = true;
-bool        g_bRefreshCmdBuffers    = false;
+bool        g_bRefreshCmdBuffers    = true;
 int         g_bRefreshCmdBuffersCounter = 2;
 bool        g_bDisplayGrid          = true;
 
@@ -680,6 +680,60 @@ void MyWindow::keyboardchar( unsigned char key, int mods, int x, int y )
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
+void resetCommandBuffersPool()
+{
+    // here we reset the primary pool: what is from thread #0
+    s_pCurRenderer->resetCommandBuffersPool();
+#ifdef USEWORKERS
+    if(g_useWorkers)
+    {
+        // here we reset the secondary pools: what is from thread #0
+        //---------------------------------------------------------------------
+        // Invoke a Task on all the threads to setup some thread-local variable
+        //
+                class TaskResetCommandBuffersPool : public TaskBase
+                {
+                private:
+                    int     m;
+                public:
+                    TaskResetCommandBuffersPool(int _m) : TaskBase()
+                    {
+                        m = _m;
+                    }
+                    void Invoke()
+                    { // We are now in the Thread : let's reset the command-buffers Pool
+                        s_pCurRenderer->resetCommandBuffersPool();
+                        g_evt_cmdbuf[m].Set();
+                    }
+                };
+        //---------------------------------------------------------------------
+        // loop in each existing thread
+        for(unsigned int i=0; i<g_mainThreadPool->getThreadCount(); i++)
+        {
+            // Call in // threads
+            TaskResetCommandBuffersPool *taskResetCommandBuffersPool;
+            taskResetCommandBuffersPool = new TaskResetCommandBuffersPool(i);
+            // explicitly choosing threads. Note: need to check how does it work with NWTPS_SHARED_QUEUE
+            g_mainThreadPool->getThreadWorker(i)->GetTaskQueue().pushTask(taskResetCommandBuffersPool);
+        }
+        // wait for all before continuing
+        {
+            //NXPROFILEFUNC("Wait for all");
+            for (unsigned int m = 0; m<g_mainThreadPool->getThreadCount(); m++)
+            {
+                //
+                // Wait for the worker to be done
+                //
+                g_evt_cmdbuf[m].WaitOnEvent();
+                g_evt_cmdbuf[m].Reset();
+            }
+        }
+    }
+#endif
+}
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 void destroyCommandBuffers(bool bAll)
 {
     NXPROFILEFUNC(__FUNCTION__);
@@ -760,7 +814,8 @@ void initThreadLocalVars()
             public:
                 void Invoke()
                 { // We are now in the Thread : let's create the context, share it and make it current
-                    s_pCurRenderer->initThreadLocalVars();
+                    int threadId = getThreadNumber() + 1;
+                    s_pCurRenderer->initThreadLocalVars(threadId);
                 }
             };
     //---------------------------------------------------------------------
@@ -806,8 +861,6 @@ int refreshCmdBuffers()
 {
     int totalTasks = 0;
 #ifdef USEWORKERS
-    destroyCommandBuffers(false);
-    //---------------------------------------------
     //---------------------------------------------
     // Worker for command-buffer update
     //
@@ -902,6 +955,8 @@ void waitRefreshCmdBuffersDone(int totalTasks)
 //------------------------------------------------------------------------------
 void MyWindow::display()
 {
+  if(g_bRefreshCmdBuffers || (g_bRefreshCmdBuffersCounter>0))
+    resetCommandBuffersPool();
   WindowInertiaCamera::display();
   if(!s_pCurRenderer->valid())
   {

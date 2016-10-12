@@ -288,7 +288,7 @@ public:
     virtual bool valid()          { return m_bValid; };
 	virtual bool initGraphics(int w, int h, int MSAA);
 	virtual bool terminateGraphics();
-    virtual bool initThreadLocalVars();
+    virtual bool initThreadLocalVars(int threadId);
     virtual void releaseThreadLocalVars();
     virtual void destroyCommandBuffers(bool bAll);
     virtual void waitForGPUIdle();
@@ -1077,7 +1077,7 @@ nv_helpers::Profiler::GPUInterface* RendererStandard::getTimerInterface()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool RendererStandard::initThreadLocalVars()
+bool RendererStandard::initThreadLocalVars(int threadId)
 {
     return false;
 }

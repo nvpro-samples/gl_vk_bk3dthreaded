@@ -149,9 +149,10 @@ public:
 	virtual bool valid() = 0;
 	virtual bool initGraphics(int w, int h, int MSAA) = 0;
 	virtual bool terminateGraphics() = 0;
-    virtual bool initThreadLocalVars() = 0;
+    virtual bool initThreadLocalVars(int threadId) = 0;
     virtual void releaseThreadLocalVars() = 0;
     virtual void destroyCommandBuffers(bool bAll) = 0;
+    virtual void resetCommandBuffersPool() {}
     virtual void waitForGPUIdle() = 0;
 
     virtual bool attachModel(Bk3dModel* pModel) = 0;
