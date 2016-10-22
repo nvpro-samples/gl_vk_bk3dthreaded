@@ -134,15 +134,15 @@ public:
     bool                    vkWaitForFences(uint32_t fenceCount, const VkFence* pFences, VkBool32 waitAll, uint64_t timeout);
     void                    vkResetFences(uint32_t fenceCount, const VkFence* pFences);
 
-    void                    vkAllocateDescriptorSets(NVK::VkDescriptorSetAllocateInfo& allocateInfo, VkDescriptorSet* pDescriptorSets);
-    VkSampler               vkCreateSampler(NVK::VkSamplerCreateInfo &createInfo);
-    void                    vkDestroySampler(VkSampler s);
+    void                    vkAllocateDescriptorSets(const NVK::VkDescriptorSetAllocateInfo& allocateInfo, VkDescriptorSet* pDescriptorSets);
+    VkSampler               vkCreateSampler(const NVK::VkSamplerCreateInfo &createInfo);
+    void                    vkDestroySampler(const VkSampler s);
 
-    VkImageView             vkCreateImageView(NVK::VkImageViewCreateInfo &createInfo);
-    void                    vkDestroyImageView(VkImageView s);
-    void                    vkDestroyImage(VkImage s);
+    VkImageView             vkCreateImageView(const NVK::VkImageViewCreateInfo &createInfo);
+    void                    vkDestroyImageView(const VkImageView s);
+    void                    vkDestroyImage(const VkImage s);
 
-    void                    vkQueueSubmit(NVK::VkSubmitInfo& submits, VkFence fence);
+    void                    vkQueueSubmit(const NVK::VkSubmitInfo& submits, VkFence fence);
 
     struct VkOffset2D : ::VkOffset2D {
         VkOffset2D( int32_t _x, int32_t _y) { x = _x; y = _y;}
@@ -156,7 +156,7 @@ public:
     struct VkRect2D : ::VkRect2D {
         VkRect2D() {}
         VkRect2D(const ::VkRect2D& r) { offset = r.offset; extent = r.extent; }
-        VkRect2D(VkOffset2D &_offset, VkExtent2D &_extent) { offset = _offset; extent = _extent; }
+        VkRect2D(const VkOffset2D &_offset, const VkExtent2D &_extent) { offset = _offset; extent = _extent; }
         VkRect2D(float originX, float originY, float width, float height) {
             offset.x = originX; offset.y = originY;
             extent.width = width; extent.height = height;
@@ -202,9 +202,9 @@ public:
             VkDeviceSize                                bufferOffset,
             uint32_t                                    bufferRowLength,
             uint32_t                                    bufferImageHeight,
-            VkImageSubresourceLayers                    &imageSubresource,
-            VkOffset3D                                  &imageOffset,
-            VkExtent3D                                  &imageExtent)
+            const VkImageSubresourceLayers              &imageSubresource,
+            const VkOffset3D                            &imageOffset,
+            const VkExtent3D                            &imageExtent)
         {
             operator()(bufferOffset, bufferRowLength, bufferImageHeight, imageSubresource, imageOffset, imageExtent);
         }
@@ -212,9 +212,9 @@ public:
             VkDeviceSize                                bufferOffset,
             uint32_t                                    bufferRowLength,
             uint32_t                                    bufferImageHeight,
-            VkImageSubresourceLayers                    &imageSubresource,
-            VkOffset3D                                  &imageOffset,
-            VkExtent3D                                  &imageExtent)
+            const VkImageSubresourceLayers              &imageSubresource,
+            const VkOffset3D                            &imageOffset,
+            const VkExtent3D                            &imageExtent)
         {
             ::VkBufferImageCopy b = {bufferOffset, bufferRowLength, bufferImageHeight, imageSubresource, imageOffset, imageExtent};
             s.push_back(b);
@@ -224,9 +224,9 @@ public:
             VkDeviceSize                                bufferOffset,
             uint32_t                                    bufferRowLength,
             uint32_t                                    bufferImageHeight,
-            VkImageSubresourceLayers                    &imageSubresource,
-            VkOffset3D                                  &imageOffset,
-            VkExtent3D                                  &imageExtent)
+            const VkImageSubresourceLayers              &imageSubresource,
+            const VkOffset3D                            &imageOffset,
+            const VkExtent3D                            &imageExtent)
         {
             operator()(bufferOffset, bufferRowLength, bufferImageHeight, imageSubresource, imageOffset, imageExtent);
         }
@@ -379,8 +379,8 @@ public:
             VkImage                                     image,
             VkImageViewType                             viewType,
             VkFormat                                    format,
-            VkComponentMapping                          &components,
-            VkImageSubresourceRange                     &subresourceRange
+            const VkComponentMapping                    &components,
+            const VkImageSubresourceRange               &subresourceRange
         ) {
             s.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             s.pNext = NULL;
@@ -451,7 +451,7 @@ public:
     class VkDescriptorSetLayoutCreateInfo
     {
     public:
-        VkDescriptorSetLayoutCreateInfo(VkDescriptorSetLayoutBinding &dslb_, VkDescriptorSetLayoutCreateFlags flags = 0)
+        VkDescriptorSetLayoutCreateInfo(const VkDescriptorSetLayoutBinding &dslb_, VkDescriptorSetLayoutCreateFlags flags = 0)
         {
             dslb = dslb_;
             descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -466,7 +466,7 @@ public:
         VkDescriptorSetLayoutBinding dslb;
     };
     //----------------------------------
-    ::VkDescriptorSetLayout   vkCreateDescriptorSetLayout(VkDescriptorSetLayoutCreateInfo &descriptorSetLayoutCreateInfo);
+    ::VkDescriptorSetLayout   vkCreateDescriptorSetLayout(const VkDescriptorSetLayoutCreateInfo &descriptorSetLayoutCreateInfo);
     ::VkPipelineLayout        vkCreatePipelineLayout(VkDescriptorSetLayout* dsls, uint32_t count);
     //---------------------------------
     class VkDescriptorPoolSize
@@ -512,7 +512,7 @@ public:
         VkDescriptorPoolSize            t;
     };
     //----------------------------------
-    ::VkDescriptorPool    vkCreateDescriptorPool(VkDescriptorPoolCreateInfo &descriptorPoolCreateInfo);
+    ::VkDescriptorPool    vkCreateDescriptorPool(const VkDescriptorPoolCreateInfo &descriptorPoolCreateInfo);
     //---------------------------------
     class VkDescriptorImageInfo
     {
@@ -697,7 +697,7 @@ public:
     {
     public:
         VkPipelineVertexInputStateCreateInfo() {}
-        VkPipelineVertexInputStateCreateInfo(VkVertexInputBindingDescription& ibd, VkVertexInputAttributeDescription& iad, VkPipelineVertexInputStateCreateFlags flags = 0)
+        VkPipelineVertexInputStateCreateInfo(const VkVertexInputBindingDescription& ibd, const VkVertexInputAttributeDescription& iad, VkPipelineVertexInputStateCreateFlags flags = 0)
         {
             _ibd = ibd;
             _iad = iad;
@@ -923,7 +923,7 @@ public:
         VkPipelineColorBlendStateCreateInfo(
             ::VkBool32 logicOpEnable, 
             ::VkLogicOp logicOp,
-            VkPipelineColorBlendAttachmentState &attachments,
+            const VkPipelineColorBlendAttachmentState &attachments,
             float blendConstants[4],
 			::VkPipelineColorBlendStateCreateFlags        flags = 0
             ) : t(attachments)
@@ -1017,7 +1017,7 @@ public:
     public:
         VkPipelineDepthStencilStateCreateInfo(
             ::VkBool32 depthTestEnable, ::VkBool32 depthWriteEnable, ::VkCompareOp depthCompareOp,
-            ::VkBool32 depthBoundsTestEnable, ::VkBool32 stencilTestEnable, VkStencilOpState &front, VkStencilOpState &back,
+            ::VkBool32 depthBoundsTestEnable, ::VkBool32 stencilTestEnable, const VkStencilOpState &front, const VkStencilOpState &back,
             float minDepthBounds, float maxDepthBounds,
 			VkPipelineDepthStencilStateCreateFlags      flags = 0)
         {
@@ -1118,8 +1118,8 @@ public:
             s.basePipelineHandle = basePipelineHandle;
             s.basePipelineIndex = basePipelineIndex;
         }
-        inline VkGraphicsPipelineCreateInfo& operator ()(VkPipelineBaseCreateInfo& state) { return add (state); }
-        inline VkGraphicsPipelineCreateInfo& add(VkPipelineBaseCreateInfo& state)
+        inline VkGraphicsPipelineCreateInfo& operator ()(const VkPipelineBaseCreateInfo& state) { return add (state); }
+        inline VkGraphicsPipelineCreateInfo& add(const VkPipelineBaseCreateInfo& state)
         {
             switch(state.getType())
             {
@@ -1187,7 +1187,7 @@ public:
 			::VkImageLayout oldLayout, ::VkImageLayout newLayout, 
 			uint32_t srcQueueFamilyIndex,
 			uint32_t dstQueueFamilyIndex,
-			::VkImage image, VkImageSubresourceRange& subresourceRange)
+			::VkImage image, const VkImageSubresourceRange& subresourceRange)
         {
             ::VkImageMemoryBarrier ss;
             ss.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1199,7 +1199,7 @@ public:
 			ss.srcQueueFamilyIndex = srcQueueFamilyIndex;
 			ss.dstQueueFamilyIndex = dstQueueFamilyIndex;
             ss.image = image;
-            ss.subresourceRange = *subresourceRange;
+            ss.subresourceRange = subresourceRange.s;
             s.push_back(ss);
             ps.push_back(&s.back()); // CHECK: pointer may because wrong if vector reallocates... ?
             return *this;
@@ -1208,7 +1208,7 @@ public:
 			::VkImageLayout oldLayout, ::VkImageLayout newLayout, 
 			uint32_t srcQueueFamilyIndex,
 			uint32_t dstQueueFamilyIndex,
-			::VkImage image, VkImageSubresourceRange& subresourceRange)
+			::VkImage image, const VkImageSubresourceRange& subresourceRange)
 
         {
             operator()(srcAccessMask, dstAccessMask, oldLayout, newLayout, srcQueueFamilyIndex, dstQueueFamilyIndex, image, subresourceRange);
@@ -1281,25 +1281,25 @@ public:
     class VkClearValue
     {
     public:
-        VkClearValue(VkClearColorValue &color)
+        VkClearValue(const VkClearColorValue &color)
         {
             ::VkClearValue cv;
             cv.color = color.s;
             s.push_back(cv);
         }
-        VkClearValue(VkClearDepthStencilValue &ds)
+        VkClearValue(const VkClearDepthStencilValue &ds)
         {
             ::VkClearValue cv;
             cv.depthStencil = ds;
             s.push_back(cv);
         }
-        inline VkClearValue& operator ()(VkClearColorValue &color)
+        inline VkClearValue& operator ()(const VkClearColorValue &color)
         {
             ::VkClearValue cv;
             cv.color = color.s;
             s.push_back(cv);
         }
-        inline VkClearValue& operator ()(VkClearDepthStencilValue &ds)
+        inline VkClearValue& operator ()(const VkClearDepthStencilValue &ds)
         {
             ::VkClearValue cv;
             cv.depthStencil = ds;
@@ -1315,8 +1315,8 @@ public:
     class VkRenderPassBeginInfo
     {
     public:
-        VkRenderPassBeginInfo(::VkRenderPass &renderPass, ::VkFramebuffer &framebuffer, 
-                               ::VkRect2D &renderArea, VkClearValue &clearValues ) :
+        VkRenderPassBeginInfo(const ::VkRenderPass &renderPass, const ::VkFramebuffer &framebuffer, 
+                               const ::VkRect2D &renderArea, const VkClearValue &clearValues ) :
             t(clearValues)
         {
             s.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1629,9 +1629,9 @@ public:
             return *this;
         }
         VkSubpassDescription(::VkPipelineBindPoint pipelineBindPoint,
-            NVK::VkAttachmentReference &inputAttachments,   NVK::VkAttachmentReference &colorAttachments,
-            NVK::VkAttachmentReference &resolveAttachments, NVK::VkAttachmentReference &depthStencilAttachment,
-            NVK::Uint32Array &preserveAttachments, ::VkSubpassDescriptionFlags flags=0) :
+            const NVK::VkAttachmentReference &inputAttachments,   const NVK::VkAttachmentReference &colorAttachments,
+            const NVK::VkAttachmentReference &resolveAttachments, const NVK::VkAttachmentReference &depthStencilAttachment,
+            const NVK::Uint32Array &preserveAttachments, ::VkSubpassDescriptionFlags flags=0) :
             unused(VK_ATTACHMENT_UNUSED/*attachment*/, VK_IMAGE_LAYOUT_UNDEFINED/*layout*/)
         {
             operator()(pipelineBindPoint, inputAttachments, colorAttachments, resolveAttachments, depthStencilAttachment, preserveAttachments, flags);
@@ -1659,11 +1659,11 @@ public:
                 }
             }
         }
-        VkSubpassDescription(VkSubpassDescription &a) 
+        VkSubpassDescription(const VkSubpassDescription &a) 
         { 
             copyFrom(a);
         }
-        VkSubpassDescription& operator=(VkSubpassDescription &a) 
+        VkSubpassDescription& operator=(const VkSubpassDescription &a) 
         { 
             copyFrom(a);
             return *this;
@@ -1734,7 +1734,20 @@ public:
             s.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
             s.pNext = NULL;
         }
-        VkRenderPassCreateInfo& operator=(VkRenderPassCreateInfo& src) {
+        VkRenderPassCreateInfo(const VkRenderPassCreateInfo& src) {
+            s.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+            s.pNext = NULL;
+            attachments = src.attachments;
+            s.attachmentCount = attachments.size();
+            s.pAttachments = attachments;
+            subpasses = src.subpasses;
+            s.subpassCount = subpasses.size();
+            dependencies = src.dependencies;
+            s.pSubpasses = subpasses;
+            s.dependencyCount = dependencies.size();
+            s.pDependencies = dependencies;
+        }
+        VkRenderPassCreateInfo& operator=(const VkRenderPassCreateInfo& src) {
             s.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
             s.pNext = NULL;
             attachments = src.attachments;
@@ -1749,9 +1762,9 @@ public:
             return *this;
         }
         VkRenderPassCreateInfo(
-            VkAttachmentDescription            &_attachments,
-            VkSubpassDescription               &_subpasses,
-            VkSubpassDependency                &_dependencies)
+            const VkAttachmentDescription            &_attachments,
+            const VkSubpassDescription               &_subpasses,
+            const VkSubpassDependency                &_dependencies)
         {
             s.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
             s.pNext = NULL;

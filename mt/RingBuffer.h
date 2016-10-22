@@ -135,7 +135,6 @@ public:
     typedef iterator_impl<const T> const_iterator;
     typedef iterator_impl<T> iterator;
     typedef size_t size_type;
-    typedef ptrdiff_t difference_type;
     typedef T value_type;
     typedef Alloc allocator_type;
     typedef typename Alloc::pointer pointer;

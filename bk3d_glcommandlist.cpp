@@ -1276,18 +1276,26 @@ bool Bk3dModelCMDList::buildCmdBuffer(RendererCMDList * pRenderer, int bufIdx, i
                 break;
             case GL_QUADS:
                 //m_pGenericModel->m_stats.primitives += pPG->indexCount/4;
+#ifdef WIN32
                 DebugBreak();
+#endif
                 break;
             case GL_QUAD_STRIP:
                 //m_pGenericModel->m_stats.primitives += pPG->indexCount-3;
+#ifdef WIN32
                 DebugBreak();
+#endif
                 break;
             case GL_POINTS:
                 //m_pGenericModel->m_stats.primitives += pPG->indexCount;
+#ifdef WIN32
                 DebugBreak();
+#endif
                 break;
             default:
+#ifdef WIN32
                 DebugBreak();
+#endif
                 // not-handled cases...
                 break;
             }

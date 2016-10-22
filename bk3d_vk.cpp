@@ -505,7 +505,7 @@ void RendererVk::deinitTimers()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool load_binary(std::string &name, std::string &data)
+bool load_binary(const std::string &name, const std::string &data)
 {
     FILE *fd = NULL;
     std::vector<std::string> paths;
@@ -1416,7 +1416,7 @@ void RendererVk::releaseThreadLocalVars()
         nvk.vkDestroyCommandPool(m_perThreadData->m_cmdPoolStatic);
     m_perThreadData->m_cmdPoolStatic = VK_NULL_HANDLE;
     if(m_perThreadData)
-        delete m_perThreadData;
+        delete static_cast<PerThreadData*>(m_perThreadData);
     m_perThreadData = NULL;
 }
 //------------------------------------------------------------------------------
@@ -2143,7 +2143,9 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
                     }
                     break;
                 default:
+#ifdef WIN32
                     DebugBreak();
+#endif
                     // not-handled cases...
                     break;
                 }
