@@ -70,7 +70,7 @@ void NVK::vkUpdateDescriptorSets(VkWriteDescriptorSet &wds)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-::VkDescriptorPool    NVK::vkCreateDescriptorPool(const VkDescriptorPoolCreateInfo &descriptorPoolCreateInfo)
+::VkDescriptorPool    NVK::vkCreateDescriptorPool(VkDescriptorPoolCreateInfo &descriptorPoolCreateInfo)
 {
     ::VkDescriptorPool descPool;
     ::vkCreateDescriptorPool(m_device, descriptorPoolCreateInfo.getItem(), NULL, &descPool);
@@ -79,7 +79,7 @@ void NVK::vkUpdateDescriptorSets(VkWriteDescriptorSet &wds)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-::VkDescriptorSetLayout NVK::vkCreateDescriptorSetLayout(const VkDescriptorSetLayoutCreateInfo &descriptorSetLayoutCreateInfo)
+::VkDescriptorSetLayout NVK::vkCreateDescriptorSetLayout(VkDescriptorSetLayoutCreateInfo &descriptorSetLayoutCreateInfo)
 {
     ::VkDescriptorSetLayout dsl;
     (::vkCreateDescriptorSetLayout(
@@ -1060,7 +1060,7 @@ void NVK::vkResetFences(uint32_t fenceCount, const VkFence* pFences)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void NVK::vkAllocateDescriptorSets( const NVK::VkDescriptorSetAllocateInfo& allocateInfo,
+void NVK::vkAllocateDescriptorSets( NVK::VkDescriptorSetAllocateInfo& allocateInfo,
 								    VkDescriptorSet*                            pDescriptorSets)
 {
     CHECK(::vkAllocateDescriptorSets( m_device, allocateInfo, pDescriptorSets) );
@@ -1069,7 +1069,7 @@ void NVK::vkAllocateDescriptorSets( const NVK::VkDescriptorSetAllocateInfo& allo
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-VkSampler NVK::vkCreateSampler(const NVK::VkSamplerCreateInfo &createInfo)
+VkSampler NVK::vkCreateSampler(NVK::VkSamplerCreateInfo &createInfo)
 {
     VkSampler s;
     CHECK(::vkCreateSampler(m_device, createInfo.getItem(), NULL, &s) );
@@ -1079,7 +1079,7 @@ VkSampler NVK::vkCreateSampler(const NVK::VkSamplerCreateInfo &createInfo)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void NVK::vkDestroySampler(const VkSampler s)
+void NVK::vkDestroySampler(VkSampler s)
 {
     ::vkDestroySampler(m_device, s, NULL);
 }
@@ -1087,7 +1087,7 @@ void NVK::vkDestroySampler(const VkSampler s)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-VkImageView NVK::vkCreateImageView(const NVK::VkImageViewCreateInfo &createInfo)
+VkImageView NVK::vkCreateImageView(NVK::VkImageViewCreateInfo &createInfo)
 {
     VkImageView s;
     CHECK(::vkCreateImageView(m_device, createInfo.getItem(), NULL, &s) );
@@ -1097,12 +1097,12 @@ VkImageView NVK::vkCreateImageView(const NVK::VkImageViewCreateInfo &createInfo)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void NVK::vkDestroyImageView(const VkImageView s)
+void NVK::vkDestroyImageView(VkImageView s)
 {
     ::vkDestroyImageView(m_device, s, NULL);
 }
 
-void NVK::vkDestroyImage(const VkImage s)
+void NVK::vkDestroyImage(VkImage s)
 {
     ::vkDestroyImage(m_device, s, NULL);
 }
@@ -1128,7 +1128,7 @@ VkResult NVK::vkBindBufferMemory(VkBuffer &buffer, VkDeviceMemory mem, VkDeviceS
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void NVK::vkQueueSubmit(const NVK::VkSubmitInfo& submits, VkFence fence)
+void NVK::vkQueueSubmit(NVK::VkSubmitInfo& submits, VkFence fence)
 {
     ::vkQueueSubmit(m_queue, submits.size(), submits.getItem(0), fence);
 }

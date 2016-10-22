@@ -50,7 +50,7 @@
 
 
 
-#if defined IOS || defined ANDROID || defined LINUX
+#if defined IOS || defined ANDROID
 #endif
 
 #ifdef WIN32
