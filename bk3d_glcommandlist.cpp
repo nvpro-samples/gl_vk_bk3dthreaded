@@ -752,7 +752,7 @@ bool RendererCMDList::initGraphics(int w, int h, int MSAA)
 	// Initialize basic command-list extension stuff
 	//
 	extern int initNVcommandList();
-	if (!initNVcommandList())
+	if (!::initNVcommandList())
 	{
 		LOGE("Failed to initialize CommandList extension\n");
 		return true;
