@@ -1194,7 +1194,7 @@ bool Bk3dModelCMDList::buildCmdBuffer(RendererCMDList * pRenderer, int bufIdx, i
     for(int m=mstart; m< mend; m++)
 	{
 		bk3d::Mesh *pMesh = m_pGenericModel->m_meshFile->pMeshes->p[m];
-        int idx = (int)pMesh->userPtr;
+        int idx = (unsigned long)pMesh->userPtr;
         curVBO = m_ObjVBOs[idx];
         curEBO = m_ObjEBOs[idx];
         //
@@ -1572,20 +1572,20 @@ bool Bk3dModelCMDList::initResourcesObject()
     for(int i=0; i< m_pGenericModel->m_meshFile->pMeshes->n; i++)
 	{
 		bk3d::Mesh *pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
-        int idx = (int)pMesh->userPtr;
+        int idx = (unsigned long)pMesh->userPtr;
         curVBO = m_ObjVBOs[idx];
         curEBO = m_ObjEBOs[idx];
         int n = pMesh->pSlots->n;
         for(int s=0; s<n; s++)
         {
             bk3d::Slot* pS = pMesh->pSlots->p[s];
-            glNamedBufferSubDataEXT(curVBO.Id, (GLuint)(char*)pS->userPtr, pS->vtxBufferSizeBytes, pS->pVtxBufferData);
+            glNamedBufferSubDataEXT(curVBO.Id, (unsigned long)(char*)pS->userPtr, pS->vtxBufferSizeBytes, pS->pVtxBufferData);
         }
         for(int pg=0; pg<pMesh->pPrimGroups->n; pg++)
         {
             bk3d::PrimGroup* pPG = pMesh->pPrimGroups->p[pg];
             if(pPG->indexArrayByteSize > 0)
-                glNamedBufferSubDataEXT(curEBO.Id, (GLuint)(char*)pPG->userPtr, pPG->indexArrayByteSize, pPG->pIndexBufferData);
+                glNamedBufferSubDataEXT(curEBO.Id, (unsigned long)(char*)pPG->userPtr, pPG->indexArrayByteSize, pPG->pIndexBufferData);
         }
         //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
