@@ -531,6 +531,7 @@ bool load_binary(const std::string &name, const std::string &data)
     fread(p, 1, realsize, fd);
     data = std::string(p, realsize);
     delete [] p;
+    return true;
 }
 //------------------------------------------------------------------------------
 //
@@ -626,6 +627,7 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
     //--------------------------------------------------------------------------
     // Texture
     //
+#if 0
     dds::CDDSImage image;
     ImgO noiseTex3D;
 
@@ -717,6 +719,9 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
 
     NVK::VkDescriptorImageInfo noiseTextureSamplerAndView = NVK::VkDescriptorImageInfo
         (m_sampler, noiseTex3D.imgView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+#endif
+NVK::VkDescriptorImageInfo noiseTextureSamplerAndView = NVK::VkDescriptorImageInfo
+    (m_sampler, 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     //--------------------------------------------------------------------------
     // Buffers for general UBOs
     //
@@ -956,8 +961,10 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
 
     nvk.vkUpdateDescriptorSets(NVK::VkWriteDescriptorSet
         (m_descriptorSetGlobal, BINDING_MATRIX, 0, descBuffer,                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-        (m_descriptorSetGlobal, BINDING_NOISE,  0, noiseTextureSamplerAndView, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-        );
+        //(m_descriptorSetGlobal, BINDING_NOISE,  0, noiseTextureSamplerAndView, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+        
+      
+    );
 
     return true;
 }
