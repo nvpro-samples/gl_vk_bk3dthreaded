@@ -445,11 +445,11 @@ This contains all the tranformations and children/parent infos
   /// NOTE: this assumes that the builder ALWAYS added these 3 types AT THE END
   struct TransformPool
   {
-	int       nBones            : 32;
-	int       offsetIKHandles   : 32; ///< tell where is the first transformation that is an effector. tableIKHandleData must be accessed with (TransformID - offsetIKHandles)
+    int       nBones            : 32;
+    int       offsetIKHandles   : 32; ///< tell where is the first transformation that is an effector. tableIKHandleData must be accessed with (TransformID - offsetIKHandles)
 
     //int       offsetRigidBodies : 32; ///< tell where is the first rigid body
-	//int       offsetConstraints : 32; ///< tell where is the first constraint
+    //int       offsetConstraints : 32; ///< tell where is the first constraint
 
     // structure of arrays, pointing to tables that are the components of transforms
     // that way data are ready to be sent to the GPU if needed
@@ -475,13 +475,13 @@ This contains all the tranformations and children/parent infos
 
     // Now, the table of transforms is not meant to be passed to the GPU
     // it is just a convenient way to access to the transform nodes containing a bit more, such as transform name etc.
-	Ptr64<Bone> pBones[1];    						///< transforms referenced by pointers
+    Ptr64<Bone> pBones[1];    						///< transforms referenced by pointers
   };
 
   struct TransformPool2
   {
-	int       n : 32;
-	Ptr64<Bone> p[1];    						///< transforms referenced by pointers
+    int       n : 32;
+    Ptr64<Bone> p[1];    						///< transforms referenced by pointers
   };
   ///
   /// \brief Bone (NODE_BONE) : base of transformation system
@@ -526,19 +526,19 @@ This contains all the tranformations and children/parent infos
       // This version uses the fact that we still keep an easy CPU pointer reference
       // even though we could find back the pointers through IDs:
       // this helps to debug and shall be faster on CPU
-      inline BoneDataType& BoneData()                    { return *pBoneData; }
-      inline unsigned int& ValidComps()                  { return pBoneData->validComps; }
+      inline BoneDataType& getBoneData()                    { return *pBoneData; }
+      inline unsigned int& getValidComps()                  { return pBoneData->validComps; }
       inline bool          getDirty()                       { return pBoneData->bDirty ? true:false; }
       inline void          setDirty(bool b)                 { pBoneData->bDirty = b?1:0; }
-      inline MatrixType&   Matrix()                      { return pBoneData->matrix; }
-      inline MatrixType&   MatrixAbs()                   { return *pMatrixAbs; }
-      inline MatrixType&   MatrixAbsInvBindposeMatrix()  { return *pMatrixAbsInvBindposeMatrix; }
-      inline MatrixType&   MatrixInvBindpose()           { return *pMatrixInvBindpose; }
-      inline Vec3Type&     PosAbs()                      { return (Vec3Type&)(*pMatrixAbs->pos()); }
-      inline Vec3Type&     Pos()                         { return (Vec3Type&)(*pBoneData->matrix.pos()); }
-      inline Vec3Type&     PosBoneTail()                 { return pBoneData->posBoneTail; }
-      inline Vec4Type&     QuatAbs()                     { return pBoneData->quatAbs; }
-      inline Vec4Type&     Quat()                        { return pBoneData->quat; }
+      inline MatrixType&   getMatrix()                      { return pBoneData->matrix; }
+      inline MatrixType&   getMatrixAbs()                   { return *pMatrixAbs; }
+      inline MatrixType&   getMatrixAbsInvBindposeMatrix()  { return *pMatrixAbsInvBindposeMatrix; }
+      inline MatrixType&   getMatrixInvBindpose()           { return *pMatrixInvBindpose; }
+      inline Vec3Type&     getPosAbs()                      { return (Vec3Type&)(*pMatrixAbs->pos()); }
+      inline Vec3Type&     getPos()                         { return (Vec3Type&)(*pBoneData->matrix.pos()); }
+      inline Vec3Type&     getPosBoneTail()                 { return pBoneData->posBoneTail; }
+      inline Vec4Type&     getQuatAbs()                     { return pBoneData->quatAbs; }
+      inline Vec4Type&     getQuat()                        { return pBoneData->quat; }
       inline Bone*         getParent()                      { return pParent; }
       inline int           getNumChildren()                 { return pChildren ? pChildren->n : 0; }
       inline Bone*         getChild(int n)                  { DBGASSERT(n<pChildren->n); return pChildren->p[n]; }
@@ -546,19 +546,19 @@ This contains all the tranformations and children/parent infos
 #else
       // these accessors do use directly the IDs and fetch pointers according to the logic of ID references
       // might be more expensive and more complicated for debugging purpose
-      inline BoneDataType& BoneData()                    { return parentPool->tableBoneData.p[ID]; }
-      inline unsigned int& ValidComps()                  { return BoneData().validComps; }
+      inline BoneDataType& getBoneData()                    { return parentPool->tableBoneData.p[ID]; }
+      inline unsigned int& getValidComps()                  { return BoneData().validComps; }
       inline bool          getDirty()                       { return BoneData().bDirty; }
       inline void          setDirty(bool b)                 { BoneData().bDirty = b; }
-      inline MatrixType&   Matrix()                      { return BoneData().matrix; }
-      inline MatrixType&   MatrixAbs()                   { return parentPool->tableMatrixAbs.p[ID]; }
-      inline MatrixType&   MatrixAbsInvBindposeMatrix()  { return parentPool->tableMatrixAbsInvBindposeMatrix[ID]; }
-      inline MatrixType&   MatrixInvBindpose()           { return parentPool->tableMatrixInvBindpose[ID]; }
-      inline Vec3Type&     PosAbs()                      { return (Vec3Type&)(*parentPool->tableMatrixAbs[ID].pos()); }
-      inline Vec3Type&     Pos()                         { return (Vec3Type&)(*parentPool->tableBoneData[ID].matrix.pos()); }
-      inline Vec3Type&     PosBoneTail()                 { return parentPool->tableBoneData[ID].posBoneTail; }
-      inline Vec4Type&     QuatAbs()                     { return parentPool->tableBoneData[ID].quatAbs; }
-      inline Vec4Type&     Quat()                        { return parentPool->tableBoneData[ID].quat; }
+      inline MatrixType&   getMatrix()                      { return BoneData().matrix; }
+      inline MatrixType&   getMatrixAbs()                   { return parentPool->tableMatrixAbs.p[ID]; }
+      inline MatrixType&   getMatrixAbsInvBindposeMatrix()  { return parentPool->tableMatrixAbsInvBindposeMatrix[ID]; }
+      inline MatrixType&   getMatrixInvBindpose()           { return parentPool->tableMatrixInvBindpose[ID]; }
+      inline Vec3Type&     getPosAbs()                      { return (Vec3Type&)(*parentPool->tableMatrixAbs[ID].pos()); }
+      inline Vec3Type&     getPos()                         { return (Vec3Type&)(*parentPool->tableBoneData[ID].matrix.pos()); }
+      inline Vec3Type&     getPosBoneTail()                 { return parentPool->tableBoneData[ID].posBoneTail; }
+      inline Vec4Type&     getQuatAbs()                     { return parentPool->tableBoneData[ID].quatAbs; }
+      inline Vec4Type&     getQuat()                        { return parentPool->tableBoneData[ID].quat; }
 
       inline Bone*         getParent()                      { int pID = BoneData().parentID; return pID == 0xFFFF ? NULL : (parentPool->pBones + pID)->p; }
       inline int           getNumChildren()                 { return parentPool->tableChildrenLists[BoneData().childrenListID]; }
@@ -587,8 +587,8 @@ This contains all the tranformations and children/parent infos
         nodeType = NODE_TRANSFORMSIMPLE;
 	    version = RAWMESHVERSION;
       }
-      inline Vec3Type&  Scale() { return scale; }
-      inline Vec3Type&  ScaleAbs() { return scaleAbs; }
+      inline Vec3Type&  getScale()      { return scale; }
+      inline Vec3Type&  getScaleAbs()   { return scaleAbs; }
 #ifdef _DEBUG
       inline bk3d::Transform* asTransf() { DBGASSERT(nodeType==NODE_TRANSFORM) return (bk3d::Transform*)(this); }
 #else
@@ -617,15 +617,15 @@ This contains all the tranformations and children/parent infos
 	      version = RAWMESHVERSION;
         //validComps = TRANSFCOMP_pos|TRANSFCOMP_scale|TRANSFCOMP_rotation|TRANSFCOMP_rotationOrder|TRANSFCOMP_scalePivot|TRANSFCOMP_scalePivotTranslate|TRANSFCOMP_rotationPivot|TRANSFCOMP_rotationPivotTranslate|TRANSFCOMP_rotationOrientation|TRANSFCOMP_jointOrientation|TRANSFCOMP_bindPose
       }
-      inline MayaTransformData& TransformData()     { return parentPool->tableMayaTransformData.p[ID]; }
-      inline Vec3Type&  Rotation()                  { return TransformData().rotation; }
-      inline char*      RotationOrder()             { return TransformData().rotationOrder; }
-      inline Vec3Type&  ScalePivot()                { return TransformData().scalePivot; }
-      inline Vec3Type&  ScalePivotTranslate()       { return TransformData().scalePivotTranslate; }
-      inline Vec3Type&  RotationPivot()             { return TransformData().rotationPivot; }
-      inline Vec3Type&  RotationPivotTranslate()    { return TransformData().rotationPivotTranslate; }
-      inline Vec4Type&  RotationOrientation()       { return TransformData().rotationOrientation; }
-      inline Vec4Type&  JointOrientation()          { return TransformData().jointOrientation; }
+      inline MayaTransformData& getTransformData()  { return parentPool->tableMayaTransformData.p[ID]; }
+      inline Vec3Type&  getRotation()               { return getTransformData().rotation; }
+      inline char*      getRotationOrder()          { return getTransformData().rotationOrder; }
+      inline Vec3Type&  getScalePivot()             { return getTransformData().scalePivot; }
+      inline Vec3Type&  getScalePivotTranslate()    { return getTransformData().scalePivotTranslate; }
+      inline Vec3Type&  getRotationPivot()          { return getTransformData().rotationPivot; }
+      inline Vec3Type&  getRotationPivotTranslate() { return getTransformData().rotationPivotTranslate; }
+      inline Vec4Type&  getRotationOrientation()    { return getTransformData().rotationOrientation; }
+      inline Vec4Type&  getJointOrientation()       { return getTransformData().jointOrientation; }
   };
 
   /// \brief pool of transformations
@@ -687,20 +687,20 @@ struct IKHandle : public Bone
 	  version = RAWMESHVERSION;
     }
 #if 1
-    inline IKHandleData&    IKHandleData() const { return *pIKHandleData; }
-    inline int&             Priority()     { return pIKHandleData->priority; }
-    inline float&           Weight()       { return pIKHandleData->weight; }
-    inline int&             MaxIter()       { return pIKHandleData->maxIter; }
-    inline float&           EffectorWeight(int n)    { return pEffectorWeights->f[n]; }
-    inline int              getNumEffectors() { return pEffectorTransforms ? pEffectorTransforms->n : 0; }
+    inline IKHandleData&    getIKHandleData()           { return *pIKHandleData; }
+    inline int&             Priority()                  { return getIKHandleData().priority; }
+    inline float&           Weight()                    { return getIKHandleData().weight; }
+    inline int&             MaxIter()                   { return getIKHandleData().maxIter; }
+    inline float&           EffectorWeight(int n)       { return pEffectorWeights->f[n]; }
+    inline int              getNumEffectors()           { return pEffectorTransforms ? pEffectorTransforms->n : 0; }
     inline Bone*            getEffectorTransform(int n) { return pEffectorTransforms->p[n]; }
 #else
-    inline IKHandleData&    IKHandleData() { return parentPool->tableIKHandleData.p[ID - parentPool->offsetIKHandles]; }
-    inline int&             Priority()     { return IKHandleData().priority; }
-    inline float&           Weight()       { return IKHandleData().weight; }
-    inline int&             MaxIter()      { return IKHandleData().maxIter; }
+    inline IKHandleData&    getIKHandleData() { return parentPool->tableIKHandleData.p[ID - parentPool->offsetIKHandles]; }
+    inline int&             Priority()     { return getIKHandleData().priority; }
+    inline float&           Weight()       { return getIKHandleData().weight; }
+    inline int&             MaxIter()      { return getIKHandleData().maxIter; }
     inline float&           EffectorWeight(int n)    { return parentPool->tableEffectorWeights[IKHandleData().effectorWeightAndTransformListID+1+n].weight; }
-    inline int              getNumEffectors() { return IKHandleData().numEffectors; }
+    inline int              getNumEffectors() { return getIKHandleData().numEffectors; }
     inline Bone*            getEffectorTransform(int n) { return parentPool->pBones[parentPool->tableEffectorWeights[IKHandleData().effectorWeightAndTransformListID+1+n].transformID]; }
 #endif
 };
@@ -815,15 +815,15 @@ struct Material : public Node
 	  nodeType = NODE_MATERIAL;
 	  version = RAWMESHVERSION;
     }
-    inline MaterialData&    MaterialData() { return *pMaterialData; }
-    //inline MaterialData&    MaterialData() { return parentPool->tableMaterialData.p[ID]; }
-    inline Vec3Type&        Diffuse() { return MaterialData().diffuse; }
-    inline Vec3Type&        Ambient() { return MaterialData().ambient; }
-    inline float&           Reflectivity() { return MaterialData().reflectivity; }
-    inline Vec3Type&        Transparency() { return MaterialData().transparency; }
-    inline float&           Translucency() { return MaterialData().translucency; }
-    inline Vec3Type&        Specular() { return MaterialData().specular; }
-    inline float&           SpecularExp() { return MaterialData().specexp; }
+    inline MaterialData&    getMaterialData()   { return *pMaterialData; }
+    //inline MaterialData&    getMaterialData() { return parentPool->tableMaterialData.p[ID]; }
+    inline Vec3Type&        getDiffuse()        { return getMaterialData().diffuse; }
+    inline Vec3Type&        getAmbient()        { return getMaterialData().ambient; }
+    inline float&           getReflectivity()   { return getMaterialData().reflectivity; }
+    inline Vec3Type&        getTransparency()   { return getMaterialData().transparency; }
+    inline float&           getTranslucency()   { return getMaterialData().translucency; }
+    inline Vec3Type&        getSpecular()       { return getMaterialData().specular; }
+    inline float&           getSpecularExp()    { return getMaterialData().specexp; }
 };
 
 ///
@@ -943,15 +943,15 @@ INLINE float* findComponentf(FileHeader *pH, const char *compname, unsigned char
         Bone *pt = pH->pTransforms->pBones[i];
         if(strcmp(pt->name, name))
             continue;
-        if(pDirty) *pDirty = &(pt->BoneData().bDirty);
+        if(pDirty) *pDirty = &(pt->getBoneData().bDirty);
         if(!strcmp(comp, "translate")) {        
-            pComp = pt->Pos();
+            pComp = pt->getPos();
         } else if(!strcmp(comp, "scale")) {     
-            pComp = ((Transform*)pt)->Scale();
+            pComp = ((Transform*)pt)->getScale();
         } else if(!strcmp(comp, "rotation")) {  
-            pComp = ((Transform*)pt)->TransformData().rotation;
+            pComp = ((Transform*)pt)->getTransformData().rotation;
         } else if((strcmp(comp, "quat"))) {  
-            pComp = pt->BoneData().quat;
+            pComp = pt->getBoneData().quat;
         } //some more to add...
         break;
     }
@@ -975,23 +975,23 @@ INLINE float* findComponentf(FileHeader *pH, const char *name, unsigned int comp
         if(strcmp(pt->name, name))
             continue;
         if(ppBone) *ppBone = pt;
-        if(pDirty) *pDirty = &(pt->BoneData().bDirty);
+        if(pDirty) *pDirty = &(pt->getBoneData().bDirty);
         switch(component)
         {
           case TRANSFCOMP_pos:
-            pComp = pt->Pos();
+            pComp = pt->getPos();
             break;
           case TRANSFCOMP_scale:
-            pComp = ((Transform*)pt)->Scale();
+            pComp = ((Transform*)pt)->getScale();
             break;
           case TRANSFCOMP_rotation:
-            pComp = ((Transform*)pt)->Rotation();
+            pComp = ((Transform*)pt)->getRotation();
             break;
           case TRANSFCOMP_Quat:
-            pComp = pt->Quat();
+            pComp = pt->getQuat();
             break;
           case TRANSFCOMP_bindpose_matrix:
-            pComp = pt->MatrixInvBindpose();
+            pComp = pt->getMatrixInvBindpose();
             break;
           case TRANSFCOMP_rotationOrder:
           case TRANSFCOMP_scalePivot:

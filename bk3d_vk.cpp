@@ -505,7 +505,7 @@ void RendererVk::deinitTimers()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool load_binary(const std::string &name, const std::string &data)
+bool load_binary(const std::string &name, std::string &data)
 {
     FILE *fd = NULL;
     std::vector<std::string> paths;
@@ -1875,7 +1875,7 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
         VkResult result = VK_SUCCESS;
 		bk3d::Mesh *pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-        int idx = (int)pMesh->VBOIDX;
+        int idx = (unsigned long)pMesh->VBOIDX;
         curVBO = m_ObjVBOs[idx];
         curEBO = m_ObjEBOs[idx];
 #endif
@@ -1884,7 +1884,7 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
         {
             bk3d::Slot* pS = pMesh->pSlots->p[s];
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-            result = nvk.fillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, pS->vtxBufferSizeBytes, result, pS->pVtxBufferData, curVBO.buffer, (GLuint)(char*)pS->VBOIDX);
+            result = nvk.fillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, pS->vtxBufferSizeBytes, result, pS->pVtxBufferData, curVBO.buffer, (unsigned long)(char*)pS->VBOIDX);
 #else
             VkBuffer buffer = m_memoryVBO.createBufferAllocFill(
                 pRendererVk->m_perThreadData->m_cmdPoolStatic, 
@@ -1899,7 +1899,7 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
             if(pPG->indexArrayByteSize > 0)
             {
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-                result = nvk.fillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, pPG->indexArrayByteSize, result, pPG->pIndexBufferData, curEBO.buffer, (GLuint)(char*)pPG->EBOIDX);
+                result = nvk.fillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, pPG->indexArrayByteSize, result, pPG->pIndexBufferData, curEBO.buffer, (unsigned long)(char*)pPG->EBOIDX);
 #else
                 VkBuffer buffer = m_memoryEBO.createBufferAllocFill(
                     pRendererVk->m_perThreadData->m_cmdPoolStatic, 
@@ -2010,7 +2010,7 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
         //
         // get back the buffers that are used by this mesh
         //
-        int idx = (int)pMesh->VBOIDX;
+        int idx = (unsigned long)pMesh->VBOIDX;
         curVBO = m_ObjVBOs[idx];
         curEBO = m_ObjEBOs[idx];
 #endif
