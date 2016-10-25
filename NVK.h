@@ -103,7 +103,7 @@ public:
     // VULKAN function Overrides
     //
     //- vkInitFramebuffer()
-    VkBuffer                  vkCreateBuffer(VkBufferCreateInfo &bci);
+    VkBuffer                  vkCreateBuffer(const VkBufferCreateInfo &bci);
     VkResult                  vkBindBufferMemory(VkBuffer &buffer, VkDeviceMemory mem, VkDeviceSize offset);
     ::VkShaderModule          vkCreateShaderModule( const char *shaderCode, size_t size);
     ::VkBufferView            vkCreateBufferView( VkBuffer buffer, ::VkFormat format, ::VkDeviceSize size );
@@ -134,15 +134,15 @@ public:
     bool                    vkWaitForFences(uint32_t fenceCount, const VkFence* pFences, VkBool32 waitAll, uint64_t timeout);
     void                    vkResetFences(uint32_t fenceCount, const VkFence* pFences);
 
-    void                    vkAllocateDescriptorSets(NVK::VkDescriptorSetAllocateInfo& allocateInfo, VkDescriptorSet* pDescriptorSets);
-    VkSampler               vkCreateSampler(NVK::VkSamplerCreateInfo &createInfo);
-    void                    vkDestroySampler(VkSampler s);
+    void                    vkAllocateDescriptorSets(const NVK::VkDescriptorSetAllocateInfo& allocateInfo, VkDescriptorSet* pDescriptorSets);
+    VkSampler               vkCreateSampler(const NVK::VkSamplerCreateInfo &createInfo);
+    void                    vkDestroySampler(const VkSampler s);
 
-    VkImageView             vkCreateImageView(NVK::VkImageViewCreateInfo &createInfo);
-    void                    vkDestroyImageView(VkImageView s);
-    void                    vkDestroyImage(VkImage s);
+    VkImageView             vkCreateImageView(const NVK::VkImageViewCreateInfo &createInfo);
+    void                    vkDestroyImageView(const VkImageView s);
+    void                    vkDestroyImage(const VkImage s);
 
-    void                    vkQueueSubmit(NVK::VkSubmitInfo& submits, VkFence fence);
+    void                    vkQueueSubmit(const NVK::VkSubmitInfo& submits, VkFence fence);
 
     struct VkOffset2D : ::VkOffset2D {
         VkOffset2D( int32_t _x, int32_t _y) { x = _x; y = _y;}
@@ -156,7 +156,7 @@ public:
     struct VkRect2D : ::VkRect2D {
         VkRect2D() {}
         VkRect2D(const ::VkRect2D& r) { offset = r.offset; extent = r.extent; }
-        VkRect2D(VkOffset2D &_offset, VkExtent2D &_extent) { offset = _offset; extent = _extent; }
+        VkRect2D(const VkOffset2D &_offset, const VkExtent2D &_extent) { offset = _offset; extent = _extent; }
         VkRect2D(float originX, float originY, float width, float height) {
             offset.x = originX; offset.y = originY;
             extent.width = width; extent.height = height;
@@ -202,9 +202,9 @@ public:
             VkDeviceSize                                bufferOffset,
             uint32_t                                    bufferRowLength,
             uint32_t                                    bufferImageHeight,
-            VkImageSubresourceLayers                    &imageSubresource,
-            VkOffset3D                                  &imageOffset,
-            VkExtent3D                                  &imageExtent)
+            const VkImageSubresourceLayers              &imageSubresource,
+            const VkOffset3D                            &imageOffset,
+            const VkExtent3D                            &imageExtent)
         {
             operator()(bufferOffset, bufferRowLength, bufferImageHeight, imageSubresource, imageOffset, imageExtent);
         }
@@ -212,9 +212,9 @@ public:
             VkDeviceSize                                bufferOffset,
             uint32_t                                    bufferRowLength,
             uint32_t                                    bufferImageHeight,
-            VkImageSubresourceLayers                    &imageSubresource,
-            VkOffset3D                                  &imageOffset,
-            VkExtent3D                                  &imageExtent)
+            const VkImageSubresourceLayers              &imageSubresource,
+            const VkOffset3D                            &imageOffset,
+            const VkExtent3D                            &imageExtent)
         {
             ::VkBufferImageCopy b = {bufferOffset, bufferRowLength, bufferImageHeight, imageSubresource, imageOffset, imageExtent};
             s.push_back(b);
@@ -224,14 +224,14 @@ public:
             VkDeviceSize                                bufferOffset,
             uint32_t                                    bufferRowLength,
             uint32_t                                    bufferImageHeight,
-            VkImageSubresourceLayers                    &imageSubresource,
-            VkOffset3D                                  &imageOffset,
-            VkExtent3D                                  &imageExtent)
+            const VkImageSubresourceLayers              &imageSubresource,
+            const VkOffset3D                            &imageOffset,
+            const VkExtent3D                            &imageExtent)
         {
             operator()(bufferOffset, bufferRowLength, bufferImageHeight, imageSubresource, imageOffset, imageExtent);
         }
         inline VkBufferImageCopy &operator=(const VkBufferImageCopy &src) { s = src.s; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         inline ::VkBufferImageCopy* getItem(int i=0) { return &(s[i]); }
     private:
         std::vector<::VkBufferImageCopy> s;
@@ -310,7 +310,7 @@ public:
             s.borderColor = borderColor;
             s.unnormalizedCoordinates = unnormalizedCoordinates;
         }
-        inline ::VkSamplerCreateInfo* getItem() { return &s; }
+        inline const ::VkSamplerCreateInfo* getItem() const { return &s; }
     private:
         ::VkSamplerCreateInfo   s;
     };
@@ -325,7 +325,7 @@ public:
         {
             s.r = r; s.g = g; s.b = b; s.a =a;
         }
-        inline ::VkComponentMapping* getItem() { return &s; }
+        inline const ::VkComponentMapping* getItem() const { return &s; }
         ::VkComponentMapping s;
     };
     //---------------------------------
@@ -348,8 +348,8 @@ public:
             queueFamilyIndexCount = queueFamilyIndexCount_;
             pQueueFamilyIndices = pQueueFamilyIndices_;
         }
-        inline ::VkBufferCreateInfo* getItem() { return this; }
-        operator ::VkBufferCreateInfo* () { return this; }
+        inline const ::VkBufferCreateInfo* getItem() const { return this; }
+        operator const ::VkBufferCreateInfo* () const { return this; }
     };
     //---------------------------------
     class VkImageSubresourceRange {
@@ -367,7 +367,7 @@ public:
             s.baseArrayLayer = baseArrayLayer;
             s.layerCount = layerCount;
         }
-        inline ::VkImageSubresourceRange* getItem() { return &s; }
+        inline const ::VkImageSubresourceRange* getItem() const { return &s; }
         operator ::VkImageSubresourceRange* () { return &s; }
         ::VkImageSubresourceRange s;
     };
@@ -379,8 +379,8 @@ public:
             VkImage                                     image,
             VkImageViewType                             viewType,
             VkFormat                                    format,
-            VkComponentMapping                          &components,
-            VkImageSubresourceRange                     &subresourceRange
+            const VkComponentMapping                    &components,
+            const VkImageSubresourceRange               &subresourceRange
         ) {
             s.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             s.pNext = NULL;
@@ -390,7 +390,7 @@ public:
 			s.components = components.s;
             s.subresourceRange = subresourceRange.s;
         }
-        inline ::VkImageViewCreateInfo* getItem() { return &s; }
+        inline const ::VkImageViewCreateInfo* getItem() const { return &s; }
     private:
         ::VkImageViewCreateInfo s;
     };
@@ -409,8 +409,8 @@ public:
             s.descriptorSetCount = descriptorSetCount;
             s.pSetLayouts = pSetLayouts;
         }
-        inline ::VkDescriptorSetAllocateInfo* getItem() { return &s; }
-        inline operator ::VkDescriptorSetAllocateInfo* () { return &s; }
+        inline const ::VkDescriptorSetAllocateInfo* getItem() const { return &s; }
+        inline operator const ::VkDescriptorSetAllocateInfo* () const { return &s; }
     private:
         ::VkDescriptorSetAllocateInfo s;
     };
@@ -442,7 +442,7 @@ public:
             bindings.push_back(b);
             return *this;
         }
-        inline int size() { return bindings.size(); }
+        inline int size() const { return bindings.size(); }
         inline ::VkDescriptorSetLayoutBinding* getBindings() { return &(bindings[0]); }
     private:
         std::vector<::VkDescriptorSetLayoutBinding> bindings;
@@ -451,7 +451,7 @@ public:
     class VkDescriptorSetLayoutCreateInfo
     {
     public:
-        VkDescriptorSetLayoutCreateInfo(VkDescriptorSetLayoutBinding &dslb_, VkDescriptorSetLayoutCreateFlags flags = 0)
+        VkDescriptorSetLayoutCreateInfo(const VkDescriptorSetLayoutBinding &dslb_, VkDescriptorSetLayoutCreateFlags flags = 0)
         {
             dslb = dslb_;
             descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -460,13 +460,13 @@ public:
             descriptorSetLayoutCreateInfo.bindingCount =    dslb.size();// NUM_UBOS;//sizeof(bindings)/sizeof(bindings[0]);
             descriptorSetLayoutCreateInfo.pBindings =       dslb.getBindings();
         }
-        ::VkDescriptorSetLayoutCreateInfo* getItem() { return &descriptorSetLayoutCreateInfo; }
+         const::VkDescriptorSetLayoutCreateInfo* getItem() const { return &descriptorSetLayoutCreateInfo; }
     private:
         ::VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
         VkDescriptorSetLayoutBinding dslb;
     };
     //----------------------------------
-    ::VkDescriptorSetLayout   vkCreateDescriptorSetLayout(VkDescriptorSetLayoutCreateInfo &descriptorSetLayoutCreateInfo);
+    ::VkDescriptorSetLayout   vkCreateDescriptorSetLayout(const VkDescriptorSetLayoutCreateInfo &descriptorSetLayoutCreateInfo);
     ::VkPipelineLayout        vkCreatePipelineLayout(VkDescriptorSetLayout* dsls, uint32_t count);
     //---------------------------------
     class VkDescriptorPoolSize
@@ -484,7 +484,7 @@ public:
             typecount.push_back(b);
             return *this;
         }
-        inline int size() { return typecount.size(); }
+        inline int size() const { return typecount.size(); }
         inline ::VkDescriptorPoolSize* getItem(int n=0) { return &(typecount[n]); }
     private:
         std::vector<::VkDescriptorPoolSize> typecount;
@@ -506,13 +506,13 @@ public:
             s.poolSizeCount = t.size();
             s.pPoolSizes = t.getItem(0);
         }
-        inline ::VkDescriptorPoolCreateInfo* getItem() { return &s; }
+        inline  const::VkDescriptorPoolCreateInfo* getItem() const { return &s; }
     private:
         ::VkDescriptorPoolCreateInfo    s;
         VkDescriptorPoolSize            t;
     };
     //----------------------------------
-    ::VkDescriptorPool    vkCreateDescriptorPool(VkDescriptorPoolCreateInfo &descriptorPoolCreateInfo);
+    ::VkDescriptorPool    vkCreateDescriptorPool(const VkDescriptorPoolCreateInfo &descriptorPoolCreateInfo);
     //---------------------------------
     class VkDescriptorImageInfo
     {
@@ -536,7 +536,7 @@ public:
             attachInfos.push_back(b);
             return *this;
         }
-        inline int size() { return attachInfos.size(); }
+        inline int size() const { return attachInfos.size(); }
         inline ::VkDescriptorImageInfo* getItem(int n=0) { return &(attachInfos[n]); }
     private:
         std::vector<::VkDescriptorImageInfo> attachInfos;
@@ -564,7 +564,7 @@ public:
             attachInfos.push_back(b);
             return *this;
         }
-        inline int size() { return attachInfos.size(); }
+        inline int size() const { return attachInfos.size(); }
         inline ::VkDescriptorBufferInfo* getItem(int n=0) { return &(attachInfos[n]); }
     private:
         std::vector<::VkDescriptorBufferInfo> attachInfos;
@@ -631,13 +631,13 @@ public:
             updateBuffers.push_back(ub);
             return *this;
         }
-        inline int size() { return updateBuffers.size(); }
-        inline ::VkWriteDescriptorSet* getItem(int n) { return &(updateBuffers[n]); }
+        inline int size() const { return updateBuffers.size(); }
+        inline const ::VkWriteDescriptorSet* getItem(int n) const { return &(updateBuffers[n]); }
     private:
         std::vector<::VkWriteDescriptorSet> updateBuffers;
     };
     //----------------------------------
-    void vkUpdateDescriptorSets(VkWriteDescriptorSet &wds);
+    void vkUpdateDescriptorSets(const VkWriteDescriptorSet &wds);
     //----------------------------------
     class VkVertexInputBindingDescription
     {
@@ -654,7 +654,7 @@ public:
             bindings.push_back(ub);
             return *this;
         }
-        inline int size() { return bindings.size(); }
+        inline int size() const { return bindings.size(); }
         inline ::VkVertexInputBindingDescription* getItem(int n=0) { return &(bindings[n]); }
     private:
         std::vector<::VkVertexInputBindingDescription> bindings;
@@ -675,7 +675,7 @@ public:
             ia.push_back(iad);
             return *this;
         }
-        inline int size() { return ia.size(); }
+        inline int size() const { return ia.size(); }
         inline ::VkVertexInputAttributeDescription* getItem(int n=0) { return &(ia[n]); }
     private:
         std::vector<::VkVertexInputAttributeDescription> ia;
@@ -685,19 +685,19 @@ public:
     {
     public:
         virtual void setNext(VkPipelineBaseCreateInfo& p) = 0;
-        virtual const void* getPtr() = 0;
-        virtual const ::VkStructureType getType() = 0;
+        virtual const void* getPtr() const = 0;
+        virtual const ::VkStructureType getType() const = 0;
     };
 #define NVKPIPELINEBASECREATEINFOIMPLE \
         virtual void setNext(VkPipelineBaseCreateInfo& p) { s.pNext = p.getPtr(); }\
-        virtual const void* getPtr() { return &s; }\
-        virtual const ::VkStructureType getType() { return s.sType; }
+        virtual const void* getPtr() const { return &s; }\
+        virtual const ::VkStructureType getType() const { return s.sType; }
     //----------------------------------
     class VkPipelineVertexInputStateCreateInfo : public VkPipelineBaseCreateInfo
     {
     public:
         VkPipelineVertexInputStateCreateInfo() {}
-        VkPipelineVertexInputStateCreateInfo(VkVertexInputBindingDescription& ibd, VkVertexInputAttributeDescription& iad, VkPipelineVertexInputStateCreateFlags flags = 0)
+        VkPipelineVertexInputStateCreateInfo(const VkVertexInputBindingDescription& ibd, const VkVertexInputAttributeDescription& iad, VkPipelineVertexInputStateCreateFlags flags = 0)
         {
             _ibd = ibd;
             _iad = iad;
@@ -710,7 +710,7 @@ public:
             };
             s = viinfo;
         }
-        inline ::VkPipelineVertexInputStateCreateInfo* getItem() { return &s; }
+        inline  const::VkPipelineVertexInputStateCreateInfo* getItem() const { return &s; }
         VkPipelineVertexInputStateCreateInfo& operator=(const VkPipelineVertexInputStateCreateInfo& src) { assert(!"TODO!"); return *this; }
         NVKPIPELINEBASECREATEINFOIMPLE
     private:
@@ -730,7 +730,7 @@ public:
             s.topology = topology;
             s.primitiveRestartEnable = primitiveRestartEnable;
         }
-        ::VkPipelineInputAssemblyStateCreateInfo* getItem() { return &s; }
+        const ::VkPipelineInputAssemblyStateCreateInfo* getItem() const { return &s; }
         NVKPIPELINEBASECREATEINFOIMPLE
     private:
         ::VkPipelineInputAssemblyStateCreateInfo s;
@@ -752,7 +752,7 @@ public:
 			s.pName = pName;
             s.pSpecializationInfo = NULL;
         }
-        ::VkPipelineShaderStageCreateInfo* getItem() { return &s; }
+        const ::VkPipelineShaderStageCreateInfo* getItem() const { return &s; }
         NVKPIPELINEBASECREATEINFOIMPLE
     private:
         ::VkPipelineShaderStageCreateInfo s;
@@ -773,7 +773,7 @@ public:
             vp.maxDepth = maxDepth;
         }
         inline ::VkViewport* getItem(int n) { return &s[n]; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::VkViewport* () { return &s[0]; }
     private:
             std::vector<::VkViewport> s;
@@ -795,7 +795,7 @@ public:
             r = VkRect2D(VkOffset2D(x,y), VkExtent2D(w,h));
         }
         inline ::VkRect2D* getItem(int n) { return &s[n]; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::VkRect2D* () { return &s[0]; }
     private:
             std::vector<VkRect2D> s;
@@ -818,7 +818,7 @@ public:
             s.scissorCount  = u.size();
             s.pScissors     = u.getItem(0);
         }
-        ::VkPipelineViewportStateCreateInfo* getItem() { return &s; }
+        const ::VkPipelineViewportStateCreateInfo* getItem() const { return &s; }
         NVKPIPELINEBASECREATEINFOIMPLE
     private:
         ::VkPipelineViewportStateCreateInfo s;
@@ -856,7 +856,7 @@ public:
 			s.depthBiasSlopeFactor = depthBiasSlopeFactor;
 			s.lineWidth = lineWidth;
         }
-        ::VkPipelineRasterizationStateCreateInfo* getItem() { return &s; }
+        const ::VkPipelineRasterizationStateCreateInfo* getItem() const { return &s; }
         NVKPIPELINEBASECREATEINFOIMPLE
     private:
         ::VkPipelineRasterizationStateCreateInfo s;
@@ -911,7 +911,7 @@ public:
             s.push_back(ss);
             return *this;
         }
-        int size() {return s.size(); }
+        int size() const {return s.size(); }
         ::VkPipelineColorBlendAttachmentState* getItem(int n=0) { return &s[n]; }
     private:
         std::vector<::VkPipelineColorBlendAttachmentState> s;
@@ -923,9 +923,9 @@ public:
         VkPipelineColorBlendStateCreateInfo(
             ::VkBool32 logicOpEnable, 
             ::VkLogicOp logicOp,
-            VkPipelineColorBlendAttachmentState &attachments,
+            const VkPipelineColorBlendAttachmentState &attachments,
             float blendConstants[4],
-			::VkPipelineColorBlendStateCreateFlags        flags = 0
+            ::VkPipelineColorBlendStateCreateFlags        flags = 0
             ) : t(attachments)
         {
             s.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -933,11 +933,11 @@ public:
 			s.flags = flags;
             s.logicOpEnable = logicOpEnable;
             s.logicOp = logicOp;
-            s.attachmentCount = attachments.size();
+            s.attachmentCount = t.size();
             s.pAttachments = t.getItem(0);
             memcpy(s.blendConstants, blendConstants, sizeof(float)*4);
         }
-        ::VkPipelineColorBlendStateCreateInfo* getItem() { return &s; }
+        const ::VkPipelineColorBlendStateCreateInfo* getItem() const { return &s; }
         VkPipelineColorBlendStateCreateInfo& operator=(const VkPipelineColorBlendStateCreateInfo& src) { assert(!"TODO!"); return *this; }
         NVKPIPELINEBASECREATEINFOIMPLE
     private:
@@ -961,7 +961,7 @@ public:
             s.push_back(ds);
             return *this;
         }
-        int size() {return s.size(); }
+        int size() const {return s.size(); }
         ::VkDynamicState* getItem(int n=0) { return &s[n]; }
     private:
         std::vector<::VkDynamicState> s;
@@ -979,7 +979,7 @@ public:
             s.pDynamicStates = t.getItem(0);
             s.dynamicStateCount = attachments.size();
         }
-        ::VkPipelineDynamicStateCreateInfo* getItem() { return &s; }
+        const ::VkPipelineDynamicStateCreateInfo* getItem() const { return &s; }
         VkPipelineDynamicStateCreateInfo& operator=(const VkPipelineDynamicStateCreateInfo& src) { assert(!"TODO!"); return *this; }
         NVKPIPELINEBASECREATEINFOIMPLE
     private:
@@ -1006,8 +1006,9 @@ public:
 		writeMask = writeMask;
 		reference = reference;
         }
-        operator ::VkStencilOpState& () { return s; }
-        ::VkStencilOpState* getItem() { return &s; }
+        operator const ::VkStencilOpState& () const { return s; }
+        operator       ::VkStencilOpState& () { return s; }
+        const ::VkStencilOpState* getItem() const { return &s; }
     private:
         ::VkStencilOpState s;
     };
@@ -1017,7 +1018,7 @@ public:
     public:
         VkPipelineDepthStencilStateCreateInfo(
             ::VkBool32 depthTestEnable, ::VkBool32 depthWriteEnable, ::VkCompareOp depthCompareOp,
-            ::VkBool32 depthBoundsTestEnable, ::VkBool32 stencilTestEnable, VkStencilOpState &front, VkStencilOpState &back,
+            ::VkBool32 depthBoundsTestEnable, ::VkBool32 stencilTestEnable, const VkStencilOpState &front, const VkStencilOpState &back,
             float minDepthBounds, float maxDepthBounds,
 			VkPipelineDepthStencilStateCreateFlags      flags = 0)
         {
@@ -1029,6 +1030,7 @@ public:
             s.depthCompareOp = depthCompareOp;
             s.depthBoundsTestEnable = depthBoundsTestEnable;
             s.stencilTestEnable = stencilTestEnable;
+            //s.front.compareMask = front.compareMask;
             s.front = front;
             s.back = back;
             s.minDepthBounds = minDepthBounds;
@@ -1118,8 +1120,8 @@ public:
             s.basePipelineHandle = basePipelineHandle;
             s.basePipelineIndex = basePipelineIndex;
         }
-        inline VkGraphicsPipelineCreateInfo& operator ()(VkPipelineBaseCreateInfo& state) { return add (state); }
-        inline VkGraphicsPipelineCreateInfo& add(VkPipelineBaseCreateInfo& state)
+        inline VkGraphicsPipelineCreateInfo& operator ()(const VkPipelineBaseCreateInfo& state) { return add (state); }
+        inline VkGraphicsPipelineCreateInfo& add(const VkPipelineBaseCreateInfo& state)
         {
             switch(state.getType())
             {
@@ -1187,7 +1189,7 @@ public:
 			::VkImageLayout oldLayout, ::VkImageLayout newLayout, 
 			uint32_t srcQueueFamilyIndex,
 			uint32_t dstQueueFamilyIndex,
-			::VkImage image, VkImageSubresourceRange& subresourceRange)
+			::VkImage image, const VkImageSubresourceRange& subresourceRange)
         {
             ::VkImageMemoryBarrier ss;
             ss.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1199,7 +1201,7 @@ public:
 			ss.srcQueueFamilyIndex = srcQueueFamilyIndex;
 			ss.dstQueueFamilyIndex = dstQueueFamilyIndex;
             ss.image = image;
-            ss.subresourceRange = *subresourceRange;
+            ss.subresourceRange = subresourceRange.s;
             s.push_back(ss);
             ps.push_back(&s.back()); // CHECK: pointer may because wrong if vector reallocates... ?
             return *this;
@@ -1208,13 +1210,13 @@ public:
 			::VkImageLayout oldLayout, ::VkImageLayout newLayout, 
 			uint32_t srcQueueFamilyIndex,
 			uint32_t dstQueueFamilyIndex,
-			::VkImage image, VkImageSubresourceRange& subresourceRange)
+			::VkImage image, const VkImageSubresourceRange& subresourceRange)
 
         {
             operator()(srcAccessMask, dstAccessMask, oldLayout, newLayout, srcQueueFamilyIndex, dstQueueFamilyIndex, image, subresourceRange);
         }
         inline ::VkImageMemoryBarrier* getItem(int n) { return &s[n]; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::VkImageMemoryBarrier* () { return &s[0]; }
         VkImageMemoryBarrier& operator=(const VkImageMemoryBarrier& src) { assert(!"TODO!"); return *this; }
     private:
@@ -1250,7 +1252,7 @@ public:
             operator()(srcAccessMask, dstAccessMask, srcQueueFamilyIndex, dstQueueFamilyIndex, buffer, offset, size);
         }
         inline ::VkBufferMemoryBarrier* getItem(int n) { return &s[n]; }
-        inline int size(int n) { return s.size(); }
+        inline int size(int n) const { return s.size(); }
         operator ::VkBufferMemoryBarrier* () { return &s[0]; }
     private:
         std::vector<::VkBufferMemoryBarrier> s;
@@ -1281,25 +1283,25 @@ public:
     class VkClearValue
     {
     public:
-        VkClearValue(VkClearColorValue &color)
+        VkClearValue(const VkClearColorValue &color)
         {
             ::VkClearValue cv;
             cv.color = color.s;
             s.push_back(cv);
         }
-        VkClearValue(VkClearDepthStencilValue &ds)
+        VkClearValue(const VkClearDepthStencilValue &ds)
         {
             ::VkClearValue cv;
             cv.depthStencil = ds;
             s.push_back(cv);
         }
-        inline VkClearValue& operator ()(VkClearColorValue &color)
+        inline VkClearValue& operator ()(const VkClearColorValue &color)
         {
             ::VkClearValue cv;
             cv.color = color.s;
             s.push_back(cv);
         }
-        inline VkClearValue& operator ()(VkClearDepthStencilValue &ds)
+        inline VkClearValue& operator ()(const VkClearDepthStencilValue &ds)
         {
             ::VkClearValue cv;
             cv.depthStencil = ds;
@@ -1307,7 +1309,7 @@ public:
             return *this;
         }
         ::VkClearValue* getItem(int n) { return &s[n]; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
     private:
         std::vector<::VkClearValue> s;
     };
@@ -1315,8 +1317,8 @@ public:
     class VkRenderPassBeginInfo
     {
     public:
-        VkRenderPassBeginInfo(::VkRenderPass &renderPass, ::VkFramebuffer &framebuffer, 
-                               ::VkRect2D &renderArea, VkClearValue &clearValues ) :
+        VkRenderPassBeginInfo(const ::VkRenderPass &renderPass, const ::VkFramebuffer &framebuffer, 
+                               const ::VkRect2D &renderArea, const VkClearValue &clearValues ) :
             t(clearValues)
         {
             s.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1440,7 +1442,7 @@ public:
         VkAttachmentDescription(VkAttachmentDescription &a) { s = a.s; }
         VkAttachmentDescription() {}
         ::VkAttachmentDescription* getItem(int n) { return &s[n]; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::VkAttachmentDescription* () { return &s[0]; }
     private:
         std::vector<::VkAttachmentDescription> s;
@@ -1463,7 +1465,7 @@ public:
             operator()(attachment, layout);
         }
         ::VkAttachmentReference* getItem(int n) { return s.size()>0 ? &s[n] : NULL; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::VkAttachmentReference* () { return s.size()>0 ? &s[0] : NULL; }
     private:
         std::vector<::VkAttachmentReference> s;
@@ -1484,7 +1486,7 @@ public:
             operator()(attachment);
         }
         ::uint32_t* getItem(int n) { return s.size()>0 ? &s[n] : NULL; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::uint32_t* () { return s.size()>0 ? &s[0] : NULL; }
     private:
         std::vector<::uint32_t> s;
@@ -1629,9 +1631,9 @@ public:
             return *this;
         }
         VkSubpassDescription(::VkPipelineBindPoint pipelineBindPoint,
-            NVK::VkAttachmentReference &inputAttachments,   NVK::VkAttachmentReference &colorAttachments,
-            NVK::VkAttachmentReference &resolveAttachments, NVK::VkAttachmentReference &depthStencilAttachment,
-            NVK::Uint32Array &preserveAttachments, ::VkSubpassDescriptionFlags flags=0) :
+            const NVK::VkAttachmentReference &inputAttachments,   const NVK::VkAttachmentReference &colorAttachments,
+            const NVK::VkAttachmentReference &resolveAttachments, const NVK::VkAttachmentReference &depthStencilAttachment,
+            const NVK::Uint32Array &preserveAttachments, ::VkSubpassDescriptionFlags flags=0) :
             unused(VK_ATTACHMENT_UNUSED/*attachment*/, VK_IMAGE_LAYOUT_UNDEFINED/*layout*/)
         {
             operator()(pipelineBindPoint, inputAttachments, colorAttachments, resolveAttachments, depthStencilAttachment, preserveAttachments, flags);
@@ -1659,11 +1661,11 @@ public:
                 }
             }
         }
-        VkSubpassDescription(VkSubpassDescription &a) 
+        VkSubpassDescription(const VkSubpassDescription &a) 
         { 
             copyFrom(a);
         }
-        VkSubpassDescription& operator=(VkSubpassDescription &a) 
+        VkSubpassDescription& operator=(const VkSubpassDescription &a) 
         { 
             copyFrom(a);
             return *this;
@@ -1675,7 +1677,7 @@ public:
         //}
         VkSubpassDescription() { }
         ::VkSubpassDescription* getItem(int n) { return &s[n].s; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::VkSubpassDescription* () { return &s[0].s; }
     private:
         std::vector<References> s;
@@ -1721,7 +1723,7 @@ public:
             operator()(srcSubpass, dstSubpass, srcStageMask, dstStageMask, srcAccessMask, dstAccessMask, dependencyFlags);
         }
         ::VkSubpassDependency* getItem(int n) { return s.size()>0 ? &s[n] : NULL; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::VkSubpassDependency* () { return s.size()>0 ? &s[0] : NULL; }
     private:
         std::vector<::VkSubpassDependency> s;
@@ -1734,7 +1736,20 @@ public:
             s.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
             s.pNext = NULL;
         }
-        VkRenderPassCreateInfo& operator=(VkRenderPassCreateInfo& src) {
+        VkRenderPassCreateInfo(const VkRenderPassCreateInfo& src) {
+            s.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+            s.pNext = NULL;
+            attachments = src.attachments;
+            s.attachmentCount = attachments.size();
+            s.pAttachments = attachments;
+            subpasses = src.subpasses;
+            s.subpassCount = subpasses.size();
+            dependencies = src.dependencies;
+            s.pSubpasses = subpasses;
+            s.dependencyCount = dependencies.size();
+            s.pDependencies = dependencies;
+        }
+        VkRenderPassCreateInfo& operator=(const VkRenderPassCreateInfo& src) {
             s.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
             s.pNext = NULL;
             attachments = src.attachments;
@@ -1749,9 +1764,9 @@ public:
             return *this;
         }
         VkRenderPassCreateInfo(
-            VkAttachmentDescription            &_attachments,
-            VkSubpassDescription               &_subpasses,
-            VkSubpassDependency                &_dependencies)
+            const VkAttachmentDescription            &_attachments,
+            const VkSubpassDescription               &_subpasses,
+            const VkSubpassDependency                &_dependencies)
         {
             s.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
             s.pNext = NULL;
@@ -1780,7 +1795,7 @@ public:
         MemoryChunk();
         void     free();
         bool isValid() { return bValid; }
-        VkBuffer createBufferAlloc(VkBufferCreateInfo &bufferInfo, ::VkFlags memProps=VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, ::VkDeviceMemory *bufferMem=NULL);
+        VkBuffer createBufferAlloc(const VkBufferCreateInfo &bufferInfo, ::VkFlags memProps=VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, ::VkDeviceMemory *bufferMem=NULL);
         VkBuffer createBufferAlloc(size_t size, ::VkFlags bufferUsage, ::VkFlags memProps=VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, ::VkDeviceMemory *bufferMem=NULL);
         VkBuffer createBufferAllocFill(::VkCommandPool cmdPool, VkBufferCreateInfo &bufferInfo, const void* data, ::VkFlags memProps=VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, ::VkDeviceMemory *bufferMem=NULL);
         VkBuffer createBufferAllocFill(::VkCommandPool cmdPool, size_t size, const void* data, ::VkFlags usage, ::VkFlags memProps=VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, ::VkDeviceMemory *bufferMem=NULL);
@@ -1835,8 +1850,8 @@ public:
         return *this;
     }
         operator ::VkSubmitInfo* () { return &s[0]; }
-        size_t size() { return s.size(); }
-        ::VkSubmitInfo* getItem(int n=0) { return &s[n]; }
+        size_t size() const { return s.size(); }
+        const ::VkSubmitInfo* getItem(int n=0) const { return &s[n]; }
     private:
         std::vector<::VkSubmitInfo> s;
     };
