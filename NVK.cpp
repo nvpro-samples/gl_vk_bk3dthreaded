@@ -57,7 +57,7 @@ NVK::VkGraphicsPipelineCreateInfo& operator<<(NVK::VkGraphicsPipelineCreateInfo&
     return os;
 }
 
-void NVK::vkUpdateDescriptorSets(VkWriteDescriptorSet &wds)
+void NVK::vkUpdateDescriptorSets(const VkWriteDescriptorSet &wds)
 {
     std::vector<::VkWriteDescriptorSet> updateArray;
     int N = wds.size();
@@ -1110,7 +1110,7 @@ void NVK::vkDestroyImage(const VkImage s)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-VkBuffer NVK::vkCreateBuffer(VkBufferCreateInfo &bci)
+VkBuffer NVK::vkCreateBuffer(const VkBufferCreateInfo &bci)
 {
     VkBuffer buf;
     ::vkCreateBuffer(m_device, bci, NULL, &buf) ;
@@ -1238,7 +1238,7 @@ void NVK::MemoryChunk::free()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-VkBuffer NVK::MemoryChunk::createBufferAlloc(VkBufferCreateInfo &bufferInfo, ::VkFlags memProps, ::VkDeviceMemory *bufferMem)
+VkBuffer NVK::MemoryChunk::createBufferAlloc(const VkBufferCreateInfo &bufferInfo, ::VkFlags memProps, ::VkDeviceMemory *bufferMem)
 {
     VkBuffer buffer;
     buffer = nvk->vkCreateBuffer(bufferInfo);

@@ -103,7 +103,7 @@ public:
     // VULKAN function Overrides
     //
     //- vkInitFramebuffer()
-    VkBuffer                  vkCreateBuffer(VkBufferCreateInfo &bci);
+    VkBuffer                  vkCreateBuffer(const VkBufferCreateInfo &bci);
     VkResult                  vkBindBufferMemory(VkBuffer &buffer, VkDeviceMemory mem, VkDeviceSize offset);
     ::VkShaderModule          vkCreateShaderModule( const char *shaderCode, size_t size);
     ::VkBufferView            vkCreateBufferView( VkBuffer buffer, ::VkFormat format, ::VkDeviceSize size );
@@ -231,7 +231,7 @@ public:
             operator()(bufferOffset, bufferRowLength, bufferImageHeight, imageSubresource, imageOffset, imageExtent);
         }
         inline VkBufferImageCopy &operator=(const VkBufferImageCopy &src) { s = src.s; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         inline ::VkBufferImageCopy* getItem(int i=0) { return &(s[i]); }
     private:
         std::vector<::VkBufferImageCopy> s;
@@ -310,7 +310,7 @@ public:
             s.borderColor = borderColor;
             s.unnormalizedCoordinates = unnormalizedCoordinates;
         }
-        inline ::VkSamplerCreateInfo* getItem() { return &s; }
+        inline const ::VkSamplerCreateInfo* getItem() const { return &s; }
     private:
         ::VkSamplerCreateInfo   s;
     };
@@ -325,7 +325,7 @@ public:
         {
             s.r = r; s.g = g; s.b = b; s.a =a;
         }
-        inline ::VkComponentMapping* getItem() { return &s; }
+        inline const ::VkComponentMapping* getItem() const { return &s; }
         ::VkComponentMapping s;
     };
     //---------------------------------
@@ -348,8 +348,8 @@ public:
             queueFamilyIndexCount = queueFamilyIndexCount_;
             pQueueFamilyIndices = pQueueFamilyIndices_;
         }
-        inline ::VkBufferCreateInfo* getItem() { return this; }
-        operator ::VkBufferCreateInfo* () { return this; }
+        inline const ::VkBufferCreateInfo* getItem() const { return this; }
+        operator const ::VkBufferCreateInfo* () const { return this; }
     };
     //---------------------------------
     class VkImageSubresourceRange {
@@ -367,7 +367,7 @@ public:
             s.baseArrayLayer = baseArrayLayer;
             s.layerCount = layerCount;
         }
-        inline ::VkImageSubresourceRange* getItem() { return &s; }
+        inline const ::VkImageSubresourceRange* getItem() const { return &s; }
         operator ::VkImageSubresourceRange* () { return &s; }
         ::VkImageSubresourceRange s;
     };
@@ -390,7 +390,7 @@ public:
 			s.components = components.s;
             s.subresourceRange = subresourceRange.s;
         }
-        inline ::VkImageViewCreateInfo* getItem() { return &s; }
+        inline const ::VkImageViewCreateInfo* getItem() const { return &s; }
     private:
         ::VkImageViewCreateInfo s;
     };
@@ -409,8 +409,8 @@ public:
             s.descriptorSetCount = descriptorSetCount;
             s.pSetLayouts = pSetLayouts;
         }
-        inline ::VkDescriptorSetAllocateInfo* getItem() { return &s; }
-        inline operator ::VkDescriptorSetAllocateInfo* () { return &s; }
+        inline const ::VkDescriptorSetAllocateInfo* getItem() const { return &s; }
+        inline operator const ::VkDescriptorSetAllocateInfo* () const { return &s; }
     private:
         ::VkDescriptorSetAllocateInfo s;
     };
@@ -442,7 +442,7 @@ public:
             bindings.push_back(b);
             return *this;
         }
-        inline int size() { return bindings.size(); }
+        inline int size() const { return bindings.size(); }
         inline ::VkDescriptorSetLayoutBinding* getBindings() { return &(bindings[0]); }
     private:
         std::vector<::VkDescriptorSetLayoutBinding> bindings;
@@ -460,7 +460,7 @@ public:
             descriptorSetLayoutCreateInfo.bindingCount =    dslb.size();// NUM_UBOS;//sizeof(bindings)/sizeof(bindings[0]);
             descriptorSetLayoutCreateInfo.pBindings =       dslb.getBindings();
         }
-        ::VkDescriptorSetLayoutCreateInfo* getItem() { return &descriptorSetLayoutCreateInfo; }
+         const::VkDescriptorSetLayoutCreateInfo* getItem() const { return &descriptorSetLayoutCreateInfo; }
     private:
         ::VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
         VkDescriptorSetLayoutBinding dslb;
@@ -484,7 +484,7 @@ public:
             typecount.push_back(b);
             return *this;
         }
-        inline int size() { return typecount.size(); }
+        inline int size() const { return typecount.size(); }
         inline ::VkDescriptorPoolSize* getItem(int n=0) { return &(typecount[n]); }
     private:
         std::vector<::VkDescriptorPoolSize> typecount;
@@ -506,7 +506,7 @@ public:
             s.poolSizeCount = t.size();
             s.pPoolSizes = t.getItem(0);
         }
-        inline ::VkDescriptorPoolCreateInfo* getItem() { return &s; }
+        inline  const::VkDescriptorPoolCreateInfo* getItem() const { return &s; }
     private:
         ::VkDescriptorPoolCreateInfo    s;
         VkDescriptorPoolSize            t;
@@ -536,7 +536,7 @@ public:
             attachInfos.push_back(b);
             return *this;
         }
-        inline int size() { return attachInfos.size(); }
+        inline int size() const { return attachInfos.size(); }
         inline ::VkDescriptorImageInfo* getItem(int n=0) { return &(attachInfos[n]); }
     private:
         std::vector<::VkDescriptorImageInfo> attachInfos;
@@ -564,7 +564,7 @@ public:
             attachInfos.push_back(b);
             return *this;
         }
-        inline int size() { return attachInfos.size(); }
+        inline int size() const { return attachInfos.size(); }
         inline ::VkDescriptorBufferInfo* getItem(int n=0) { return &(attachInfos[n]); }
     private:
         std::vector<::VkDescriptorBufferInfo> attachInfos;
@@ -631,13 +631,13 @@ public:
             updateBuffers.push_back(ub);
             return *this;
         }
-        inline int size() { return updateBuffers.size(); }
-        inline ::VkWriteDescriptorSet* getItem(int n) { return &(updateBuffers[n]); }
+        inline int size() const { return updateBuffers.size(); }
+        inline const ::VkWriteDescriptorSet* getItem(int n) const { return &(updateBuffers[n]); }
     private:
         std::vector<::VkWriteDescriptorSet> updateBuffers;
     };
     //----------------------------------
-    void vkUpdateDescriptorSets(VkWriteDescriptorSet &wds);
+    void vkUpdateDescriptorSets(const VkWriteDescriptorSet &wds);
     //----------------------------------
     class VkVertexInputBindingDescription
     {
@@ -654,7 +654,7 @@ public:
             bindings.push_back(ub);
             return *this;
         }
-        inline int size() { return bindings.size(); }
+        inline int size() const { return bindings.size(); }
         inline ::VkVertexInputBindingDescription* getItem(int n=0) { return &(bindings[n]); }
     private:
         std::vector<::VkVertexInputBindingDescription> bindings;
@@ -675,7 +675,7 @@ public:
             ia.push_back(iad);
             return *this;
         }
-        inline int size() { return ia.size(); }
+        inline int size() const { return ia.size(); }
         inline ::VkVertexInputAttributeDescription* getItem(int n=0) { return &(ia[n]); }
     private:
         std::vector<::VkVertexInputAttributeDescription> ia;
@@ -685,13 +685,13 @@ public:
     {
     public:
         virtual void setNext(VkPipelineBaseCreateInfo& p) = 0;
-        virtual const void* getPtr() = 0;
-        virtual const ::VkStructureType getType() = 0;
+        virtual const void* getPtr() const = 0;
+        virtual const ::VkStructureType getType() const = 0;
     };
 #define NVKPIPELINEBASECREATEINFOIMPLE \
         virtual void setNext(VkPipelineBaseCreateInfo& p) { s.pNext = p.getPtr(); }\
-        virtual const void* getPtr() { return &s; }\
-        virtual const ::VkStructureType getType() { return s.sType; }
+        virtual const void* getPtr() const { return &s; }\
+        virtual const ::VkStructureType getType() const { return s.sType; }
     //----------------------------------
     class VkPipelineVertexInputStateCreateInfo : public VkPipelineBaseCreateInfo
     {
@@ -710,7 +710,7 @@ public:
             };
             s = viinfo;
         }
-        inline ::VkPipelineVertexInputStateCreateInfo* getItem() { return &s; }
+        inline  const::VkPipelineVertexInputStateCreateInfo* getItem() const { return &s; }
         VkPipelineVertexInputStateCreateInfo& operator=(const VkPipelineVertexInputStateCreateInfo& src) { assert(!"TODO!"); return *this; }
         NVKPIPELINEBASECREATEINFOIMPLE
     private:
@@ -730,7 +730,7 @@ public:
             s.topology = topology;
             s.primitiveRestartEnable = primitiveRestartEnable;
         }
-        ::VkPipelineInputAssemblyStateCreateInfo* getItem() { return &s; }
+        const ::VkPipelineInputAssemblyStateCreateInfo* getItem() const { return &s; }
         NVKPIPELINEBASECREATEINFOIMPLE
     private:
         ::VkPipelineInputAssemblyStateCreateInfo s;
@@ -752,7 +752,7 @@ public:
 			s.pName = pName;
             s.pSpecializationInfo = NULL;
         }
-        ::VkPipelineShaderStageCreateInfo* getItem() { return &s; }
+        const ::VkPipelineShaderStageCreateInfo* getItem() const { return &s; }
         NVKPIPELINEBASECREATEINFOIMPLE
     private:
         ::VkPipelineShaderStageCreateInfo s;
@@ -773,7 +773,7 @@ public:
             vp.maxDepth = maxDepth;
         }
         inline ::VkViewport* getItem(int n) { return &s[n]; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::VkViewport* () { return &s[0]; }
     private:
             std::vector<::VkViewport> s;
@@ -795,7 +795,7 @@ public:
             r = VkRect2D(VkOffset2D(x,y), VkExtent2D(w,h));
         }
         inline ::VkRect2D* getItem(int n) { return &s[n]; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::VkRect2D* () { return &s[0]; }
     private:
             std::vector<VkRect2D> s;
@@ -818,7 +818,7 @@ public:
             s.scissorCount  = u.size();
             s.pScissors     = u.getItem(0);
         }
-        ::VkPipelineViewportStateCreateInfo* getItem() { return &s; }
+        const ::VkPipelineViewportStateCreateInfo* getItem() const { return &s; }
         NVKPIPELINEBASECREATEINFOIMPLE
     private:
         ::VkPipelineViewportStateCreateInfo s;
@@ -856,7 +856,7 @@ public:
 			s.depthBiasSlopeFactor = depthBiasSlopeFactor;
 			s.lineWidth = lineWidth;
         }
-        ::VkPipelineRasterizationStateCreateInfo* getItem() { return &s; }
+        const ::VkPipelineRasterizationStateCreateInfo* getItem() const { return &s; }
         NVKPIPELINEBASECREATEINFOIMPLE
     private:
         ::VkPipelineRasterizationStateCreateInfo s;
@@ -911,7 +911,7 @@ public:
             s.push_back(ss);
             return *this;
         }
-        int size() {return s.size(); }
+        int size() const {return s.size(); }
         ::VkPipelineColorBlendAttachmentState* getItem(int n=0) { return &s[n]; }
     private:
         std::vector<::VkPipelineColorBlendAttachmentState> s;
@@ -925,7 +925,7 @@ public:
             ::VkLogicOp logicOp,
             const VkPipelineColorBlendAttachmentState &attachments,
             float blendConstants[4],
-			::VkPipelineColorBlendStateCreateFlags        flags = 0
+            ::VkPipelineColorBlendStateCreateFlags        flags = 0
             ) : t(attachments)
         {
             s.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -933,11 +933,11 @@ public:
 			s.flags = flags;
             s.logicOpEnable = logicOpEnable;
             s.logicOp = logicOp;
-            s.attachmentCount = attachments.size();
+            s.attachmentCount = t.size();
             s.pAttachments = t.getItem(0);
             memcpy(s.blendConstants, blendConstants, sizeof(float)*4);
         }
-        ::VkPipelineColorBlendStateCreateInfo* getItem() { return &s; }
+        const ::VkPipelineColorBlendStateCreateInfo* getItem() const { return &s; }
         VkPipelineColorBlendStateCreateInfo& operator=(const VkPipelineColorBlendStateCreateInfo& src) { assert(!"TODO!"); return *this; }
         NVKPIPELINEBASECREATEINFOIMPLE
     private:
@@ -961,7 +961,7 @@ public:
             s.push_back(ds);
             return *this;
         }
-        int size() {return s.size(); }
+        int size() const {return s.size(); }
         ::VkDynamicState* getItem(int n=0) { return &s[n]; }
     private:
         std::vector<::VkDynamicState> s;
@@ -979,7 +979,7 @@ public:
             s.pDynamicStates = t.getItem(0);
             s.dynamicStateCount = attachments.size();
         }
-        ::VkPipelineDynamicStateCreateInfo* getItem() { return &s; }
+        const ::VkPipelineDynamicStateCreateInfo* getItem() const { return &s; }
         VkPipelineDynamicStateCreateInfo& operator=(const VkPipelineDynamicStateCreateInfo& src) { assert(!"TODO!"); return *this; }
         NVKPIPELINEBASECREATEINFOIMPLE
     private:
@@ -1006,8 +1006,9 @@ public:
 		writeMask = writeMask;
 		reference = reference;
         }
-        operator ::VkStencilOpState& () { return s; }
-        ::VkStencilOpState* getItem() { return &s; }
+        operator const ::VkStencilOpState& () const { return s; }
+        operator       ::VkStencilOpState& () { return s; }
+        const ::VkStencilOpState* getItem() const { return &s; }
     private:
         ::VkStencilOpState s;
     };
@@ -1029,6 +1030,7 @@ public:
             s.depthCompareOp = depthCompareOp;
             s.depthBoundsTestEnable = depthBoundsTestEnable;
             s.stencilTestEnable = stencilTestEnable;
+            //s.front.compareMask = front.compareMask;
             s.front = front;
             s.back = back;
             s.minDepthBounds = minDepthBounds;
@@ -1214,7 +1216,7 @@ public:
             operator()(srcAccessMask, dstAccessMask, oldLayout, newLayout, srcQueueFamilyIndex, dstQueueFamilyIndex, image, subresourceRange);
         }
         inline ::VkImageMemoryBarrier* getItem(int n) { return &s[n]; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::VkImageMemoryBarrier* () { return &s[0]; }
         VkImageMemoryBarrier& operator=(const VkImageMemoryBarrier& src) { assert(!"TODO!"); return *this; }
     private:
@@ -1250,7 +1252,7 @@ public:
             operator()(srcAccessMask, dstAccessMask, srcQueueFamilyIndex, dstQueueFamilyIndex, buffer, offset, size);
         }
         inline ::VkBufferMemoryBarrier* getItem(int n) { return &s[n]; }
-        inline int size(int n) { return s.size(); }
+        inline int size(int n) const { return s.size(); }
         operator ::VkBufferMemoryBarrier* () { return &s[0]; }
     private:
         std::vector<::VkBufferMemoryBarrier> s;
@@ -1307,7 +1309,7 @@ public:
             return *this;
         }
         ::VkClearValue* getItem(int n) { return &s[n]; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
     private:
         std::vector<::VkClearValue> s;
     };
@@ -1440,7 +1442,7 @@ public:
         VkAttachmentDescription(VkAttachmentDescription &a) { s = a.s; }
         VkAttachmentDescription() {}
         ::VkAttachmentDescription* getItem(int n) { return &s[n]; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::VkAttachmentDescription* () { return &s[0]; }
     private:
         std::vector<::VkAttachmentDescription> s;
@@ -1463,7 +1465,7 @@ public:
             operator()(attachment, layout);
         }
         ::VkAttachmentReference* getItem(int n) { return s.size()>0 ? &s[n] : NULL; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::VkAttachmentReference* () { return s.size()>0 ? &s[0] : NULL; }
     private:
         std::vector<::VkAttachmentReference> s;
@@ -1484,7 +1486,7 @@ public:
             operator()(attachment);
         }
         ::uint32_t* getItem(int n) { return s.size()>0 ? &s[n] : NULL; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::uint32_t* () { return s.size()>0 ? &s[0] : NULL; }
     private:
         std::vector<::uint32_t> s;
@@ -1675,7 +1677,7 @@ public:
         //}
         VkSubpassDescription() { }
         ::VkSubpassDescription* getItem(int n) { return &s[n].s; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::VkSubpassDescription* () { return &s[0].s; }
     private:
         std::vector<References> s;
@@ -1721,7 +1723,7 @@ public:
             operator()(srcSubpass, dstSubpass, srcStageMask, dstStageMask, srcAccessMask, dstAccessMask, dependencyFlags);
         }
         ::VkSubpassDependency* getItem(int n) { return s.size()>0 ? &s[n] : NULL; }
-        inline int size() { return s.size(); }
+        inline int size() const { return s.size(); }
         operator ::VkSubpassDependency* () { return s.size()>0 ? &s[0] : NULL; }
     private:
         std::vector<::VkSubpassDependency> s;
@@ -1793,7 +1795,7 @@ public:
         MemoryChunk();
         void     free();
         bool isValid() { return bValid; }
-        VkBuffer createBufferAlloc(VkBufferCreateInfo &bufferInfo, ::VkFlags memProps=VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, ::VkDeviceMemory *bufferMem=NULL);
+        VkBuffer createBufferAlloc(const VkBufferCreateInfo &bufferInfo, ::VkFlags memProps=VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, ::VkDeviceMemory *bufferMem=NULL);
         VkBuffer createBufferAlloc(size_t size, ::VkFlags bufferUsage, ::VkFlags memProps=VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, ::VkDeviceMemory *bufferMem=NULL);
         VkBuffer createBufferAllocFill(::VkCommandPool cmdPool, VkBufferCreateInfo &bufferInfo, const void* data, ::VkFlags memProps=VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, ::VkDeviceMemory *bufferMem=NULL);
         VkBuffer createBufferAllocFill(::VkCommandPool cmdPool, size_t size, const void* data, ::VkFlags usage, ::VkFlags memProps=VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, ::VkDeviceMemory *bufferMem=NULL);
@@ -1848,8 +1850,8 @@ public:
         return *this;
     }
         operator ::VkSubmitInfo* () { return &s[0]; }
-        size_t size() { return s.size(); }
-        ::VkSubmitInfo* getItem(int n=0) { return &s[n]; }
+        size_t size() const { return s.size(); }
+        const ::VkSubmitInfo* getItem(int n=0) const { return &s[n]; }
     private:
         std::vector<::VkSubmitInfo> s;
     };

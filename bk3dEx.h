@@ -687,7 +687,7 @@ struct IKHandle : public Bone
 	  version = RAWMESHVERSION;
     }
 #if 1
-    inline IKHandleData&    IKHandleData() { return *pIKHandleData; }
+    inline IKHandleData&    IKHandleData() const { return *pIKHandleData; }
     inline int&             Priority()     { return pIKHandleData->priority; }
     inline float&           Weight()       { return pIKHandleData->weight; }
     inline int&             MaxIter()       { return pIKHandleData->maxIter; }
