@@ -131,8 +131,16 @@ if(WIN32 AND NOT GLUT_FOUND)
   add_executable(${PROJNAME} WIN32 ${SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOURCE_FILES} ${GLSL_SOURCES})
 else()
   # allow gcc to be tolerant on some issues. TODO:should remove this option
-  add_definitions(-fpermissive)
+  #add_definitions(-fpermissive)
   add_executable(${PROJNAME} ${SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOURCE_FILES} ${GLSL_SOURCES})
+endif()
+
+# TODO : SHOULD be in the shared cmake part and transparent for the sample
+if(UNIX)
+  add_definitions(-g -std=c++11)
+  set(UNIXLINKLIBS dl pthread)
+else()
+  set(UNIXLINKLIBS)
 endif()
 
 #####################################################################################
@@ -143,16 +151,19 @@ source_group(common FILES
 )
 #####################################################################################
 # Linkage
+# TODO: UNIXLINKLIBS should be in PLATFORM_LIBRARIES
 #
 target_link_libraries(${PROJNAME} optimized
     ${LIBRARIES_OPTIMIZED}
     ${PLATFORM_LIBRARIES}
     shared_sources
+    ${UNIXLINKLIBS}
 )
 target_link_libraries(${PROJNAME} debug
     ${LIBRARIES_DEBUG}
     ${PLATFORM_LIBRARIES}
     shared_sources
+    ${UNIXLINKLIBS}
 )
 
 #####################################################################################
