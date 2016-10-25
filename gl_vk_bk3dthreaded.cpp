@@ -646,6 +646,9 @@ void MyWindow::keyboard(NVPWindow::KeyCode key, MyWindow::ButtonAction action, i
 	//...
     case NVPWindow::KEY_F12:
         break;
+    case NVPWindow::KEY_ESCAPE:
+        postQuit();
+        break;
     }
 }
 
