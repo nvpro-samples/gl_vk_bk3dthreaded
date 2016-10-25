@@ -505,7 +505,7 @@ void RendererVk::deinitTimers()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool load_binary(std::string &name, std::string &data)
+bool load_binary(const std::string &name, std::string &data)
 {
     FILE *fd = NULL;
     std::vector<std::string> paths;
@@ -531,6 +531,7 @@ bool load_binary(std::string &name, std::string &data)
     fread(p, 1, realsize, fd);
     data = std::string(p, realsize);
     delete [] p;
+    return true;
 }
 //------------------------------------------------------------------------------
 //
@@ -626,6 +627,7 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
     //--------------------------------------------------------------------------
     // Texture
     //
+#if 0
     dds::CDDSImage image;
     ImgO noiseTex3D;
 
@@ -717,6 +719,9 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
 
     NVK::VkDescriptorImageInfo noiseTextureSamplerAndView = NVK::VkDescriptorImageInfo
         (m_sampler, noiseTex3D.imgView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+#endif
+NVK::VkDescriptorImageInfo noiseTextureSamplerAndView = NVK::VkDescriptorImageInfo
+    (m_sampler, 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     //--------------------------------------------------------------------------
     // Buffers for general UBOs
     //
@@ -956,8 +961,10 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
 
     nvk.vkUpdateDescriptorSets(NVK::VkWriteDescriptorSet
         (m_descriptorSetGlobal, BINDING_MATRIX, 0, descBuffer,                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-        (m_descriptorSetGlobal, BINDING_NOISE,  0, noiseTextureSamplerAndView, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-        );
+        //(m_descriptorSetGlobal, BINDING_NOISE,  0, noiseTextureSamplerAndView, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+        
+      
+    );
 
     return true;
 }
@@ -1416,7 +1423,7 @@ void RendererVk::releaseThreadLocalVars()
         nvk.vkDestroyCommandPool(m_perThreadData->m_cmdPoolStatic);
     m_perThreadData->m_cmdPoolStatic = VK_NULL_HANDLE;
     if(m_perThreadData)
-        delete m_perThreadData;
+        delete static_cast<PerThreadData*>(m_perThreadData);
     m_perThreadData = NULL;
 }
 //------------------------------------------------------------------------------
@@ -1868,7 +1875,7 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
         VkResult result = VK_SUCCESS;
 		bk3d::Mesh *pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-        int idx = (int)pMesh->VBOIDX;
+        int idx = (ULONG)pMesh->VBOIDX;
         curVBO = m_ObjVBOs[idx];
         curEBO = m_ObjEBOs[idx];
 #endif
@@ -1877,7 +1884,7 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
         {
             bk3d::Slot* pS = pMesh->pSlots->p[s];
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-            result = nvk.fillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, pS->vtxBufferSizeBytes, result, pS->pVtxBufferData, curVBO.buffer, (GLuint)(char*)pS->VBOIDX);
+            result = nvk.fillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, pS->vtxBufferSizeBytes, result, pS->pVtxBufferData, curVBO.buffer, pS->VBOIDX.ll);
 #else
             VkBuffer buffer = m_memoryVBO.createBufferAllocFill(
                 pRendererVk->m_perThreadData->m_cmdPoolStatic, 
@@ -1892,7 +1899,7 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
             if(pPG->indexArrayByteSize > 0)
             {
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-                result = nvk.fillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, pPG->indexArrayByteSize, result, pPG->pIndexBufferData, curEBO.buffer, (GLuint)(char*)pPG->EBOIDX);
+                result = nvk.fillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, pPG->indexArrayByteSize, result, pPG->pIndexBufferData, curEBO.buffer, (ULONG)pPG->EBOIDX);
 #else
                 VkBuffer buffer = m_memoryEBO.createBufferAllocFill(
                     pRendererVk->m_perThreadData->m_cmdPoolStatic, 
@@ -2003,7 +2010,7 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
         //
         // get back the buffers that are used by this mesh
         //
-        int idx = (int)pMesh->VBOIDX;
+        int idx = (unsigned long)pMesh->VBOIDX;
         curVBO = m_ObjVBOs[idx];
         curEBO = m_ObjEBOs[idx];
 #endif
@@ -2027,11 +2034,11 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
         // 1: normal
         bk3d::Slot*      pS = pMesh->pSlots->p[0];
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-        VkDeviceSize vboffsets[] = {(GLuint64)pS->VBOIDX.p}; // we previously stored the offset in the buffer here...
+        VkDeviceSize vboffsets[] = {pS->VBOIDX.ll}; // we previously stored the offset in the buffer here...
 #else
         VkBuffer buffer;
         buffer = (VkBuffer)pS->userPtr.p;
-        VkDeviceSize vboffsets[] = {0};//(GLuint64)pS->VBOIDX.p}; // we previously stored the offset in the buffer here...
+        VkDeviceSize vboffsets[] = {0};//(GLuint64)pS->VBOIDX.ll}; // we previously stored the offset in the buffer here...
 #endif
         {
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
@@ -2143,7 +2150,9 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
                     }
                     break;
                 default:
+#ifdef WIN32
                     DebugBreak();
+#endif
                     // not-handled cases...
                     break;
                 }

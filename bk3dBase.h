@@ -39,7 +39,13 @@
  **/
 #define RAWMESHVERSIONSTR "134"
 #define RAWMESHVERSION 0x134
+#ifdef WIN32
 #define LONG int
+#define ULONG unsigned int
+#else
+#define LONG long
+#define ULONG unsigned long
+#endif
 
 #pragma warning(disable: 4505)
 #pragma warning(disable: 4311)

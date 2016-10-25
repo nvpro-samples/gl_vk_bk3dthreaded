@@ -349,7 +349,7 @@ bool Bk3dModel::loadModel()
             // this is for now a fake material: very few items (diffuse)
             // in a real application, material information could contain more
             // we'd need 16 vec4 to fill 256 bytes
-            memcpy(m_material[i].diffuse.vec_array, m_meshFile->pMaterials->pMaterials[i]->Diffuse(), sizeof(vec3f));
+            memcpy(m_material[i].diffuse.vec_array, m_meshFile->pMaterials->pMaterials[i]->getDiffuse(), sizeof(vec3f));
             //...
             // hack for visual result...
             if(length(m_material[i].diffuse) <= 0.1f)
@@ -366,7 +366,7 @@ bool Bk3dModel::loadModel()
         for(int i=0; i<m_meshFile->pTransforms->nBones; i++)
         {
             // 256 bytes aligned...
-            memcpy(m_objectMatrices[i].mO.mat_array, m_meshFile->pTransforms->pBones[i]->Matrix().m, sizeof(mat4f));
+            memcpy(m_objectMatrices[i].mO.mat_array, m_meshFile->pTransforms->pBones[i]->getMatrix().m, sizeof(mat4f));
         }
     }
     HIDEPROGRESS()
