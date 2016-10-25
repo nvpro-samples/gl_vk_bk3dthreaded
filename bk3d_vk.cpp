@@ -1884,7 +1884,7 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
         {
             bk3d::Slot* pS = pMesh->pSlots->p[s];
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-            result = nvk.fillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, pS->vtxBufferSizeBytes, result, pS->pVtxBufferData, curVBO.buffer, (unsigned long)(char*)pS->VBOIDX);
+            result = nvk.fillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, pS->vtxBufferSizeBytes, result, pS->pVtxBufferData, curVBO.buffer, pS->VBOIDX.ll);
 #else
             VkBuffer buffer = m_memoryVBO.createBufferAllocFill(
                 pRendererVk->m_perThreadData->m_cmdPoolStatic, 
@@ -1899,7 +1899,7 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
             if(pPG->indexArrayByteSize > 0)
             {
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-                result = nvk.fillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, pPG->indexArrayByteSize, result, pPG->pIndexBufferData, curEBO.buffer, (unsigned long)(char*)pPG->EBOIDX);
+                result = nvk.fillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, pPG->indexArrayByteSize, result, pPG->pIndexBufferData, curEBO.buffer, (unsigned long)pPG->EBOIDX);
 #else
                 VkBuffer buffer = m_memoryEBO.createBufferAllocFill(
                     pRendererVk->m_perThreadData->m_cmdPoolStatic, 
@@ -2034,11 +2034,11 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
         // 1: normal
         bk3d::Slot*      pS = pMesh->pSlots->p[0];
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-        VkDeviceSize vboffsets[] = {(GLuint64)pS->VBOIDX.p}; // we previously stored the offset in the buffer here...
+        VkDeviceSize vboffsets[] = {pS->VBOIDX.ll}; // we previously stored the offset in the buffer here...
 #else
         VkBuffer buffer;
         buffer = (VkBuffer)pS->userPtr.p;
-        VkDeviceSize vboffsets[] = {0};//(GLuint64)pS->VBOIDX.p}; // we previously stored the offset in the buffer here...
+        VkDeviceSize vboffsets[] = {0};//(GLuint64)pS->VBOIDX.ll}; // we previously stored the offset in the buffer here...
 #endif
         {
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET

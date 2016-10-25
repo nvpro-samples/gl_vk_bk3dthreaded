@@ -39,6 +39,7 @@
  **/
 #define RAWMESHVERSIONSTR "134"
 #define RAWMESHVERSION 0x134
+
 #define LONG int
 
 #pragma warning(disable: 4505)
