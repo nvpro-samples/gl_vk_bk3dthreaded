@@ -30,10 +30,10 @@
 //-----------------------------------------------------------------------------
 // variables
 //-----------------------------------------------------------------------------
-Renderer*	g_renderers[10];
-int			g_numRenderers = 0;
-static Renderer*		s_pCurRenderer = NULL;
-static int				s_curRenderer = DEFAULT_RENDERER;
+Renderer*               g_renderers[10];
+int                     g_numRenderers = 0;
+static Renderer*        s_pCurRenderer = NULL;
+static int              s_curRenderer = DEFAULT_RENDERER;
 
 #ifdef USESVCUI
 IWindowFolding*   g_pTweakContainer = NULL;
@@ -64,7 +64,7 @@ std::vector<Bk3dModel*> g_bk3dModels;
 
 #define FOREACHMODEL(cmd) {\
 for (int m = 0; m<g_bk3dModels.size(); m++) {\
-	g_bk3dModels[m]->cmd; \
+    g_bk3dModels[m]->cmd; \
     }\
 }
 static int      s_curObject = 0;
@@ -72,7 +72,7 @@ static int      s_curObject = 0;
 template <typename T, size_t N> 
 inline size_t array_size(T(&x)[N]) 
 {
-	return N;
+    return N;
 }
 //
 // Camera animation: captured using '1' in the sample. Then copy and paste...
@@ -125,8 +125,8 @@ bool                g_useWorkers = true;
 int                 g_numCmdBuffers = 16;
 
 void destroyCommandBuffers(bool bAll);
-void releaseThreadLocalVars();
 void initThreadLocalVars();
+void releaseThreadLocalVars();
 //-----------------------------------------------------------------------------
 // Derive the Window for this sample
 //-----------------------------------------------------------------------------
@@ -178,16 +178,28 @@ void initThreads()
 
 void terminateThreads()
 {
-    g_mainThreadPool->FlushTasks();
-    g_mainThreadPool->Terminate(); // issue with NWTPS_SHARED_QUEUE
-    delete g_mainThreadPool;
-    g_mainThreadPool = NULL;
-    delete g_mainThreadQueue;
-    g_mainThreadQueue = NULL;
-    delete g_crs_bk3d;
-    g_crs_bk3d = NULL;
-    delete g_crs_VK;
-    g_crs_VK = NULL;
+    if(g_mainThreadPool)
+    {
+        g_mainThreadPool->FlushTasks();
+        g_mainThreadPool->Terminate(); // issue with NWTPS_SHARED_QUEUE
+        delete g_mainThreadPool;
+        g_mainThreadPool = NULL;
+    }
+    if(g_mainThreadQueue)
+    {
+        delete g_mainThreadQueue;
+        g_mainThreadQueue = NULL;
+    }
+    if(g_crs_bk3d)
+    {
+        delete g_crs_bk3d;
+        g_crs_bk3d = NULL;
+    }
+    if(g_crs_VK)
+    {
+        delete g_crs_VK;
+        g_crs_VK = NULL;
+    }
 }
 #endif
 //------------------------------------------------------------------------------
@@ -302,35 +314,35 @@ bool Bk3dModel::loadModel()
         LOGE("error in loading mesh %s\n", m_name.c_str());
         return false;
     }
-	//
-	// Some adjustment for the display
-	//
+    //
+    // Some adjustment for the display
+    //
     if(m_scale <= 0.0)
     {
-	    float min[3] = {1000.0, 1000.0, 1000.0};
-	    float max[3] = {-1000.0, -1000.0, -1000.0};
-	    for(int i=0; i<m_meshFile->pMeshes->n; i++)
-	    {
-		    bk3d::Mesh *pMesh = m_meshFile->pMeshes->p[i];
-		    if(pMesh->aabbox.min[0] < min[0]) min[0] = pMesh->aabbox.min[0];
-		    if(pMesh->aabbox.min[1] < min[1]) min[1] = pMesh->aabbox.min[1];
-		    if(pMesh->aabbox.min[2] < min[2]) min[2] = pMesh->aabbox.min[2];
-		    if(pMesh->aabbox.max[0] > max[0]) max[0] = pMesh->aabbox.max[0];
-		    if(pMesh->aabbox.max[1] > max[1]) max[1] = pMesh->aabbox.max[1];
-		    if(pMesh->aabbox.max[2] > max[2]) max[2] = pMesh->aabbox.max[2];
-	    }
-	    m_posOffset[0] = (max[0] + min[0])*0.5f;
-	    m_posOffset[1] = (max[1] + min[1])*0.5f;
-	    m_posOffset[2] = (max[2] + min[2])*0.5f;
-	    float bigger = 0;
-	    if((max[0]-min[0]) > bigger) bigger = (max[0]-min[0]);
-	    if((max[1]-min[1]) > bigger) bigger = (max[1]-min[1]);
-	    if((max[2]-min[2]) > bigger) bigger = (max[2]-min[2]);
-	    if((bigger) > 0.001)
-	    {
-		    m_scale = 1.0f / bigger;
-		    PRINTF(("Scaling the model by %f...\n", m_scale));
-	    }
+        float min[3] = {1000.0, 1000.0, 1000.0};
+        float max[3] = {-1000.0, -1000.0, -1000.0};
+        for(int i=0; i<m_meshFile->pMeshes->n; i++)
+        {
+            bk3d::Mesh *pMesh = m_meshFile->pMeshes->p[i];
+            if(pMesh->aabbox.min[0] < min[0]) min[0] = pMesh->aabbox.min[0];
+            if(pMesh->aabbox.min[1] < min[1]) min[1] = pMesh->aabbox.min[1];
+            if(pMesh->aabbox.min[2] < min[2]) min[2] = pMesh->aabbox.min[2];
+            if(pMesh->aabbox.max[0] > max[0]) max[0] = pMesh->aabbox.max[0];
+            if(pMesh->aabbox.max[1] > max[1]) max[1] = pMesh->aabbox.max[1];
+            if(pMesh->aabbox.max[2] > max[2]) max[2] = pMesh->aabbox.max[2];
+        }
+        m_posOffset[0] = (max[0] + min[0])*0.5f;
+        m_posOffset[1] = (max[1] + min[1])*0.5f;
+        m_posOffset[2] = (max[2] + min[2])*0.5f;
+        float bigger = 0;
+        if((max[0]-min[0]) > bigger) bigger = (max[0]-min[0]);
+        if((max[1]-min[1]) > bigger) bigger = (max[1]-min[1]);
+        if((max[2]-min[2]) > bigger) bigger = (max[2]-min[2]);
+        if((bigger) > 0.001)
+        {
+            m_scale = 1.0f / bigger;
+            PRINTF(("Scaling the model by %f...\n", m_scale));
+        }
         m_posOffset *= m_scale;
     }
     //
@@ -385,17 +397,17 @@ void Bk3dModel::addStats(Stats &stats)
 }
 void Bk3dModel::printPosition()
 {
-	LOGI("%f %f %f %f\n", m_posOffset[0], m_posOffset[1], m_posOffset[2], m_scale);
+    LOGI("%f %f %f %f\n", m_posOffset[0], m_posOffset[1], m_posOffset[2], m_scale);
 }
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
 bool MyWindow::init()
 {
-	if(!WindowInertiaCamera::init())
-		return false;
+    if(!WindowInertiaCamera::init())
+        return false;
 
-	//
+    //
     // UI
     //
 #ifdef USESVCUI
@@ -405,10 +417,10 @@ bool MyWindow::init()
     // easy Toggles
     //
 #ifdef USESVCUI
-	class EventUI: public IEventsWnd
-	{
-	public:
-		void Button(IWindow *pWin, int pressed)
+    class EventUI: public IEventsWnd
+    {
+    public:
+        void Button(IWindow *pWin, int pressed)
             { reinterpret_cast<MyWindow*>(pWin->GetUserData())->m_bAdjustTimeScale = true; };
         void ScalarChanged(IControlScalar *pWin, float &v, float prev)
         {
@@ -471,11 +483,11 @@ bool MyWindow::init()
                     g_bRefreshCmdBuffersCounter = 2;
                 }
             }
-	};
-	static EventUI eventUI;
-	//g_pWinHandler->CreateCtrlButton("TIMESCALE", "re-scale timing", g_pToggleContainer)
-	//	->SetUserData(this)
-	//	->Register(&eventUI);
+    };
+    static EventUI eventUI;
+    //g_pWinHandler->CreateCtrlButton("TIMESCALE", "re-scale timing", g_pToggleContainer)
+    //    ->SetUserData(this)
+    //    ->Register(&eventUI);
 
     g_pToggleContainer->UnFold(false);
 
@@ -486,7 +498,7 @@ bool MyWindow::init()
         ->SetBounds(1, MAXCMDBUFFERS)->SetIntMode()->SetValue(g_numCmdBuffers)->Register(&eventUI);
 
     IControlCombo* pCombo = g_pWinHandler->CreateCtrlCombo("RENDER", "Renderer", g_pToggleContainer);
-	pCombo->SetUserData(this)->Register(&eventUI);
+    pCombo->SetUserData(this)->Register(&eventUI);
     for(int i=0; i<g_numRenderers; i++)
     {
         pCombo->AddItem(g_renderers[i]->getName(), i);
@@ -494,7 +506,7 @@ bool MyWindow::init()
     pCombo->SetSelectedByIndex(DEFAULT_RENDERER);
 
     pCombo = g_pWinHandler->CreateCtrlCombo("CLMODE", "Cmd-Buf style", g_pToggleContainer);
-	pCombo->SetUserData(this)->Register(&eventUI);
+    pCombo->SetUserData(this)->Register(&eventUI);
     pCombo->AddItem("Sort on primitive types", 0);
     pCombo->AddItem("Unsorted primitive types", 1);
     g_pWinHandler->VariableBind(pCombo, &g_bUnsortedPrims);
@@ -504,7 +516,7 @@ bool MyWindow::init()
     pCombo->AddItem("MSAA 1x", 1);
     pCombo->AddItem("MSAA 4x", 4);
     pCombo->AddItem("MSAA 8x", 8);
-	pCombo->SetUserData(this)->Register(&eventUI);
+    pCombo->SetUserData(this)->Register(&eventUI);
     pCombo->SetSelectedByData(g_MSAA);
 
     g_pToggleContainer->UnFold();
@@ -514,28 +526,28 @@ bool MyWindow::init()
     // This code is to adjust models in the scene. Then output the values with '2' or button
     // and create the scene file (used with -i <file>)
     //
-	class EventUI2: public IEventsWnd
-	{
-	public:
-		void Button(IWindow *pWin, int pressed)
+    class EventUI2: public IEventsWnd
+    {
+    public:
+        void Button(IWindow *pWin, int pressed)
         {
             if(!strcmp(pWin->GetID(), "CURPRINT"))
             {
-				if (s_curObject < g_bk3dModels.size())
-					g_bk3dModels[s_curObject]->printPosition();
+                if (s_curObject < g_bk3dModels.size())
+                    g_bk3dModels[s_curObject]->printPosition();
             }
         };
         void ScalarChanged(IControlScalar *pWin, float &v, float prev)
         {
             if(!strcmp(pWin->GetID(), "CURO"))
             {
-				if (g_bk3dModels.size() >(int)v)
+                if (g_bk3dModels.size() >(int)v)
                 {
-					LOGI("Object %d %s now current\n", (int)v, g_bk3dModels[(int)v]->m_name.c_str());
-					g_pWinHandler->VariableBind(g_pWinHandler->Get("CURX"), &(g_bk3dModels[(int)v]->m_posOffset.x));
-					g_pWinHandler->VariableBind(g_pWinHandler->Get("CURY"), &(g_bk3dModels[(int)v]->m_posOffset.y));
-					g_pWinHandler->VariableBind(g_pWinHandler->Get("CURZ"), &(g_bk3dModels[(int)v]->m_posOffset.z));
-					g_pWinHandler->VariableBind(g_pWinHandler->Get("CURS"), &(g_bk3dModels[(int)v]->m_scale));
+                    LOGI("Object %d %s now current\n", (int)v, g_bk3dModels[(int)v]->m_name.c_str());
+                    g_pWinHandler->VariableBind(g_pWinHandler->Get("CURX"), &(g_bk3dModels[(int)v]->m_posOffset.x));
+                    g_pWinHandler->VariableBind(g_pWinHandler->Get("CURY"), &(g_bk3dModels[(int)v]->m_posOffset.y));
+                    g_pWinHandler->VariableBind(g_pWinHandler->Get("CURZ"), &(g_bk3dModels[(int)v]->m_posOffset.z));
+                    g_pWinHandler->VariableBind(g_pWinHandler->Get("CURS"), &(g_bk3dModels[(int)v]->m_scale));
                 }
             }
         };
@@ -585,14 +597,17 @@ void MyWindow::shutdown()
 #ifdef USESVCUI
     shutdownMFCUI();
 #endif
+    #ifdef USEWORKERS
+    releaseThreadLocalVars();
+    terminateThreads();
+    #endif
+    WindowInertiaCamera::shutdown();
     s_pCurRenderer->terminateGraphics();
-	WindowInertiaCamera::shutdown();
-
-	for (int i = 0; i<g_bk3dModels.size(); i++)
+    for (int i = 0; i<g_bk3dModels.size(); i++)
     {
-		delete g_bk3dModels[i];
+        delete g_bk3dModels[i];
     }
-	g_bk3dModels.clear();
+    g_bk3dModels.clear();
 }
 
 //------------------------------------------------------------------------------
@@ -603,26 +618,26 @@ void MyWindow::reshape(int w, int h)
     if(w == 0) w = m_winSz[0];
     if(h == 0) h = m_winSz[1];
     WindowInertiaCamera::reshape(w, h);
-	if (s_pCurRenderer)
-	{
-		if (s_pCurRenderer->bFlipViewport())
-		{
-			m_projection *= nv_math::scale_mat4(nv_math::vec3(1,-1,1));
-		}
-		//
-		// update the token buffer in which the viewport setup happens for token rendering
-		//
-		s_pCurRenderer->updateViewport(0, 0, w, h);
-		//
-		// rebuild the main Command-buffer: size could have been hard-coded within
-		//
-		s_pCurRenderer->buildPrimaryCmdBuffer();
-		//
-		// the FBOs were destroyed and rebuilt
-		// associated 64 bits pointers (as resident resources) might have changed
-		// we need to rebuild the *command-lists*
-		//
-		FOREACHMODEL(updateForChangedRenderTarget());
+    if (s_pCurRenderer)
+    {
+        if (s_pCurRenderer->bFlipViewport())
+        {
+            m_projection *= nv_math::scale_mat4(nv_math::vec3(1,-1,1));
+        }
+        //
+        // update the token buffer in which the viewport setup happens for token rendering
+        //
+        s_pCurRenderer->updateViewport(0, 0, w, h);
+        //
+        // rebuild the main Command-buffer: size could have been hard-coded within
+        //
+        s_pCurRenderer->buildPrimaryCmdBuffer();
+        //
+        // the FBOs were destroyed and rebuilt
+        // associated 64 bits pointers (as resident resources) might have changed
+        // we need to rebuild the *command-lists*
+        //
+        FOREACHMODEL(updateForChangedRenderTarget());
     }
 }
 
@@ -632,9 +647,9 @@ void MyWindow::reshape(int w, int h)
 #define KEYTAU 0.10f
 void MyWindow::keyboard(NVPWindow::KeyCode key, MyWindow::ButtonAction action, int mods, int x, int y)
 {
-	WindowInertiaCamera::keyboard(key, action, mods, x, y);
+    WindowInertiaCamera::keyboard(key, action, mods, x, y);
 
-	if(action == MyWindow::BUTTON_RELEASE)
+    if(action == MyWindow::BUTTON_RELEASE)
         return;
     switch(key)
     {
@@ -643,7 +658,7 @@ void MyWindow::keyboard(NVPWindow::KeyCode key, MyWindow::ButtonAction action, i
             , m_camera.eyePos.x, m_camera.eyePos.y, m_camera.eyePos.z
             , m_camera.focusPos.x, m_camera.focusPos.y, m_camera.focusPos.z);
         break;
-	//...
+    //...
     case NVPWindow::KEY_F12:
         break;
     case NVPWindow::KEY_ESCAPE:
@@ -664,9 +679,9 @@ void MyWindow::keyboardchar( unsigned char key, int mods, int x, int y )
         m_camera.print_look_at(true);
     break;
     case '2': // dumps the position and scale of current object
-		if (s_curObject >= g_bk3dModels.size())
+        if (s_curObject >= g_bk3dModels.size())
             break;
-		g_bk3dModels[s_curObject]->printPosition();
+        g_bk3dModels[s_curObject]->printPosition();
     break;
     case '0':
         m_bAdjustTimeScale = true;
@@ -822,9 +837,9 @@ void initThreadLocalVars()
         }
     };
     //---------------------------------------------------------------------
-	// Note that there is no need to run threads in parallel, here:
-	// we only want to iterate throught them one by one so we can setup
-	// the local variables
+    // Note that there is no need to run threads in parallel, here:
+    // we only want to iterate throught them one by one so we can setup
+    // the local variables
     static SetThreadLocalVars setThreadLocalVars;
     for(unsigned int i=0; i<g_mainThreadPool->getThreadCount(); i++)
     {
@@ -839,6 +854,8 @@ void initThreadLocalVars()
 void releaseThreadLocalVars()
 {
 #ifdef USEWORKERS
+    if(g_mainThreadPool == NULL)
+        return;
     NXPROFILEFUNC(__FUNCTION__);
     //---------------------------------------------------------------------
     // Invoke a Task on all the threads to setup some thread-local variable
@@ -852,10 +869,10 @@ void releaseThreadLocalVars()
         }
     };
     //---------------------------------------------------------------------
-	// Note that there is no need to run threads in parallel, here:
-	// we only want to iterate throught them one by one so we can setup
-	// the local variables
-	static ReleaseThreadLocalVars releaseThreadLocalVars;
+    // Note that there is no need to run threads in parallel, here:
+    // we only want to iterate throught them one by one so we can setup
+    // the local variables
+    static ReleaseThreadLocalVars releaseThreadLocalVars;
     for(unsigned int i=0; i<g_mainThreadPool->getThreadCount(); i++)
     {
         // we will wait for the tasks to be done before continuing (Call)
@@ -1017,7 +1034,7 @@ void MyWindow::display()
     if(!g_bk3dModels.empty())
     {
         mW.rotate(-nv_to_rad*90.0f, vec3f(1,0,0));
-	    mW.translate(-g_bk3dModels[0]->m_posOffset);
+        mW.translate(-g_bk3dModels[0]->m_posOffset);
         mW.scale(g_bk3dModels[0]->m_scale);
     }
     {
@@ -1164,7 +1181,7 @@ void readConfigFile(const char* fname)
   //      res = fscanf(fp, "%f %f %f %f\n", &pos.x, &pos.y, &pos.z, &scale);
   //      if(res != 4) { LOGE("Error during parsing\n"); return; }
   //      LOGI("Load Model set to %s\n", name);
-		//g_bk3dModels.push_back(new Bk3dModel(name, &pos, &scale));
+        //g_bk3dModels.push_back(new Bk3dModel(name, &pos, &scale));
   //  }
   //  // camera movement
   //  int nCameraPos = 0;
@@ -1225,7 +1242,7 @@ int sample_main(int argc, const char** argv)
         {
             const char* name = argv[i];
             LOGI("Load Model set to %s\n", name);
-			g_bk3dModels.push_back(new Bk3dModel(name));
+            g_bk3dModels.push_back(new Bk3dModel(name));
             continue;
         }
         if(strlen(argv[i]) <= 1)
@@ -1238,7 +1255,7 @@ int sample_main(int argc, const char** argv)
             {
                 const char* name = argv[++i];
                 LOGI("Load Model set to %s\n", name);
-				g_bk3dModels.push_back(new Bk3dModel(name));
+                g_bk3dModels.push_back(new Bk3dModel(name));
             }
             break;
         case 'o':
@@ -1283,8 +1300,8 @@ int sample_main(int argc, const char** argv)
             break;
         }
     }
-	s_pCurRenderer = g_renderers[s_curRenderer];
-	s_pCurRenderer->initGraphics(myWindow.getWidth(), myWindow.getHeight(), g_MSAA);
+    s_pCurRenderer = g_renderers[s_curRenderer];
+    s_pCurRenderer->initGraphics(myWindow.getWidth(), myWindow.getHeight(), g_MSAA);
     g_profiler.init();
     g_profiler.setDefaultGPUInterface(s_pCurRenderer->getTimerInterface());
     // -------------------------------
@@ -1346,8 +1363,8 @@ int sample_main(int argc, const char** argv)
     //
     #ifdef USEWORKERS
     releaseThreadLocalVars();
-	terminateThreads();
-	s_pCurRenderer->terminateGraphics();
+    terminateThreads();
     #endif
+    s_pCurRenderer->terminateGraphics();
     return true;
 }
