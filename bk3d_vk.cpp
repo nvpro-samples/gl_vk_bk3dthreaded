@@ -1413,6 +1413,7 @@ void RendererVk::releaseThreadLocalVars()
     VkCommandPoolCreateInfo cmdPoolInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
     cmdPoolInfo.queueFamilyIndex = 0;
     m_perThreadData->m_curCmdPoolDynamic = VK_NULL_HANDLE;
+    vkQueueWaitIdle(nvk.m_queue); // need to wait: some command-buffers could be used by the GPU
     for(int i=0; i<CMDPOOL_BUFFER_SZ; i++)
         if(m_perThreadData->m_cmdPoolDynamic[i])
         {
