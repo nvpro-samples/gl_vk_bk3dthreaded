@@ -812,16 +812,19 @@ void initThreadLocalVars()
     //---------------------------------------------------------------------
     // Invoke a Task on all the threads to setup some thread-local variable
     //
-            class SetThreadLocalVars : public TaskSyncCall
-            {
-            public:
-                void Invoke()
-                { // We are now in the Thread : let's create the context, share it and make it current
-                    int threadId = getThreadNumber() + 1;
-                    s_pCurRenderer->initThreadLocalVars(threadId);
-                }
-            };
+    class SetThreadLocalVars : public TaskSyncCall
+    {
+    public:
+        void Invoke()
+        { // We are now in the Thread : let's create the context, share it and make it current
+            int threadId = getThreadNumber() + 1;
+            s_pCurRenderer->initThreadLocalVars(threadId);
+        }
+    };
     //---------------------------------------------------------------------
+	// Note that there is no need to run threads in parallel, here:
+	// we only want to iterate throught them one by one so we can setup
+	// the local variables
     static SetThreadLocalVars setThreadLocalVars;
     for(unsigned int i=0; i<g_mainThreadPool->getThreadCount(); i++)
     {
@@ -840,16 +843,19 @@ void releaseThreadLocalVars()
     //---------------------------------------------------------------------
     // Invoke a Task on all the threads to setup some thread-local variable
     //
-            class ReleaseThreadLocalVars : public TaskSyncCall
-            {
-            public:
-                void Invoke()
-                { // We are now in the Thread : let's create the context, share it and make it current
-                    s_pCurRenderer->releaseThreadLocalVars();
-                }
-            };
+    class ReleaseThreadLocalVars : public TaskSyncCall
+    {
+    public:
+        void Invoke()
+        { // We are now in the Thread : let's create the context, share it and make it current
+            s_pCurRenderer->releaseThreadLocalVars();
+        }
+    };
     //---------------------------------------------------------------------
-    static ReleaseThreadLocalVars releaseThreadLocalVars;
+	// Note that there is no need to run threads in parallel, here:
+	// we only want to iterate throught them one by one so we can setup
+	// the local variables
+	static ReleaseThreadLocalVars releaseThreadLocalVars;
     for(unsigned int i=0; i<g_mainThreadPool->getThreadCount(); i++)
     {
         // we will wait for the tasks to be done before continuing (Call)
@@ -1340,11 +1346,8 @@ int sample_main(int argc, const char** argv)
     //
     #ifdef USEWORKERS
     releaseThreadLocalVars();
-    s_pCurRenderer->terminateGraphics();
-    //
-    // terminate the threads at the very end (terminateGraphics() could still need it... for TLS)
-    //
-    terminateThreads();
+	terminateThreads();
+	s_pCurRenderer->terminateGraphics();
     #endif
     return true;
 }
