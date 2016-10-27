@@ -1,0 +1,4 @@
+[submodule "shared_sources"]
+	path = shared_sources
+	url = git@github.com:nvpro-samples/shared_sources.git
+	branch = gl_vk_bk3dthreaded
