@@ -23,6 +23,7 @@ if(NOT BASE_DIRECTORY) # if not defined, it means this cmake file was called as 
       SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/../downloaded_resources")
     elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources/CMakeLists_include.txt)
       SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/../../downloaded_resources")
+    else()
       SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
     endif()
   elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources)
