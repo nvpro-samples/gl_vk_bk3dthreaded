@@ -18,11 +18,12 @@ if(NOT BASE_DIRECTORY) # if not defined, it means this cmake file was called as 
     SET(BASE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/shared_sources/CMakeLists_include.txt)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/shared_sources ${CMAKE_BINARY_DIR}/shared_sources)
-    # if the resource of downloaded meshes is local, keep this one. Otherwise, use the common one
-    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/downloaded_resources)
-      SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
-    else()
+    # if we see that there are some common shared sources, share resrouces, too
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../shared_sources/CMakeLists_include.txt)
       SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/../downloaded_resources")
+    elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources/CMakeLists_include.txt)
+      SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/../../downloaded_resources")
+      SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
     endif()
   elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources)
     SET(BASE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..)
