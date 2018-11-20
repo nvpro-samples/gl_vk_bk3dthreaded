@@ -1,36 +1,29 @@
-/*-----------------------------------------------------------------------
-    Copyright (c) 2016, NVIDIA. All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions
-    are met:
-     * Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
-     * Neither the name of its contributors may be used to endorse 
-       or promote products derived from this software without specific
-       prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-    PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-    CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-    EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-    PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-    PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-    OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    feedback to tlorach@nvidia.com (Tristan Lorach)
-
-    Note: this section of the code is showing a basic implementation of
-    Command-lists using a binary format called bk3d.
-    This format has no value for command-list. However you will see that
-    it allows to use pre-baked art asset without too parsing: all is
-    available from structures in the file (after pointer resolution)
-
-*/ //--------------------------------------------------------------------
+/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 #define GRIDDEF 20
 #define GRIDSZ 1.0f
 #define CROSSSZ 0.01f
@@ -66,7 +59,7 @@
 #define WINDOWINERTIACAMERA_EXTERN
 #define EMUCMDLIST_EXTERN
 #include "gl_vk_bk3dthreaded.h"
-#include "nv_dds.h"
+#include "nv_helpers/nv_dds.h"
 
 #include "mt/CThreadWork.h"
 
@@ -74,20 +67,6 @@
 // VULKAN: NVK.inl > vkfnptrinline.h > vulkannv.h > vulkan.h
 //
 #include "NVK.h"
-
-//
-// this is an NVIDIA extension that allows to blit Vulkan to OpenGL backbuffer
-//
-//typedef GLVULKANPROCNV (GLAPIENTRY* PFNGLGETVKINSTANCEPROCADDRNVPROC) (const GLchar *name);
-typedef void (GLAPIENTRY* PFNGLWAITVKSEMAPHORENVPROC) (GLuint64 vkSemaphore);
-typedef void (GLAPIENTRY* PFNGLSIGNALVKSEMAPHORENVPROC) (GLuint64 vkSemaphore);
-typedef void (GLAPIENTRY* PFNGLSIGNALVKFENCENVPROC) (GLuint64 vkFence);
-typedef void (GLAPIENTRY* PFNGLDRAWVKIMAGENVPROC) (GLuint64 vkImage, GLuint sampler, GLfloat x0, GLfloat y0, GLfloat x1, GLfloat y1, GLfloat z, GLfloat s0, GLfloat t0, GLfloat s1, GLfloat t1);
-//PFNGLGETVKINSTANCEPROCADDRNVPROC    glGetVkInstanceProcAddrNV;
-PFNGLWAITVKSEMAPHORENVPROC          glWaitVkSemaphoreNV;
-PFNGLSIGNALVKSEMAPHORENVPROC        glSignalVkSemaphoreNV;
-PFNGLSIGNALVKFENCENVPROC            glSignalVkFenceNV;
-PFNGLDRAWVKIMAGENVPROC              glDrawVkImageNV;
 
 ///////////////////////////////////////////////////////////////////////////////
 // renderer
@@ -118,11 +97,11 @@ struct ImgO {
     size_t           Sz;
     void release() { 
         if(imgView) 
-            nvk.vkDestroyImageView(imgView);
+            nvk.destroyImageView(imgView);
         if(img)     
-            nvk.vkDestroyImage(img);
+            nvk.destroyImage(img);
         if(imgMem)  
-            nvk.vkFreeMemory(imgMem);
+            nvk.freeMemory(imgMem);
         memset(this, 0, sizeof(ImgO));
     }
 };
@@ -132,14 +111,12 @@ struct ImgO {
 //------------------------------------------------------------------------------
 struct BufO {
     VkBuffer        buffer;
-    VkBufferView    bufferView;
     VkDeviceMemory  bufferMem;
     size_t          Sz;
     void release() { 
-	    if(buffer)       nvk.vkDestroyBuffer(buffer);
-	    if(bufferView)   nvk.vkDestroyBufferView(bufferView);
-	    if(bufferMem)    
-            nvk.vkFreeMemory(bufferMem);
+        if(buffer)       nvk.destroyBuffer(buffer);
+        if(bufferMem)    
+            nvk.freeMemory(bufferMem);
         memset(this, 0, sizeof(BufO));
     }
 };
@@ -153,25 +130,22 @@ class RendererVk : public Renderer, public nv_helpers::Profiler::GPUInterface
 {
 private:
     bool                        m_bValid;
+    nv_helpers::Profiler::Slot  m_slot; // for profiling purpose
     //
     // Vulkan stuff
     //
     struct PerThreadData {
         int                                 m_threadId;
         // Command buffer pool must be local the the thread: for allocation and freeing
-        #define CMDPOOL_BUFFER_SZ 3 // Ring buffer >= to swapchain so we are safe
-        // this pool is only for static allocation: we will never free the cmd-buffers
-        VkCommandPool                       m_cmdPoolStatic;
+        NVK::CommandPool                    m_cmdPoolStatic;
         // these pools are for dynamic allocations along the rendering
         // we use a ring buffer of CMDPOOL_BUFFER_SZ and loop through it at each
         // frame. we also keep track of where is the next available cmd-buffer
         // (after a reset of cmd-buffer pool: we reuse allocated cmd-buffers)
-        VkCommandPool                       m_cmdPoolDynamic[CMDPOOL_BUFFER_SZ];
-        VkCommandPool                       m_curCmdPoolDynamic;
-		std::vector<::VkCommandBuffer>		m_dynamicallyAllocatedCmdBuffers[CMDPOOL_BUFFER_SZ];
-		std::vector<::VkCommandBuffer>		*m_curDynamicallyAllocatedCmdBuffers;
-		int									m_dynamicCmdBufferIdx[CMDPOOL_BUFFER_SZ];
-		int									*m_nextAvailableCmdBuffer;
+        #define CMDPOOL_BUFFER_SZ 3 // Ring buffer >= to swapchain so we are safe
+        NVK::CommandPool                    m_cmdPoolDynamic[CMDPOOL_BUFFER_SZ];
+        NVK::CommandPool                    *m_curCmdPoolDynamic;
+        //std::vector<VkCommandBuffer>        m_cmdBufferQueue[2];
     };
 #ifdef USEWORKERS
     NThreadLocalVar<PerThreadData*> m_perThreadData;
@@ -198,18 +172,17 @@ private:
     ImgO                        m_DSTImageMS;
     VkFramebuffer               m_framebuffer;
 
-    VkCommandBuffer             m_cmdScene;
-	VkFence					    m_cmdPoolFence[CMDPOOL_BUFFER_SZ];
-	VkFence						m_curCmdPoolFence;
-    int                         m_frameCounter; // looping from 0 to CMDPOOL_BUFFER_SZ-1
+    NVK::CommandBuffer          m_cmdScene;
+    VkFence                     m_cmdPoolFence[CMDPOOL_BUFFER_SZ];
+    int                         m_frameCounter, m_frameCounter2; // looping from 0 to CMDPOOL_BUFFER_SZ-1
 
     // Used for merging Vulkan image to OpenGL backbuffer 
     VkSemaphore                 m_semOpenGLReadDone;
     VkSemaphore                 m_semVKRenderingDone;
 
 
-    VkCommandBuffer             m_cmdSyncAndViewport;
-	VkCommandBuffer				m_cmdBufferGrid;
+    NVK::CommandBuffer          m_cmdSyncAndViewport;
+    NVK::CommandBuffer            m_cmdBufferGrid;
 
     BufO                        m_gridBuffer;
     BufO                        m_matrix;
@@ -221,7 +194,7 @@ private:
     //
     // viewport info
     //
-    NVK::VkRect2D               m_viewRect;
+    NVK::Rect2D               m_viewRect;
 
     int                         m_MSAA;
     //
@@ -239,38 +212,38 @@ private:
     void            releaseFramebuffer();
     bool            initResourcesGrid();
     bool            releaseResourcesGrid();
-
-	VkCommandBuffer		requestDynamicCommandBuffer();
 public:
-	RendererVk() {
+    RendererVk() {
         m_frameCounter = 0;
+        m_frameCounter2 = 0;
         m_bValid = false;
         m_timeStampsSupported = false;
-		g_renderers[g_numRenderers++] = this;
-	}
-	virtual ~RendererVk() {}
+        g_renderers[g_numRenderers++] = this;
+    }
+    virtual ~RendererVk() {}
 
-	virtual const char *getName() { return "Vulkan"; }
+    virtual const char *getName() { return "Vulkan"; }
     virtual bool valid()          { return m_bValid; };
-	virtual bool initGraphics(int w, int h, int MSAA);
-	virtual bool terminateGraphics();
+    virtual bool initRenderpassDependent(int w, int h, int MSAA);
+    virtual bool initGraphics(int w, int h, int MSAA);
+    virtual bool terminateGraphics();
     virtual bool initThreadLocalVars(int threadId);
     virtual void releaseThreadLocalVars();
     virtual void destroyCommandBuffers(bool bAll);
     virtual void resetCommandBuffersPool();
     virtual void waitForGPUIdle();
 
-	virtual bool attachModel(Bk3dModel* pModel);
+    virtual bool attachModel(Bk3dModel* pModel);
     virtual bool detachModels();
 
-	virtual bool initResourcesModel(Bk3dModel* pModel);
-	virtual bool releaseResourcesModel(Bk3dModel* pModel);
-	
+    virtual bool initResourcesModel(Bk3dModel* pModel);
+    virtual bool releaseResourcesModel(Bk3dModel* pModel);
+    
     virtual bool buildPrimaryCmdBuffer();
-	virtual bool buildCmdBufferModel(Bk3dModel* pModel, int bufIdx, int mstart, int mend);
+    virtual bool buildCmdBufferModel(Bk3dModel* pModel, int bufIdx, int mstart, int mend);
     virtual void consolidateCmdBuffersModel(Bk3dModel* pModel, int numCmdBuffers);
-	virtual bool deleteCmdBufferModel(Bk3dModel* pModel);
-	
+    virtual bool deleteCmdBufferModel(Bk3dModel* pModel);
+    
     virtual bool updateForChangedRenderTarget(Bk3dModel* pModel);
 
     virtual void displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection);
@@ -292,12 +265,13 @@ public:
     //
     // from nv_helpers::Profiler::GPUInterface
     //
-    virtual const char* TimerTypeName();
-    virtual bool        TimerAvailable(nv_helpers::Profiler::TimerIdx idx);
-    virtual void        TimerSetup(nv_helpers::Profiler::TimerIdx idx);
-    virtual unsigned long long TimerResult(nv_helpers::Profiler::TimerIdx idxBegin, nv_helpers::Profiler::TimerIdx idxEnd);
-    virtual void        TimerEnsureSize(unsigned int slots);
-    virtual void        TimerFlush();
+    virtual const char* TimerTypeName() override;
+    virtual bool        TimerAvailable(nv_helpers::Profiler::TimerIdx idx) override;
+    virtual void        TimerSetup(nv_helpers::Profiler::TimerIdx idx) override;
+    virtual void        TimerSetup(nv_helpers::Profiler::TimerIdx idx, void* payload) override;
+    virtual unsigned long long TimerResult(nv_helpers::Profiler::TimerIdx idxBegin, nv_helpers::Profiler::TimerIdx idxEnd) override;
+    virtual void        TimerEnsureSize(unsigned int slots) override;
+    virtual void        TimerFlush() override;
 
   friend class Bk3dModelVk;
 };
@@ -310,10 +284,10 @@ RendererVk s_renderer;
 struct ModelCmdBuffers
 {
     // one command buffer containing all in one
-    VkCommandBuffer             full;
+    NVK::CommandBuffer             full;
     // array of command buffers: one for each topology: Lines, linestrip, triangles, tristrips, trifans
     // used when the user only wanted to render specific kind of prims. These would replace 'full' cmd buffer above
-    VkCommandBuffer             SplitTopo[5];
+    NVK::CommandBuffer             SplitTopo[5];
 };
 //------------------------------------------------------------------------------
 // Class for Object (made of 1 to N meshes)
@@ -336,18 +310,18 @@ private:
     BufO                m_uboObjectMatrices;
     BufO                m_uboMaterial;
 
-	#define NDSETOBJECT 1
+    #define NDSETOBJECT 1
     VkDescriptorSet             m_descriptorSets[NDSETOBJECT]; // descriptor sets for things related to this model: local transf+material
 
 public:
     Bk3dModelVk(Bk3dModel* pGenericModel);
     ~Bk3dModelVk();
 
-    bool feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuffer, VkCommandBuffer *cmdBufferSplitTopo, int mstart, int mend);
+    bool feedCmdBuffer(RendererVk * pRendererVk, NVK::CommandBuffer &cmdBuffer, NVK::CommandBuffer *cmdBufferSplitTopo, int mstart, int mend);
     bool buildCmdBuffer(Renderer *pRenderer, int bufIdx, int mstart, int mend);
     void consolidateCmdBuffers(int numCmdBuffers);
-	bool initResources(Renderer *pRenderer);
-	bool releaseResources(Renderer *pRenderer);
+    bool initResources(Renderer *pRenderer);
+    bool releaseResources(Renderer *pRenderer);
     void displayObject(Renderer *pRenderer, const mat4f& cameraView, const mat4f projection, unsigned char topologies);
     Bk3dModel* getGenericModel() { return m_pGenericModel; }
 
@@ -388,21 +362,24 @@ bool RendererVk::TimerAvailable(nv_helpers::Profiler::TimerIdx idx)
 //------------------------------------------------------------------------------
 void RendererVk::TimerSetup(nv_helpers::Profiler::TimerIdx idx)
 {
-    VkResult result = VK_ERROR_INITIALIZATION_FAILED;
-    if((m_bValid == false)||(m_perThreadData->m_curCmdPoolDynamic == VK_NULL_HANDLE))
-        return;
+  //VkResult result = VK_ERROR_INITIALIZATION_FAILED;
+  //NVK::CommandBuffer timerCmd(m_perThreadData->m_curCmdPoolDynamic->utRequestCmdBuffer(true));
+  //timerCmd.beginCommandBuffer(true, true);
+  //{
+  //  TimerSetup(idx, timerCmd.m_cmdbuffer);
+  //}
+  //timerCmd.endCommandBuffer();
+  ////m_cmdBufferQueue[m_cmdSceneIdx].push_back(timerCmd.m_cmdbuffer); // TODO
+  //nvk.queueSubmit(NVK::SubmitInfo(0, NULL, NULL, 1, timerCmd, 0, NULL), NULL);
+}
+void RendererVk::TimerSetup(nv_helpers::Profiler::TimerIdx idx, void* payload)
+{
+  if (m_bValid == false || !payload) return;
 
-    ::VkCommandBuffer timerCmd;
-	timerCmd = requestDynamicCommandBuffer();
+  VkCommandBuffer timerCmd = (VkCommandBuffer)payload;
 
-    nvk.vkBeginCommandBuffer(timerCmd, true);
-
-    vkCmdResetQueryPool(timerCmd, m_timePool, idx, 1); // not ideal to do this per query
-    vkCmdWriteTimestamp(timerCmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_timePool, idx);
-
-    nvk.vkEndCommandBuffer(timerCmd);
-    
-    nvk.vkQueueSubmit(NVK::VkSubmitInfo(0, NULL, NULL, 1, &timerCmd, 0, NULL), VK_NULL_HANDLE);
+  vkCmdResetQueryPool(timerCmd, m_timePool, idx, 1); // not ideal to do this per query
+  vkCmdWriteTimestamp(timerCmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_timePool, idx);
 }
 
 //------------------------------------------------------------------------------
@@ -413,8 +390,9 @@ unsigned long long RendererVk::TimerResult(nv_helpers::Profiler::TimerIdx idxBeg
     if(m_bValid == false) return 0;
     uint64_t end = 0;
     uint64_t begin = 0;
-    vkGetQueryPoolResults(nvk.m_device, m_timePool, idxEnd,   1, sizeof(uint64_t), &end,   0, VK_QUERY_RESULT_WAIT_BIT | VK_QUERY_RESULT_64_BIT);
-    vkGetQueryPoolResults(nvk.m_device, m_timePool, idxBegin, 1, sizeof(uint64_t), &begin, 0, VK_QUERY_RESULT_WAIT_BIT | VK_QUERY_RESULT_64_BIT);
+    // due to this sample not using continous redraw, we cannot use "wait" here
+    vkGetQueryPoolResults(nvk.m_device, m_timePool, idxEnd, 1, sizeof(uint64_t), &end, 0, VK_QUERY_RESULT_64_BIT);
+    vkGetQueryPoolResults(nvk.m_device, m_timePool, idxBegin, 1, sizeof(uint64_t), &begin, 0, VK_QUERY_RESULT_64_BIT);
 
     return uint64_t(double(end - begin) * m_timeStampFrequency);
 }
@@ -505,13 +483,19 @@ void RendererVk::deinitTimers()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool load_binary(const std::string &name, std::string &data)
+bool load_binary(std::string &name, std::string &data)
 {
     FILE *fd = NULL;
     std::vector<std::string> paths;
     paths.push_back(name);
-    paths.push_back(std::string(PROJECT_RELDIRECTORY) + name);
-    paths.push_back(std::string(PROJECT_ABSDIRECTORY) + name);
+    paths.push_back(std::string("GLSL/") + name);
+    paths.push_back(std::string(NVPWindow::sysExePath() + "/" + PROJECT_RELDIRECTORY + "GLSL/") + name);
+    paths.push_back(std::string("../GLSL/") + name); // for when working directory in Debug is $(ProjectDir)
+    paths.push_back(std::string("../../" PROJECT_NAME "/GLSL/") + name); // for when using $(TargetDir)
+    paths.push_back(std::string("../../shipped/" PROJECT_NAME "/GLSL/") + name); // for when using $(TargetDir)
+    paths.push_back(std::string("SPV_" PROJECT_NAME "/") + name);
+    //paths.push_back(std::string(PROJECT_RELDIRECTORY) + name);
+    //paths.push_back(std::string(PROJECT_ABSDIRECTORY) + name);
     for(int i=0; i<paths.size(); i++)
     {
         if(fd = fopen(paths[i].c_str(), "rb") )
@@ -525,15 +509,312 @@ bool load_binary(const std::string &name, std::string &data)
         return false;
     }
     fseek(fd, 0, SEEK_END);
-	long realsize = ftell(fd);
+    long realsize = ftell(fd);
     char *p = new char[realsize];
     fseek(fd, 0, SEEK_SET);
     fread(p, 1, realsize, fd);
     data = std::string(p, realsize);
     delete [] p;
-    return true;
 }
 //------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+bool RendererVk::initRenderpassDependent(int w, int h, int MSAA)
+{
+  bool bRes = true;
+  if(m_scenePass)
+    vkDestroyRenderPass(nvk.m_device, m_scenePass, NULL);
+  m_scenePass = VK_NULL_HANDLE;
+  if(m_pipelineMeshTri )
+    vkDestroyPipeline(nvk.m_device, m_pipelineMeshTri, NULL);
+  m_pipelineMeshTri = NULL;
+  if(m_pipelineMeshTriStrip)
+    vkDestroyPipeline(nvk.m_device, m_pipelineMeshTriStrip, NULL);
+  m_pipelineMeshTriStrip = NULL;
+  if(m_pipelineMeshTriFan)
+    vkDestroyPipeline(nvk.m_device, m_pipelineMeshTriFan, NULL);
+  m_pipelineMeshTriFan = NULL;
+  if(m_pipelineMeshLine)
+    vkDestroyPipeline(nvk.m_device, m_pipelineMeshLine, NULL);
+  m_pipelineMeshLine = NULL;
+  if(m_pipelineMeshLineStrip)
+    vkDestroyPipeline(nvk.m_device, m_pipelineMeshLineStrip, NULL);
+  m_pipelineMeshLineStrip = NULL;
+  if(m_pipelineGrid)
+    vkDestroyPipeline(nvk.m_device, m_pipelineGrid, NULL);
+  m_pipelineGrid = NULL;
+
+  //
+  // Create the render passes
+  //
+  // example (commented in this case) where the VkSubpassDescription() would use pointers to these things
+  //NVK::AttachmentReference color(0/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/);
+  //NVK::AttachmentReference dst(1/*attachment*/, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL/*layout*/);
+  //NVK::AttachmentReference colorResolved(2/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/);
+  // later below, you'd reference them by pointer instead of using constructors:
+  //NVK::SubpassDescription
+  //(   VK_PIPELINE_BIND_POINT_GRAPHICS,//pipelineBindPoint
+  //    NULL,                           //inputAttachments
+  //    &color,                         //colorAttachments
+  //    &colorResolved,                 //resolveAttachments
+  //    &dst,                           //depthStencilAttachment
+  //    NULL,                            //preserveAttachments
+  //    0)
+  NVK::RenderPassCreateInfo rpinfo = NVK::RenderPassCreateInfo(
+    NVK::AttachmentDescription
+    (VK_FORMAT_R8G8B8A8_UNORM, (VkSampleCountFlagBits)MSAA,                                        //format, samples
+      VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,          //loadOp, storeOp
+      VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,  //stencilLoadOp, stencilStoreOp
+      VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL //initialLayout, finalLayout
+    )
+    (VK_FORMAT_D24_UNORM_S8_UINT, (VkSampleCountFlagBits)MSAA,
+      VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+      VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+      VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+      )
+      (VK_FORMAT_R8G8B8A8_UNORM, (VkSampleCountFlagBits)1,                                        //format, samples
+        VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,          //loadOp, storeOp
+        VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,  //stencilLoadOp, stencilStoreOp
+        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL //initialLayout, finalLayout
+        ),
+    // Easy way
+    NVK::SubpassDescription
+    (VK_PIPELINE_BIND_POINT_GRAPHICS,                                                                        //pipelineBindPoint
+      NVK::AttachmentReference(),                                                                           //inputAttachments
+      NVK::AttachmentReference(0/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/),        //colorAttachments
+      NVK::AttachmentReference(2/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/),        //resolveAttachments
+      NVK::AttachmentReference(1/*attachment*/, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL/*layout*/),//depthStencilAttachment
+      NVK::Uint32Array(),                                                                           //preserveAttachments
+      0                                                                                                       //flags
+    ),
+
+    //NVK::SubpassDescription
+    //(   VK_PIPELINE_BIND_POINT_GRAPHICS,//pipelineBindPoint
+    //    NULL,                           //inputAttachments
+    //    &color,                         //colorAttachments
+    //    &colorResolved,                 //resolveAttachments
+    //    &dst,                           //depthStencilAttachment
+    //    NULL,                           //preserveAttachments
+    //    0                               //flags
+    //),
+    NVK::SubpassDependency(/*NONE*/)
+  );
+  m_scenePass = nvk.createRenderPass(rpinfo);
+
+  //--------------------------------------------------------------------------
+  // Load SpirV shaders
+  //
+  std::string spv_GLSL_mesh_lines_frag;
+  std::string spv_GLSL_mesh_frag;
+  std::string spv_GLSL_mesh_vert;
+  std::string spv_GLSL_mesh_lines_vert;
+  std::string spv_GLSL_grid_frag;
+  std::string spv_GLSL_grid_vert;
+  if (!load_binary(std::string("GLSL_mesh_lines_frag.spv"), spv_GLSL_mesh_lines_frag))
+    bRes = false;
+  if (!load_binary(std::string("GLSL_mesh_frag.spv"), spv_GLSL_mesh_frag))
+    bRes = false;
+  if (!load_binary(std::string("GLSL_mesh_vert.spv"), spv_GLSL_mesh_vert))
+    bRes = false;
+  if (!load_binary(std::string("GLSL_mesh_lines_vert.spv"), spv_GLSL_mesh_lines_vert))
+    bRes = false;
+  if (!load_binary(std::string("GLSL_grid_frag.spv"), spv_GLSL_grid_frag))
+    bRes = false;
+  if (!load_binary(std::string("GLSL_grid_vert.spv"), spv_GLSL_grid_vert))
+    bRes = false;
+  if (bRes == false)
+  {
+    LOGE("Failed loading some SPV files\n");
+    m_bValid = false;
+    return false;
+  }
+
+
+
+  //--------------------------------------------------------------------------
+  // Init 'pipelines'
+  //
+  //
+  // what is needed to tell which states are dynamic
+  //
+  NVK::PipelineDynamicStateCreateInfo dynamicStateCreateInfo(
+    NVK::DynamicState
+    (VK_DYNAMIC_STATE_VIEWPORT)
+    (VK_DYNAMIC_STATE_SCISSOR)
+    (VK_DYNAMIC_STATE_LINE_WIDTH)
+    (VK_DYNAMIC_STATE_DEPTH_BIAS)
+  );
+
+  NVK::PipelineViewportStateCreateInfo vkPipelineViewportStateCreateInfo(
+    NVK::Viewport(0.0f, 0.0f, (float)w, (float)h, 0.0f, 1.0f),
+    NVK::Rect2DArray(0.0f, 0.0f, (float)w, (float)h)
+  );
+  NVK::PipelineRasterizationStateCreateInfo vkPipelineRasterStateCreateInfo(
+    VK_TRUE,            //depthClipEnable
+    VK_FALSE,           //rasterizerDiscardEnable
+    VK_POLYGON_MODE_FILL, //fillMode
+    VK_CULL_MODE_NONE,  //cullMode
+    VK_FRONT_FACE_COUNTER_CLOCKWISE,  //frontFace
+    VK_TRUE,            //depthBiasEnable
+    0.0,                //depthBias
+    0.0,                //depthBiasClamp
+    0.0,                //slopeScaledDepthBias
+    1.0                 //lineWidth
+  );
+  NVK::PipelineColorBlendStateCreateInfo vkPipelineColorBlendStateCreateInfo(
+    VK_FALSE/*logicOpEnable*/,
+    VK_LOGIC_OP_NO_OP,
+    NVK::PipelineColorBlendAttachmentState(
+      VK_FALSE/*blendEnable*/,
+      VK_BLEND_FACTOR_ZERO   /*srcBlendColor*/,
+      VK_BLEND_FACTOR_ZERO   /*destBlendColor*/,
+      VK_BLEND_OP_ADD /*blendOpColor*/,
+      VK_BLEND_FACTOR_ZERO   /*srcBlendAlpha*/,
+      VK_BLEND_FACTOR_ZERO   /*destBlendAlpha*/,
+      VK_BLEND_OP_ADD /*blendOpAlpha*/,
+      VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT/*colorWriteMask*/),
+    NVK::Float4()           //blendConst[4]
+  );
+  NVK::PipelineDepthStencilStateCreateInfo vkPipelineDepthStencilStateCreateInfo(
+    VK_TRUE,                    //depthTestEnable
+    VK_TRUE,                    //depthWriteEnable
+    VK_COMPARE_OP_LESS_OR_EQUAL,   //depthCompareOp
+    VK_FALSE,                   //depthBoundsTestEnable
+    VK_FALSE,                   //stencilTestEnable
+    NVK::StencilOpState(), NVK::StencilOpState(), //front, back
+    0.0f, 1.0f                  //minDepthBounds, maxDepthBounds
+  );
+  ::VkSampleMask sampleMask = 0xFFFF;
+  NVK::PipelineMultisampleStateCreateInfo vkPipelineMultisampleStateCreateInfo(
+    (VkSampleCountFlagBits)MSAA /*rasterSamples*/, VK_FALSE /*sampleShadingEnable*/, 1.0 /*minSampleShading*/, &sampleMask /*sampleMask*/, VK_FALSE, VK_FALSE);
+
+  //
+  // GRID gfx pipeline
+  //
+  m_pipelineGrid = nvk.createGraphicsPipeline(NVK::GraphicsPipelineCreateInfo
+  (m_pipelineLayout, m_scenePass)
+    (NVK::PipelineVertexInputStateCreateInfo(
+      NVK::VertexInputBindingDescription(0/*binding*/, sizeof(vec3f)/*stride*/, VK_VERTEX_INPUT_RATE_VERTEX),
+      NVK::VertexInputAttributeDescription(0/*location*/, 0/*binding*/, VK_FORMAT_R32G32B32_SFLOAT, 0) // pos
+    ))
+    (NVK::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_LIST, VK_FALSE))
+    (NVK::PipelineShaderStageCreateInfo(
+      VK_SHADER_STAGE_VERTEX_BIT, nvk.createShaderModule(spv_GLSL_grid_vert.c_str(), spv_GLSL_grid_vert.size()), "main"))
+      (vkPipelineViewportStateCreateInfo)
+    (vkPipelineRasterStateCreateInfo)
+    (vkPipelineMultisampleStateCreateInfo)
+    (NVK::PipelineShaderStageCreateInfo(
+      VK_SHADER_STAGE_FRAGMENT_BIT, nvk.createShaderModule(spv_GLSL_grid_frag.c_str(), spv_GLSL_grid_frag.size()), "main"))
+      (vkPipelineColorBlendStateCreateInfo)
+    (vkPipelineDepthStencilStateCreateInfo)
+    (dynamicStateCreateInfo)
+  );
+  //
+  // MESH gfx pipelines
+  // NVkVertexInputBindingDescription corresponds to a buffer containing some interleaved attributes. Many can be specified
+  // NVkVertexInputAttributeDescription describes attributes and how they correlate to shader location and NVkVertexInputBindingDescription (binding)
+  //
+  NVK::PipelineShaderStageCreateInfo vkPipelineShaderStageCreateInfoVtx(
+    VK_SHADER_STAGE_VERTEX_BIT, nvk.createShaderModule(spv_GLSL_mesh_vert.c_str(), spv_GLSL_mesh_vert.size()), "main");
+  NVK::PipelineShaderStageCreateInfo vkPipelineShaderStageCreateInfoFrag(
+    VK_SHADER_STAGE_FRAGMENT_BIT, nvk.createShaderModule(spv_GLSL_mesh_frag.c_str(), spv_GLSL_mesh_frag.size()), "main");
+  NVK::PipelineShaderStageCreateInfo vkPipelineShaderStageCreateInfoVtxLine(
+    VK_SHADER_STAGE_VERTEX_BIT, nvk.createShaderModule(spv_GLSL_mesh_lines_vert.c_str(), spv_GLSL_mesh_lines_vert.size()), "main");
+  NVK::PipelineShaderStageCreateInfo vkPipelineShaderStageCreateInfoFragLine(
+    VK_SHADER_STAGE_FRAGMENT_BIT, nvk.createShaderModule(spv_GLSL_mesh_lines_frag.c_str(), spv_GLSL_mesh_lines_frag.size()), "main");
+  NVK::PipelineVertexInputStateCreateInfo vkPipelineVertexInputStateCreateInfo(
+    NVK::VertexInputBindingDescription(0/*binding*/, 2 * sizeof(vec3f)/*stride*/, VK_VERTEX_INPUT_RATE_VERTEX),
+    NVK::VertexInputAttributeDescription(0/*location*/, 0/*binding*/, VK_FORMAT_R32G32B32_SFLOAT, 0            /*offset*/) // pos
+    (1/*location*/, 0/*binding*/, VK_FORMAT_R32G32B32_SFLOAT, sizeof(vec3f)/*offset*/) // normal
+  );
+  NVK::PipelineVertexInputStateCreateInfo vkPipelineVertexInputStateCreateInfoLine(
+    NVK::VertexInputBindingDescription(0/*binding*/, sizeof(vec3f)/*stride*/, VK_VERTEX_INPUT_RATE_VERTEX),
+    NVK::VertexInputAttributeDescription(0/*location*/, 0/*binding*/, VK_FORMAT_R32G32B32_SFLOAT, 0            /*offset*/) // pos
+  );
+
+
+  m_pipelineMeshTri = nvk.createGraphicsPipeline(NVK::GraphicsPipelineCreateInfo
+  (m_pipelineLayout, m_scenePass)
+    (vkPipelineVertexInputStateCreateInfo)
+    (NVK::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE))
+    (NVK::PipelineShaderStageCreateInfo(
+      VK_SHADER_STAGE_VERTEX_BIT, nvk.createShaderModule(spv_GLSL_mesh_vert.c_str(), spv_GLSL_mesh_vert.size()), "main"))
+      (vkPipelineViewportStateCreateInfo)
+    (vkPipelineRasterStateCreateInfo)
+    (vkPipelineMultisampleStateCreateInfo)
+    (NVK::PipelineShaderStageCreateInfo(
+      VK_SHADER_STAGE_FRAGMENT_BIT, nvk.createShaderModule(spv_GLSL_mesh_frag.c_str(), spv_GLSL_mesh_frag.size()), "main"))
+      (vkPipelineColorBlendStateCreateInfo)
+    (vkPipelineDepthStencilStateCreateInfo)
+    (dynamicStateCreateInfo)
+  );
+  //
+  // create Mesh pipelines
+  //
+  m_pipelineMeshTriStrip = nvk.createGraphicsPipeline(NVK::GraphicsPipelineCreateInfo
+  (m_pipelineLayout, m_scenePass)
+    (vkPipelineVertexInputStateCreateInfo)
+    (NVK::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP, VK_TRUE))
+    (vkPipelineShaderStageCreateInfoVtx)
+    (vkPipelineViewportStateCreateInfo)
+    (vkPipelineRasterStateCreateInfo)
+    (vkPipelineMultisampleStateCreateInfo)
+    (vkPipelineShaderStageCreateInfoFrag)
+    (vkPipelineColorBlendStateCreateInfo)
+    (vkPipelineDepthStencilStateCreateInfo)
+    (dynamicStateCreateInfo)
+  );
+  //
+  // create Mesh pipelines
+  //
+  m_pipelineMeshTriFan = nvk.createGraphicsPipeline(NVK::GraphicsPipelineCreateInfo
+  (m_pipelineLayout, m_scenePass)
+    (vkPipelineVertexInputStateCreateInfoLine)
+    (NVK::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN, VK_TRUE))
+    (vkPipelineShaderStageCreateInfoVtxLine)
+    (vkPipelineViewportStateCreateInfo)
+    (vkPipelineRasterStateCreateInfo)
+    (vkPipelineMultisampleStateCreateInfo)
+    (vkPipelineShaderStageCreateInfoFragLine)
+    (vkPipelineColorBlendStateCreateInfo)
+    (vkPipelineDepthStencilStateCreateInfo)
+    (dynamicStateCreateInfo)
+  );
+  //
+  // create Mesh pipelines
+  //
+  m_pipelineMeshLine = nvk.createGraphicsPipeline(NVK::GraphicsPipelineCreateInfo
+  (m_pipelineLayout, m_scenePass)
+    (vkPipelineVertexInputStateCreateInfoLine)
+    (NVK::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_LIST, VK_FALSE))
+    (vkPipelineShaderStageCreateInfoVtxLine)
+    (vkPipelineViewportStateCreateInfo)
+    (vkPipelineRasterStateCreateInfo)
+    (vkPipelineMultisampleStateCreateInfo)
+    (vkPipelineShaderStageCreateInfoFragLine)
+    (vkPipelineColorBlendStateCreateInfo)
+    (vkPipelineDepthStencilStateCreateInfo)
+    (dynamicStateCreateInfo)
+  );
+  //
+  // create Mesh pipelines
+  //
+  m_pipelineMeshLineStrip = nvk.createGraphicsPipeline(NVK::GraphicsPipelineCreateInfo
+  (m_pipelineLayout, m_scenePass)
+    (vkPipelineVertexInputStateCreateInfoLine)
+    (NVK::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_STRIP, VK_TRUE))
+    (vkPipelineShaderStageCreateInfoVtxLine)
+    (vkPipelineViewportStateCreateInfo)
+    (vkPipelineRasterStateCreateInfo)
+    (vkPipelineMultisampleStateCreateInfo)
+    (vkPipelineShaderStageCreateInfoFragLine)
+    (vkPipelineColorBlendStateCreateInfo)
+    (vkPipelineDepthStencilStateCreateInfo)
+    (dynamicStateCreateInfo)
+  );
+  return bRes;
+}
+  //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
 bool RendererVk::initGraphics(int w, int h, int MSAA)
@@ -541,32 +822,22 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
     bool bRes;
     if(m_bValid)
         return true;
+    m_MSAA = MSAA;
     m_bValid = true;
     //--------------------------------------------------------------------------
     // Create the Vulkan device
     //
-    bRes = nvk.CreateDevice();
+    bool validation_layer = false;
+    bRes = nvk.utInitialize(validation_layer);
     assert(bRes);
     //--------------------------------------------------------------------------
-    // Get the OpenGL extension for merging VULKAN with OpenGL
+    // extension for merging VULKAN with OpenGL
     //
-    //glGetVkInstanceProcAddrNV = (PFNGLGETVKINSTANCEPROCADDRNVPROC)GetProcAddress(hlib, "glGetVkInstanceProcAddrNV");
-    glWaitVkSemaphoreNV = (PFNGLWAITVKSEMAPHORENVPROC)NVPWindow::sysGetProcAddress("glWaitVkSemaphoreNV");
-    glSignalVkSemaphoreNV = (PFNGLSIGNALVKSEMAPHORENVPROC)NVPWindow::sysGetProcAddress("glSignalVkSemaphoreNV");
-    glSignalVkFenceNV = (PFNGLSIGNALVKFENCENVPROC)NVPWindow::sysGetProcAddress("glSignalVkFenceNV");
-    glDrawVkImageNV = (PFNGLDRAWVKIMAGENVPROC)NVPWindow::sysGetProcAddress("glDrawVkImageNV");
-    if(glDrawVkImageNV == NULL)
-    {
-        LOGE("couldn't find entry points to blit Vulkan to OpenGL back-buffer (glDrawVkImageNV...)");
-        nvk.DestroyDevice();
-        m_bValid = false;
-        return false;
-    }
     VkSemaphoreCreateInfo semCreateInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-    m_semOpenGLReadDone = nvk.vkCreateSemaphore();
+    m_semOpenGLReadDone = nvk.createSemaphore();
     // Signal Semaphore by default to avoid being stuck
     glSignalVkSemaphoreNV((GLuint64)m_semOpenGLReadDone);
-    m_semVKRenderingDone = nvk.vkCreateSemaphore();
+    m_semVKRenderingDone = nvk.createSemaphore();
     //--------------------------------------------------------------------------
     // Command pool for the main thread
     //
@@ -576,39 +847,17 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
     //
     for(int i=0; i<CMDPOOL_BUFFER_SZ; i++)
     {
-		m_cmdPoolFence[i] = nvk.vkCreateFence(VK_FENCE_CREATE_SIGNALED_BIT);
+        m_cmdPoolFence[i] = nvk.createFence(VK_FENCE_CREATE_SIGNALED_BIT);
     }
-	m_curCmdPoolFence = m_cmdPoolFence[(CMDPOOL_BUFFER_SZ-1)];
 
     //--------------------------------------------------------------------------
     // TODO
     initTimers(nv_helpers::Profiler::START_TIMERS);
 
-    //--------------------------------------------------------------------------
-    // Load SpirV shaders
-    //
-    std::string spv_GLSL_mesh_lines_frag;
-    std::string spv_GLSL_mesh_frag;
-    std::string spv_GLSL_mesh_vert;
-    std::string spv_GLSL_grid_frag;
-    std::string spv_GLSL_grid_vert;
-    bRes = true;
-    if(!load_binary(std::string("GLSL/GLSL_mesh_lines_frag.spv"), spv_GLSL_mesh_lines_frag)) bRes = false;
-    if(!load_binary(std::string("GLSL/GLSL_mesh_frag.spv"), spv_GLSL_mesh_frag)) bRes = false;
-    if(!load_binary(std::string("GLSL/GLSL_mesh_vert.spv"), spv_GLSL_mesh_vert)) bRes = false;
-    if(!load_binary(std::string("GLSL/GLSL_grid_frag.spv"), spv_GLSL_grid_frag)) bRes = false;
-    if(!load_binary(std::string("GLSL/GLSL_grid_vert.spv"), spv_GLSL_grid_vert)) bRes = false;
-    if (bRes == false)
-    {
-        LOGE("Failed loading some SPV files\n");
-        nvk.DestroyDevice();
-        m_bValid = false;
-        return false;
-    }
     //
     // Create a sampler
     //
-    m_sampler = nvk.vkCreateSampler(NVK::VkSamplerCreateInfo(
+    m_sampler = nvk.createSampler(NVK::SamplerCreateInfo(
         VK_FILTER_LINEAR,               //magFilter 
         VK_FILTER_LINEAR,               //minFilter 
         VK_SAMPLER_MIPMAP_MODE_LINEAR,          //mipMode 
@@ -616,6 +865,7 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
         VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,          //addressV 
         VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,          //addressW 
         0.0,                                //mipLodBias 
+        VK_FALSE,                           // aniso enable
         1,                                  //maxAnisotropy 
         VK_FALSE,                           //compareEnable
         VK_COMPARE_OP_NEVER,                //compareOp 
@@ -627,8 +877,7 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
     //--------------------------------------------------------------------------
     // Texture
     //
-#if 0
-    dds::CDDSImage image;
+    nv_dds::CDDSImage image;
     ImgO noiseTex3D;
 
     std::vector<std::string> paths;
@@ -678,262 +927,82 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
         break;
         assert(!"TODO");
     }
-    noiseTex3D.img        = nvk.createImage3D(image.get_width(), image.get_height(), image.get_depth(), noiseTex3D.imgMem, fmt, VK_SAMPLE_COUNT_1_BIT, VK_SAMPLE_COUNT_1_BIT, image.get_num_mipmaps()+1);
-    noiseTex3D.imgView    = nvk.vkCreateImageView(NVK::VkImageViewCreateInfo(
+    noiseTex3D.img        = nvk.utCreateImage3D(image.get_width(), image.get_height(), image.get_depth(), noiseTex3D.imgMem, fmt, VK_SAMPLE_COUNT_1_BIT, VK_SAMPLE_COUNT_1_BIT, image.get_num_mipmaps()+1);
+    noiseTex3D.imgView    = nvk.createImageView(NVK::ImageViewCreateInfo(
         noiseTex3D.img, // image
         VK_IMAGE_VIEW_TYPE_3D, //viewType
         fmt, //format
-        NVK::VkComponentMapping(),//channels
-        NVK::VkImageSubresourceRange()//subresourceRange
+        NVK::ComponentMapping(),//channels
+        NVK::ImageSubresourceRange()//subresourceRange
         ) );
     //
     // Perform the copy of the image and possible mipmaps
     // TODO: check mipmap upload !
     //
-    NVK::VkBufferImageCopy imageCopy;
+    NVK::BufferImageCopy imageCopy;
     unsigned char* aggregatedMipmaps = NULL;
     size_t aggregatedMipmaps_Sz = 0;
     for(int i=0; i<image.get_num_mipmaps()+1; i++)
     {
-        const dds::CSurface &imageSurface = image.get_mipmap(i);
+        const nv_dds::CSurface &imageSurface = image.get_mipmap(i);
         aggregatedMipmaps_Sz += imageSurface.get_size();
     }
     aggregatedMipmaps = new unsigned char[aggregatedMipmaps_Sz];
     aggregatedMipmaps_Sz = 0;
     for(int i=0; i<image.get_num_mipmaps()+1; i++)
     {
-        const dds::CSurface &imageSurface = image.get_mipmap(i);
+        const nv_dds::CSurface &imageSurface = image.get_mipmap(i);
         memcpy(aggregatedMipmaps + aggregatedMipmaps_Sz, (unsigned char*)imageSurface, imageSurface.get_size());
         imageCopy.add(
             aggregatedMipmaps_Sz, //bufferOffset
             0, //bufferRowLength
             imageSurface.get_height(), //bufferImageHeight,
-            NVK::VkImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, i/*mipLevel*/, 0/*baseArrayLayer*/, 0/*layerCount*/), //imageSubresource
-            NVK::VkOffset3D(0,0,0),
-            NVK::VkExtent3D(imageSurface.get_width(), imageSurface.get_height(), imageSurface.get_depth()));
+            NVK::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, i/*mipLevel*/, 0/*baseArrayLayer*/, 1/*layerCount*/), //imageSubresource
+            NVK::Offset3D(0,0,0),
+            NVK::Extent3D(imageSurface.get_width(), imageSurface.get_height(), imageSurface.get_depth()));
         aggregatedMipmaps_Sz += imageSurface.get_size();
     }
-    nvk.fillImage(m_perThreadData->m_cmdPoolStatic, imageCopy, 
+    nvk.utFillImage(&m_perThreadData->m_cmdPoolStatic, imageCopy, 
         aggregatedMipmaps, aggregatedMipmaps_Sz, noiseTex3D.img);
     delete [] aggregatedMipmaps;
 
-    NVK::VkDescriptorImageInfo noiseTextureSamplerAndView = NVK::VkDescriptorImageInfo
+    NVK::DescriptorImageInfo noiseTextureSamplerAndView = NVK::DescriptorImageInfo
         (m_sampler, noiseTex3D.imgView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-#endif
-NVK::VkDescriptorImageInfo noiseTextureSamplerAndView = NVK::VkDescriptorImageInfo
-    (m_sampler, 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     //--------------------------------------------------------------------------
     // Buffers for general UBOs
     //
     m_matrix.Sz = sizeof(vec4f)*4*2;
-    m_matrix.buffer        = nvk.createAndFillBuffer(m_perThreadData->m_cmdPoolStatic, m_matrix.Sz, NULL, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, m_matrix.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    m_matrix.bufferView    = nvk.vkCreateBufferView(m_matrix.buffer, VK_FORMAT_UNDEFINED, m_matrix.Sz);
+    m_matrix.buffer        = nvk.utCreateAndFillBuffer(&m_perThreadData->m_cmdPoolStatic, m_matrix.Sz, NULL, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, m_matrix.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     //--------------------------------------------------------------------------
     // descriptor set LAYOUTS
     //
     // descriptor layout for general things (projection matrix; view matrix...)
-    m_descriptorSetLayouts[DSET_GLOBAL] = nvk.vkCreateDescriptorSetLayout(
-        NVK::VkDescriptorSetLayoutCreateInfo(NVK::VkDescriptorSetLayoutBinding
+    m_descriptorSetLayouts[DSET_GLOBAL] = nvk.createDescriptorSetLayout(
+        NVK::DescriptorSetLayoutCreateInfo(NVK::DescriptorSetLayoutBinding
          (BINDING_MATRIX, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT) // BINDING_MATRIX
          //(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT) // BINDING_LIGHT
          (BINDING_NOISE, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT)
     ) );
     // descriptor layout for object level: buffers related to the object (objec-matrix; material colors...)
     // This part will use the offsets to adjust buffer data
-    m_descriptorSetLayouts[DSET_OBJECT] = nvk.vkCreateDescriptorSetLayout(
-        NVK::VkDescriptorSetLayoutCreateInfo(NVK::VkDescriptorSetLayoutBinding
+    m_descriptorSetLayouts[DSET_OBJECT] = nvk.createDescriptorSetLayout(
+        NVK::DescriptorSetLayoutCreateInfo(NVK::DescriptorSetLayoutBinding
          (BINDING_MATRIXOBJ, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1, VK_SHADER_STAGE_VERTEX_BIT) // BINDING_MATRIXOBJ
          (BINDING_MATERIAL , VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1, VK_SHADER_STAGE_FRAGMENT_BIT) // BINDING_MATERIAL
     ) );
     //
-    // Framebuffer Initialization
-    //
-    m_viewRect = NVK::VkRect2D(NVK::VkOffset2D(0,0), NVK::VkExtent2D(w, h));
-    initFramebuffer(w, h, MSAA);
-    m_MSAA = MSAA;
-    VkRenderPass renderPass  = m_scenePass;
-    //
     // PipelineLayout
     //
-    m_pipelineLayout = nvk.vkCreatePipelineLayout(m_descriptorSetLayouts, DSET_TOTALAMOUNT);
-    //--------------------------------------------------------------------------
-    // Init 'pipelines'
+    m_pipelineLayout = nvk.createPipelineLayout(m_descriptorSetLayouts, DSET_TOTALAMOUNT);
     //
+    // Renderpass creation
     //
-    // what is needed to tell which states are dynamic
+    initRenderpassDependent(w, h, MSAA);
     //
-    NVK::VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo(
-            NVK::VkDynamicState
-                (VK_DYNAMIC_STATE_VIEWPORT)
-                (VK_DYNAMIC_STATE_SCISSOR)
-                (VK_DYNAMIC_STATE_LINE_WIDTH)
-                (VK_DYNAMIC_STATE_DEPTH_BIAS)
-        );
-
-    NVK::VkPipelineViewportStateCreateInfo vkPipelineViewportStateCreateInfo(
-        NVK::VkViewport(0.0f,0.0f,(float)w, (float)h,0.0f,1.0f),
-        NVK::VkRect2DArray(0.0f,0.0f,(float)w, (float)h)
-        );
-    NVK::VkPipelineRasterizationStateCreateInfo vkPipelineRasterStateCreateInfo(
-        VK_TRUE,            //depthClipEnable
-        VK_FALSE,           //rasterizerDiscardEnable
-        VK_POLYGON_MODE_FILL, //fillMode
-        VK_CULL_MODE_NONE,  //cullMode
-        VK_FRONT_FACE_COUNTER_CLOCKWISE,  //frontFace
-        VK_TRUE,            //depthBiasEnable
-        0.0,                //depthBias
-        0.0,                //depthBiasClamp
-        0.0,                //slopeScaledDepthBias
-        1.0                 //lineWidth
-        );
-    NVK::VkPipelineColorBlendStateCreateInfo vkPipelineColorBlendStateCreateInfo(
-        VK_FALSE/*logicOpEnable*/,
-        VK_LOGIC_OP_NO_OP, 
-        NVK::VkPipelineColorBlendAttachmentState(
-                VK_FALSE/*blendEnable*/,
-                VK_BLEND_FACTOR_ZERO   /*srcBlendColor*/,
-                VK_BLEND_FACTOR_ZERO   /*destBlendColor*/,
-                VK_BLEND_OP_ADD /*blendOpColor*/,
-                VK_BLEND_FACTOR_ZERO   /*srcBlendAlpha*/,
-                VK_BLEND_FACTOR_ZERO   /*destBlendAlpha*/,
-                VK_BLEND_OP_ADD /*blendOpAlpha*/,
-                VK_COLOR_COMPONENT_R_BIT|VK_COLOR_COMPONENT_G_BIT|VK_COLOR_COMPONENT_B_BIT|VK_COLOR_COMPONENT_A_BIT/*colorWriteMask*/),
-        NVK::Float4()           //blendConst[4]
-                );
-    NVK::VkPipelineDepthStencilStateCreateInfo vkPipelineDepthStencilStateCreateInfo(
-        VK_TRUE,                    //depthTestEnable
-        VK_TRUE,                    //depthWriteEnable
-        VK_COMPARE_OP_LESS_OR_EQUAL,   //depthCompareOp
-        VK_FALSE,                   //depthBoundsTestEnable
-        VK_FALSE,                   //stencilTestEnable
-        NVK::VkStencilOpState(), NVK::VkStencilOpState(), //front, back
-        0.0f, 1.0f                  //minDepthBounds, maxDepthBounds
-        );
-    ::VkSampleMask sampleMask = 0xFFFF;
-    NVK::VkPipelineMultisampleStateCreateInfo vkPipelineMultisampleStateCreateInfo(
-        (VkSampleCountFlagBits)MSAA /*rasterSamples*/, VK_FALSE /*sampleShadingEnable*/, 1.0 /*minSampleShading*/, &sampleMask /*sampleMask*/, VK_FALSE, VK_FALSE);
-
+    // Framebuffer Initialization
     //
-    // GRID gfx pipeline
-    //
-    m_pipelineGrid = nvk.vkCreateGraphicsPipeline(NVK::VkGraphicsPipelineCreateInfo
-        (m_pipelineLayout, renderPass)
-        (NVK::VkPipelineVertexInputStateCreateInfo(
-            NVK::VkVertexInputBindingDescription    (0/*binding*/, sizeof(vec3f)/*stride*/, VK_VERTEX_INPUT_RATE_VERTEX),
-            NVK::VkVertexInputAttributeDescription  (0/*location*/, 0/*binding*/, VK_FORMAT_R32G32B32_SFLOAT, 0) // pos
-        ) )
-        (NVK::VkPipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_LIST, VK_FALSE) )
-        (NVK::VkPipelineShaderStageCreateInfo(
-            VK_SHADER_STAGE_VERTEX_BIT, nvk.vkCreateShaderModule(spv_GLSL_grid_vert.c_str(), spv_GLSL_grid_vert.size()), "main") )
-        (vkPipelineViewportStateCreateInfo)
-        (vkPipelineRasterStateCreateInfo)
-        (vkPipelineMultisampleStateCreateInfo)
-        (NVK::VkPipelineShaderStageCreateInfo(
-            VK_SHADER_STAGE_FRAGMENT_BIT, nvk.vkCreateShaderModule(spv_GLSL_grid_frag.c_str(), spv_GLSL_grid_frag.size()), "main") )
-        (vkPipelineColorBlendStateCreateInfo)
-        (vkPipelineDepthStencilStateCreateInfo)
-        (dynamicStateCreateInfo)
-        );
-    //
-    // MESH gfx pipelines
-    // NVkVertexInputBindingDescription corresponds to a buffer containing some interleaved attributes. Many can be specified
-    // NVkVertexInputAttributeDescription describes attributes and how they correlate to shader location and NVkVertexInputBindingDescription (binding)
-    //
-    NVK::VkPipelineShaderStageCreateInfo vkPipelineShaderStageCreateInfoVtx(
-        VK_SHADER_STAGE_VERTEX_BIT, nvk.vkCreateShaderModule(spv_GLSL_mesh_vert.c_str(), spv_GLSL_mesh_vert.size()), "main" );
-    NVK::VkPipelineShaderStageCreateInfo vkPipelineShaderStageCreateInfoFrag(
-        VK_SHADER_STAGE_FRAGMENT_BIT, nvk.vkCreateShaderModule(spv_GLSL_mesh_frag.c_str(), spv_GLSL_mesh_frag.size()), "main" );
-    NVK::VkPipelineShaderStageCreateInfo vkPipelineShaderStageCreateInfoFragLine(
-        VK_SHADER_STAGE_FRAGMENT_BIT, nvk.vkCreateShaderModule(spv_GLSL_mesh_lines_frag.c_str(), spv_GLSL_mesh_lines_frag.size()), "main" );
-    NVK::VkPipelineVertexInputStateCreateInfo vkPipelineVertexInputStateCreateInfo(
-        NVK::VkVertexInputBindingDescription    (0/*binding*/, 2*sizeof(vec3f)/*stride*/, VK_VERTEX_INPUT_RATE_VERTEX),
-        NVK::VkVertexInputAttributeDescription  (0/*location*/, 0/*binding*/, VK_FORMAT_R32G32B32_SFLOAT, 0            /*offset*/) // pos
-                                                (1/*location*/, 0/*binding*/, VK_FORMAT_R32G32B32_SFLOAT, sizeof(vec3f)/*offset*/) // normal
-    );
-    NVK::VkPipelineVertexInputStateCreateInfo vkPipelineVertexInputStateCreateInfoLines(
-        NVK::VkVertexInputBindingDescription    (0/*binding*/, sizeof(vec3f)/*stride*/, VK_VERTEX_INPUT_RATE_VERTEX),
-        NVK::VkVertexInputAttributeDescription  (0/*location*/, 0/*binding*/, VK_FORMAT_R32G32B32_SFLOAT, 0            /*offset*/) // pos
-    );
-
-    m_pipelineMeshTri = nvk.vkCreateGraphicsPipeline(NVK::VkGraphicsPipelineCreateInfo
-        (m_pipelineLayout, renderPass)
-        (vkPipelineVertexInputStateCreateInfo)
-        (NVK::VkPipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE) )
-        (NVK::VkPipelineShaderStageCreateInfo(
-            VK_SHADER_STAGE_VERTEX_BIT, nvk.vkCreateShaderModule(spv_GLSL_mesh_vert.c_str(), spv_GLSL_mesh_vert.size()), "main") )
-        (vkPipelineViewportStateCreateInfo)
-        (vkPipelineRasterStateCreateInfo)
-        (vkPipelineMultisampleStateCreateInfo)
-        (NVK::VkPipelineShaderStageCreateInfo(
-            VK_SHADER_STAGE_FRAGMENT_BIT, nvk.vkCreateShaderModule(spv_GLSL_mesh_frag.c_str(), spv_GLSL_mesh_frag.size()), "main") )
-        (vkPipelineColorBlendStateCreateInfo)
-        (vkPipelineDepthStencilStateCreateInfo)
-        (dynamicStateCreateInfo)
-        );
-    //
-    // create Mesh pipelines
-    //
-    m_pipelineMeshTriStrip = nvk.vkCreateGraphicsPipeline(NVK::VkGraphicsPipelineCreateInfo
-        (m_pipelineLayout, renderPass)
-        (vkPipelineVertexInputStateCreateInfo)
-        (NVK::VkPipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP, VK_TRUE) )
-        (vkPipelineShaderStageCreateInfoVtx)
-        (vkPipelineViewportStateCreateInfo)
-        (vkPipelineRasterStateCreateInfo)
-        (vkPipelineMultisampleStateCreateInfo)
-        (vkPipelineShaderStageCreateInfoFrag)
-        (vkPipelineColorBlendStateCreateInfo)
-        (vkPipelineDepthStencilStateCreateInfo)
-        (dynamicStateCreateInfo)
-        );
-    //
-    // create Mesh pipelines
-    //
-    m_pipelineMeshTriFan = nvk.vkCreateGraphicsPipeline(NVK::VkGraphicsPipelineCreateInfo
-        (m_pipelineLayout, renderPass)
-        (vkPipelineVertexInputStateCreateInfoLines)
-        (NVK::VkPipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN, VK_TRUE) )
-        (vkPipelineShaderStageCreateInfoVtx)
-        (vkPipelineViewportStateCreateInfo)
-        (vkPipelineRasterStateCreateInfo)
-        (vkPipelineMultisampleStateCreateInfo)
-        (vkPipelineShaderStageCreateInfoFrag)
-        (vkPipelineColorBlendStateCreateInfo)
-        (vkPipelineDepthStencilStateCreateInfo)
-        (dynamicStateCreateInfo)
-        );
-    //
-    // create Mesh pipelines
-    //
-    m_pipelineMeshLine = nvk.vkCreateGraphicsPipeline(NVK::VkGraphicsPipelineCreateInfo
-        (m_pipelineLayout, renderPass)
-        (vkPipelineVertexInputStateCreateInfoLines)
-        (NVK::VkPipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_LIST, VK_FALSE) )
-        (vkPipelineShaderStageCreateInfoVtx)
-        (vkPipelineViewportStateCreateInfo)
-        (vkPipelineRasterStateCreateInfo)
-        (vkPipelineMultisampleStateCreateInfo)
-        (vkPipelineShaderStageCreateInfoFragLine)
-        (vkPipelineColorBlendStateCreateInfo)
-        (vkPipelineDepthStencilStateCreateInfo)
-        (dynamicStateCreateInfo)
-        );
-    //
-    // create Mesh pipelines
-    //
-    m_pipelineMeshLineStrip = nvk.vkCreateGraphicsPipeline(NVK::VkGraphicsPipelineCreateInfo
-        (m_pipelineLayout, renderPass)
-        (vkPipelineVertexInputStateCreateInfoLines)
-        (NVK::VkPipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_STRIP, VK_TRUE) )
-        (vkPipelineShaderStageCreateInfoVtx)
-        (vkPipelineViewportStateCreateInfo)
-        (vkPipelineRasterStateCreateInfo)
-        (vkPipelineMultisampleStateCreateInfo)
-        (vkPipelineShaderStageCreateInfoFragLine)
-        (vkPipelineColorBlendStateCreateInfo)
-        (vkPipelineDepthStencilStateCreateInfo)
-        (dynamicStateCreateInfo)
-        );
+    m_viewRect = NVK::Rect2D(NVK::Offset2D(0,0), NVK::Extent2D(w, h));
+    initFramebuffer(w, h, MSAA);
 
     initResourcesGrid();
 
@@ -941,30 +1010,30 @@ NVK::VkDescriptorImageInfo noiseTextureSamplerAndView = NVK::VkDescriptorImageIn
     // Descriptor Pool: size is 4 to have enough for global; object and ...
     // TODO: try other VkDescriptorType
     //
-    m_descPool = nvk.vkCreateDescriptorPool(NVK::VkDescriptorPoolCreateInfo(
-        3, NVK::VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3)
-                                    (VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 3) )
+    m_descPool = nvk.createDescriptorPool(NVK::DescriptorPoolCreateInfo(
+        3, NVK::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3)
+                                  (VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 3)
+                                  (VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3)
+            )
     );
     //
     // DescriptorSet allocation
     // Here we allocate only the global descriptor set
     // Objects will do their own allocation later
     //
-    nvk.vkAllocateDescriptorSets(NVK::VkDescriptorSetAllocateInfo
+    nvk.allocateDescriptorSets(NVK::DescriptorSetAllocateInfo
         (m_descPool, 1, m_descriptorSetLayouts + DSET_GLOBAL), 
         &m_descriptorSetGlobal);
     //
     // update the descriptorset used for Global
     // later we will update the ones local to objects
     //
-    NVK::VkDescriptorBufferInfo descBuffer = NVK::VkDescriptorBufferInfo(m_matrix.buffer, 0, m_matrix.Sz);
+    NVK::DescriptorBufferInfo descBuffer = NVK::DescriptorBufferInfo(m_matrix.buffer, 0, m_matrix.Sz);
 
-    nvk.vkUpdateDescriptorSets(NVK::VkWriteDescriptorSet
+    nvk.updateDescriptorSets(NVK::WriteDescriptorSet
         (m_descriptorSetGlobal, BINDING_MATRIX, 0, descBuffer,                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-        //(m_descriptorSetGlobal, BINDING_NOISE,  0, noiseTextureSamplerAndView, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-        
-      
-    );
+        (m_descriptorSetGlobal, BINDING_NOISE,  0, noiseTextureSamplerAndView, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+        );
 
     return true;
 }
@@ -976,21 +1045,21 @@ bool RendererVk::initResourcesGrid()
     //
     // Make a simple grid
     //
-	vec3 *data = new vec3[GRIDDEF * 4];
-	vec3 *p = data;
-	int j = 0;
-	for (int i = 0; i<GRIDDEF; i++)
-	{
-		*(p++) = vec3(-GRIDSZ, 0.0, GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF));
-		*(p++) = vec3(GRIDSZ*(1.0f - 2.0f / (float)GRIDDEF), 0.0, GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF));
-		*(p++) = vec3(GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF), 0.0, -GRIDSZ);
-		*(p++) = vec3(GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF), 0.0, GRIDSZ*(1.0f - 2.0f / (float)GRIDDEF));
-	}
-	int vboSz = sizeof(vec3)*GRIDDEF * 4;
+    vec3 *data = new vec3[GRIDDEF * 4];
+    vec3 *p = data;
+    int j = 0;
+    for (int i = 0; i<GRIDDEF; i++)
+    {
+        *(p++) = vec3(-GRIDSZ, 0.0, GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF));
+        *(p++) = vec3(GRIDSZ*(1.0f - 2.0f / (float)GRIDDEF), 0.0, GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF));
+        *(p++) = vec3(GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF), 0.0, -GRIDSZ);
+        *(p++) = vec3(GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF), 0.0, GRIDSZ*(1.0f - 2.0f / (float)GRIDDEF));
+    }
+    int vboSz = sizeof(vec3)*GRIDDEF * 4;
     //
     // Create the buffer with these data
     //
-    m_gridBuffer.buffer = nvk.createAndFillBuffer(m_perThreadData->m_cmdPoolStatic, vboSz, data, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, m_gridBuffer.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    m_gridBuffer.buffer = nvk.utCreateAndFillBuffer(&m_perThreadData->m_cmdPoolStatic, vboSz, data, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, m_gridBuffer.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     return true;
 }
 //------------------------------------------------------------------------------
@@ -1014,23 +1083,23 @@ bool RendererVk::buildPrimaryCmdBuffer()
         return false;
     VkRenderPass    renderPass  = m_scenePass;
     VkFramebuffer   framebuffer = m_framebuffer;
-    NVK::VkRect2D   viewRect    = m_viewRect;
+    NVK::Rect2D   viewRect    = m_viewRect;
     float           lineWidth  = 1.0;
     float width = m_viewRect.extent.width;
     float height = m_viewRect.extent.height;
     //
     // CMD-BUFFER to Synchronize and setup viewport
     //
-	if(m_cmdSyncAndViewport)
-        nvk.vkFreeCommandBuffer(m_perThreadData->m_cmdPoolStatic, m_cmdSyncAndViewport);
-    m_cmdSyncAndViewport = nvk.vkAllocateCommandBuffer(m_perThreadData->m_cmdPoolStatic, true);
-    nvk.vkBeginCommandBuffer(m_cmdSyncAndViewport, false, NVK::VkCommandBufferInheritanceInfo(renderPass, 0, framebuffer, 0/*occlusionQueryEnable*/, 0/*queryFlags*/, 0/*pipelineStatistics*/) );
+    if(m_cmdSyncAndViewport)
+        m_perThreadData->m_cmdPoolStatic.freeCommandBuffer(m_cmdSyncAndViewport);
+    m_cmdSyncAndViewport = m_perThreadData->m_cmdPoolStatic.allocateCommandBuffer(false);
+    m_cmdSyncAndViewport.beginCommandBuffer(false, true, NVK::CommandBufferInheritanceInfo(renderPass, 0, framebuffer, 0/*occlusionQueryEnable*/, 0/*queryFlags*/, 0/*pipelineStatistics*/) );
     {
         //
         // Prepare the depth+stencil for reading.
         // static because structs get declared once, then...
         //
-        NVK::VkImageMemoryBarrier imageMemoryBarriers = NVK::VkImageMemoryBarrier
+        /*NVK::ImageMemoryBarrier imageMemoryBarriers = NVK::ImageMemoryBarrier
             (
                 VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,        //srcAccessMask 
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,       //dstAccessMask 
@@ -1038,7 +1107,7 @@ bool RendererVk::buildPrimaryCmdBuffer()
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,   //newLayout
                 0,0,//srcQueueFamilyIndex, dstQueueFamilyIndex
                 m_colorImageMS.img,                           //image
-                NVK::VkImageSubresourceRange                //subresourceRange
+                NVK::ImageSubresourceRange                //subresourceRange
                     ( VK_IMAGE_ASPECT_COLOR_BIT,//aspect
                     0,                      //baseMipLevel
                     (~0),                   //mipLevels
@@ -1052,7 +1121,7 @@ bool RendererVk::buildPrimaryCmdBuffer()
                 VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                 0,0,//srcQueueFamilyIndex, dstQueueFamilyIndex
                 m_DSTImageMS.img, 
-                NVK::VkImageSubresourceRange( VK_IMAGE_ASPECT_DEPTH_BIT, 0, (~0), 0, 1) )
+                NVK::ImageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, (~0), 0, 1) )
             (
                 VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
                 VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
@@ -1060,26 +1129,28 @@ bool RendererVk::buildPrimaryCmdBuffer()
                 VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                 0,0,//srcQueueFamilyIndex, dstQueueFamilyIndex
                 m_DSTImageMS.img, 
-                NVK::VkImageSubresourceRange( VK_IMAGE_ASPECT_STENCIL_BIT, 0, (~0), 0, 1)
+                NVK::ImageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, (~0), 0, 1)
             );
-        vkCmdPipelineBarrier(m_cmdSyncAndViewport, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_FALSE, 0, NULL, 0, NULL, imageMemoryBarriers.size(), imageMemoryBarriers);
-        vkCmdSetViewport( m_cmdSyncAndViewport, 0, 1, NVK::VkViewport(0.0, 0.0, width, height, 0.0f, 1.0f) );
-        vkCmdSetScissor(  m_cmdSyncAndViewport, 0, 1, NVK::VkRect2D(0.0, 0.0, width, height ) );
+        m_cmdSyncAndViewport.cmdPipelineBarrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_FALSE, 0, NULL, 0, NULL, imageMemoryBarriers.size(), imageMemoryBarriers);*/
+        m_cmdSyncAndViewport.cmdSetViewport(0, 1, NVK::Viewport(0.0, 0.0, width, height, 0.0f, 1.0f) );
+        m_cmdSyncAndViewport.cmdSetScissor(0, 1, NVK::Rect2D(0.0, 0.0, width, height ) );
     }
-    vkEndCommandBuffer(m_cmdSyncAndViewport);
+    m_cmdSyncAndViewport.endCommandBuffer();
     //
     // CMD-BUFFER for the grid
     //
-	if(m_cmdBufferGrid)
-        nvk.vkFreeCommandBuffer(m_perThreadData->m_cmdPoolStatic, m_cmdBufferGrid);
-    m_cmdBufferGrid = nvk.vkAllocateCommandBuffer(m_perThreadData->m_cmdPoolStatic, true);
+    if(m_cmdBufferGrid)
+        m_perThreadData->m_cmdPoolStatic.freeCommandBuffer(m_cmdBufferGrid);
+    m_cmdBufferGrid = m_perThreadData->m_cmdPoolStatic.allocateCommandBuffer(false);
 
-    nvk.vkBeginCommandBuffer(m_cmdBufferGrid, false, NVK::VkCommandBufferInheritanceInfo(renderPass, 0, framebuffer, 0/*occlusionQueryEnable*/, 0/*queryFlags*/, 0/*pipelineStatistics*/) );
+    m_cmdBufferGrid.beginCommandBuffer(false, true, NVK::CommandBufferInheritanceInfo(renderPass, 0, framebuffer, 0/*occlusionQueryEnable*/, 0/*queryFlags*/, 0/*pipelineStatistics*/) );
     {
-        vkCmdBindPipeline(m_cmdBufferGrid, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineGrid); 
-        vkCmdSetDepthBias(m_cmdBufferGrid, 0.0f, 0.0f, 0.0f); // offset raster
-        vkCmdSetLineWidth(m_cmdBufferGrid, lineWidth);
+        m_cmdBufferGrid.cmdBindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineGrid);
+        m_cmdBufferGrid.cmdSetDepthBias(0.0f, 0.0f, 0.0f); // offset raster
+        m_cmdBufferGrid.cmdSetLineWidth(lineWidth);
+        m_cmdBufferGrid.cmdSetViewport(0, 1, NVK::Viewport(0.0, 0.0, width, height, 0.0f, 1.0f));
+        m_cmdBufferGrid.cmdSetScissor(0, 1, NVK::Rect2D(0.0, 0.0, width, height));
         VkDeviceSize vboffsets[1] = {0};
         vkCmdBindVertexBuffers(m_cmdBufferGrid, 0, 1, &m_gridBuffer.buffer, vboffsets);
         //vkCmdBindIndexBuffer  (m_cmdBufferGrid, ibo, iboOffset, VK_INDEX_TYPE_UINT32);
@@ -1091,7 +1162,7 @@ bool RendererVk::buildPrimaryCmdBuffer()
         vkCmdDraw(m_cmdBufferGrid, GRIDDEF * 4, 1, 0, 0);
     }
     vkEndCommandBuffer(m_cmdBufferGrid);
-	return true;
+    return true;
 }
 //------------------------------------------------------------------------------
 //
@@ -1113,22 +1184,26 @@ void RendererVk::displayStart(const mat4f& world, const InertiaCamera& camera, c
     float h = m_viewRect.extent.height;
     VkRenderPass    renderPass  = m_scenePass;
     VkFramebuffer   framebuffer = m_framebuffer;
-    NVK::VkRect2D   viewRect    = m_viewRect;
+    NVK::Rect2D   viewRect    = m_viewRect;
     float           lineWidth  = 1.0f;
     //
     // Create the primary command buffer
     //
-	m_cmdScene = requestDynamicCommandBuffer();
+    m_cmdScene = m_perThreadData->m_curCmdPoolDynamic->allocateCommandBuffer(true);
 
-    nvk.vkBeginCommandBuffer(m_cmdScene, false, NVK::VkCommandBufferInheritanceInfo(renderPass, 0, framebuffer, VK_FALSE, 0, 0) );
-    vkCmdBeginRenderPass(m_cmdScene,
-        NVK::VkRenderPassBeginInfo(
+    m_cmdScene.beginCommandBuffer(false, true, NVK::CommandBufferInheritanceInfo(renderPass, 0, framebuffer, VK_FALSE, 0, 0) );
+
+    // TODO: Create a MACRO
+    m_slot = g_profiler.beginSection("scene", NULL, false, m_cmdScene.m_cmdbuffer); //PROFILE_SECTION_CMD equivalent
+
+    m_cmdScene.cmdExecuteCommands(1, m_cmdSyncAndViewport);
+    m_cmdScene.cmdUpdateBuffer(m_matrix.buffer, 0, sizeof(g_globalMatrices), (uint32_t*)&g_globalMatrices);
+    m_cmdScene.cmdBeginRenderPass(NVK::RenderPassBeginInfo(
         renderPass, framebuffer, viewRect,
-            NVK::VkClearValue(NVK::VkClearColorValue(0.0f, 0.1f, 0.15f, 1.0f))
-                             (NVK::VkClearDepthStencilValue(1.0, 0))), 
-        VK_SUBPASS_CONTENTS_INLINE );
-    vkCmdExecuteCommands(m_cmdScene, 1, &m_cmdSyncAndViewport);
-    vkCmdUpdateBuffer   (m_cmdScene, m_matrix.buffer, 0, sizeof(g_globalMatrices), (uint32_t*)&g_globalMatrices);
+            NVK::ClearValue(NVK::ClearColorValue(0.0f, 0.1f, 0.15f, 1.0f))
+                           (NVK::ClearDepthStencilValue(1.0, 0))
+                           (NVK::ClearColorValue(0.0f, 0.1f, 0.15f, 1.0f))),
+      VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 }
 //------------------------------------------------------------------------------
 //
@@ -1139,20 +1214,24 @@ void RendererVk::displayEnd()
         return;
     //NXPROFILEFUNC(__FUNCTION__);
     {
-    vkCmdEndRenderPass(m_cmdScene);
-    vkEndCommandBuffer(m_cmdScene);
+    m_cmdScene.cmdEndRenderPass();
+    // TODO: Create a MACRO
+    g_profiler.endSection(m_slot, m_cmdScene.m_cmdbuffer);
+    m_cmdScene.endCommandBuffer();
     }
     {
     const VkPipelineStageFlags waitStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    PerThreadData* perThreadData = m_perThreadData;
-    nvk.vkQueueSubmit( NVK::VkSubmitInfo(
+    nvk.queueSubmit( NVK::SubmitInfo(
         1, &m_semOpenGLReadDone, &waitStages,
-        1, &m_cmdScene, 
+        1, m_cmdScene, 
         1, &m_semVKRenderingDone),  
-        m_curCmdPoolFence);
+        m_cmdPoolFence[m_frameCounter]);
     }
     // allows us to loop through the next available pool for next frame
-    m_frameCounter = (m_frameCounter + 1)%CMDPOOL_BUFFER_SZ;
+    m_frameCounter++;
+    m_frameCounter2++;
+    if(m_frameCounter >= CMDPOOL_BUFFER_SZ)
+      m_frameCounter = 0;//(m_frameCounter + 1)%CMDPOOL_BUFFER_SZ;
 //vkQueueWaitIdle(nvk.m_queue);
 }
 //------------------------------------------------------------------------------
@@ -1193,7 +1272,7 @@ void RendererVk::displayGrid(const InertiaCamera& camera, const mat4f projection
 {
     if(m_bValid == false)
         return;
-    vkCmdExecuteCommands(m_cmdScene, 1, &m_cmdBufferGrid);
+    m_cmdScene.cmdExecuteCommands(1, m_cmdBufferGrid);
 }
 
 //------------------------------------------------------------------------------
@@ -1203,7 +1282,7 @@ void RendererVk::updateViewport(GLint x, GLint y, GLsizei width, GLsizei height)
 {
     if(m_bValid == false)
         return;
-    m_viewRect = NVK::VkRect2D(NVK::VkOffset2D(0,0), NVK::VkExtent2D(width, height));
+    m_viewRect = NVK::Rect2D(NVK::Offset2D(0,0), NVK::Extent2D(width, height));
     initFramebuffer(width, height, m_MSAA);
 }
 
@@ -1212,10 +1291,6 @@ void RendererVk::updateViewport(GLint x, GLint y, GLsizei width, GLsizei height)
 //------------------------------------------------------------------------------
 void RendererVk::releaseFramebuffer()
 {
-    if(m_scenePass)
-        vkDestroyRenderPass(nvk.m_device, m_scenePass, NULL);
-    m_scenePass = NULL;
-
     m_DSTImageMS.release();
     m_colorImageMS.release();
     m_colorImage.release();
@@ -1235,95 +1310,39 @@ void RendererVk::initFramebuffer(GLsizei width, GLsizei height, int MSAA)
     //
     // Images: resolve + MSAA
     //
-    m_colorImage.img        = nvk.createImage2D(width, height, m_colorImage.imgMem, VK_FORMAT_R8G8B8A8_UNORM);
-    m_colorImage.imgView    = nvk.vkCreateImageView(NVK::VkImageViewCreateInfo(
+    m_colorImage.img        = nvk.utCreateImage2D(width, height, m_colorImage.imgMem, VK_FORMAT_R8G8B8A8_UNORM);
+    m_colorImage.imgView    = nvk.createImageView(NVK::ImageViewCreateInfo(
         m_colorImage.img, // image
         VK_IMAGE_VIEW_TYPE_2D, //viewType
         VK_FORMAT_R8G8B8A8_UNORM, //format
-        NVK::VkComponentMapping(),//channels
-        NVK::VkImageSubresourceRange()//subresourceRange
+        NVK::ComponentMapping(),//channels
+        NVK::ImageSubresourceRange()//subresourceRange
         ) );
 
-    m_colorImageMS.img        = nvk.createImage2D(width, height, m_colorImageMS.imgMem, VK_FORMAT_R8G8B8A8_UNORM, (VkSampleCountFlagBits)MSAA);
-    m_colorImageMS.imgView    = nvk.vkCreateImageView(NVK::VkImageViewCreateInfo(
+    m_colorImageMS.img        = nvk.utCreateImage2D(width, height, m_colorImageMS.imgMem, VK_FORMAT_R8G8B8A8_UNORM, (VkSampleCountFlagBits)MSAA);
+    m_colorImageMS.imgView    = nvk.createImageView(NVK::ImageViewCreateInfo(
         m_colorImageMS.img, // image
         VK_IMAGE_VIEW_TYPE_2D, //viewType
         VK_FORMAT_R8G8B8A8_UNORM, //format
-        NVK::VkComponentMapping(),//channels
-        NVK::VkImageSubresourceRange()//subresourceRange
+        NVK::ComponentMapping(),//channels
+        NVK::ImageSubresourceRange()//subresourceRange
         ) );
     //
     // depth stencil
     //
-    m_DSTImageMS.img      = nvk.createImage2D(width, height, m_DSTImageMS.imgMem, VK_FORMAT_D24_UNORM_S8_UINT, (VkSampleCountFlagBits)MSAA);
-    m_DSTImageMS.imgView    = nvk.vkCreateImageView(NVK::VkImageViewCreateInfo(
+    m_DSTImageMS.img      = nvk.utCreateImage2D(width, height, m_DSTImageMS.imgMem, VK_FORMAT_D24_UNORM_S8_UINT, (VkSampleCountFlagBits)MSAA);
+    m_DSTImageMS.imgView    = nvk.createImageView(NVK::ImageViewCreateInfo(
         m_DSTImageMS.img, // image
         VK_IMAGE_VIEW_TYPE_2D, //viewType
         VK_FORMAT_D24_UNORM_S8_UINT, //format
-        NVK::VkComponentMapping(),//channels
-        NVK::VkImageSubresourceRange()//subresourceRange
+        NVK::ComponentMapping(),//channels
+        NVK::ImageSubresourceRange()//subresourceRange
         ) );
-    //
-    // Create the render passes
-    //
-    // example (commented in this case) where the VkSubpassDescription() would use pointers to these things
-    //NVK::VkAttachmentReference color(0/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/);
-    //NVK::VkAttachmentReference dst(1/*attachment*/, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL/*layout*/);
-    //NVK::VkAttachmentReference colorResolved(2/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/);
-    // later below, you'd reference them by pointer instead of using constructors:
-    //NVK::VkSubpassDescription
-    //(   VK_PIPELINE_BIND_POINT_GRAPHICS,//pipelineBindPoint
-    //    NULL,                           //inputAttachments
-    //    &color,                         //colorAttachments
-    //    &colorResolved,                 //resolveAttachments
-    //    &dst,                           //depthStencilAttachment
-    //    NULL,                            //preserveAttachments
-    //    0)
-    NVK::VkRenderPassCreateInfo rpinfo = NVK::VkRenderPassCreateInfo(
-        NVK::VkAttachmentDescription
-            (   VK_FORMAT_R8G8B8A8_UNORM, (VkSampleCountFlagBits)MSAA,                                        //format, samples
-                VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,          //loadOp, storeOp
-                VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,  //stencilLoadOp, stencilStoreOp
-                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL //initialLayout, finalLayout
-            )
-            (   VK_FORMAT_D24_UNORM_S8_UINT, (VkSampleCountFlagBits)MSAA,
-                VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
-                VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
-                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-            )
-            (   VK_FORMAT_R8G8B8A8_UNORM, (VkSampleCountFlagBits)1,                                        //format, samples
-                VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,          //loadOp, storeOp
-                VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,  //stencilLoadOp, stencilStoreOp
-                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL //initialLayout, finalLayout
-            ),
-        // Easy way
-        NVK::VkSubpassDescription
-        (   VK_PIPELINE_BIND_POINT_GRAPHICS,                                                                        //pipelineBindPoint
-            NVK::VkAttachmentReference(),                                                                           //inputAttachments
-            NVK::VkAttachmentReference(0/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/),        //colorAttachments
-            NVK::VkAttachmentReference(2/*attachment*/, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL/*layout*/),        //resolveAttachments
-            NVK::VkAttachmentReference(1/*attachment*/, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL/*layout*/),//depthStencilAttachment
-            NVK::Uint32Array(),                                                                           //preserveAttachments
-            0                                                                                                       //flags
-        ),
-
-        //NVK::VkSubpassDescription
-        //(   VK_PIPELINE_BIND_POINT_GRAPHICS,//pipelineBindPoint
-        //    NULL,                           //inputAttachments
-        //    &color,                         //colorAttachments
-        //    &colorResolved,                 //resolveAttachments
-        //    &dst,                           //depthStencilAttachment
-        //    NULL,                           //preserveAttachments
-        //    0                               //flags
-        //),
-        NVK::VkSubpassDependency(/*NONE*/)
-    );
-    m_scenePass     = nvk.vkCreateRenderPass(rpinfo);
     //
     // create the framebuffer
     //
-    m_framebuffer   = nvk.vkCreateFramebuffer(
-        NVK::VkFramebufferCreateInfo
+    m_framebuffer   = nvk.createFramebuffer(
+        NVK::FramebufferCreateInfo
         (   m_scenePass,            //renderPass
             width, height, 1,       //width, height, layers
         (m_colorImageMS.imgView) )
@@ -1332,28 +1351,6 @@ void RendererVk::initFramebuffer(GLsizei width, GLsizei height, int MSAA)
     );
 }
 
-//------------------------------------------------------------------------------
-// threads might need command-buffers to the scene
-// this function will either create a new one if none available
-// or recycle existing ones : after a reset of cmd-buffer pools, the counter
-// of available cmd buffers will be set to 0
-//------------------------------------------------------------------------------
-VkCommandBuffer RendererVk::requestDynamicCommandBuffer()
-{
-    ::VkCommandBuffer cb;
-	PerThreadData* p = m_perThreadData;
-	int &curDynamicCmdBufferIdx = p->m_nextAvailableCmdBuffer[0];
-	if( curDynamicCmdBufferIdx < p->m_curDynamicallyAllocatedCmdBuffers->size() )
-    {
-		cb = (*p->m_curDynamicallyAllocatedCmdBuffers)[curDynamicCmdBufferIdx++];
-    } else 
-    {
-		cb = nvk.vkAllocateCommandBuffer(p->m_curCmdPoolDynamic, true);
-		p->m_curDynamicallyAllocatedCmdBuffers->push_back(cb);
-		curDynamicCmdBufferIdx = p->m_curDynamicallyAllocatedCmdBuffers->size();
-	}
-	return cb;
-}
 //------------------------------------------------------------------------------
 // reset the current commandbuffer Pool
 // this will start with thread 0 : we will wait for a fence, to make sure we
@@ -1366,16 +1363,15 @@ void RendererVk::resetCommandBuffersPool()
     // when thread #0, let's wait for the Fence to be ready prior to proceed
     if(p->m_threadId == 0)
     {
-	    m_curCmdPoolFence = m_cmdPoolFence[m_frameCounter];
-	    while(nvk.vkWaitForFences(1, &m_curCmdPoolFence, VK_TRUE, 100000000) == false);
-        nvk.vkResetFences(1, &m_curCmdPoolFence);
+        VkFence curCmdPoolFence = m_cmdPoolFence[m_frameCounter];
+        while(nvk.waitForFences(1, &curCmdPoolFence, VK_TRUE, 100000000) == false)
+        {
+        };
+        nvk.resetFences(1, &curCmdPoolFence);
     }
-    p->m_curCmdPoolDynamic = p->m_cmdPoolDynamic[m_frameCounter];
-	p->m_curDynamicallyAllocatedCmdBuffers = p->m_dynamicallyAllocatedCmdBuffers + m_frameCounter;
-	p->m_nextAvailableCmdBuffer = p->m_dynamicCmdBufferIdx + m_frameCounter;
-	p->m_nextAvailableCmdBuffer[0] = 0;
-    // This command resets all command-buffers that belong to it
-    nvk.vkResetCommandPool(p->m_curCmdPoolDynamic, 0);
+
+    p->m_cmdPoolDynamic[m_frameCounter].resetCommandPool(VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
+    p->m_curCmdPoolDynamic = &p->m_cmdPoolDynamic[m_frameCounter];
 }
 
 //------------------------------------------------------------------------------
@@ -1387,22 +1383,19 @@ bool RendererVk::initThreadLocalVars(int threadId)
     if(!m_bValid)
         return false;
     //--------------------------------------------------------------------------
-    // 2 Command pools per thread!
+    // CMDPOOL_BUFFER_SZ Command pools per thread!
     //
     m_perThreadData = new PerThreadData;
     m_perThreadData->m_threadId = threadId;
     VkCommandPoolCreateInfo cmdPoolInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
     cmdPoolInfo.queueFamilyIndex = 0;
     cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    result = vkCreateCommandPool(nvk.m_device, &cmdPoolInfo, NULL, &m_perThreadData->m_cmdPoolStatic);
+    result = nvk.createCommandPool(&cmdPoolInfo, NULL, &m_perThreadData->m_cmdPoolStatic);
     for(int i=0; i<CMDPOOL_BUFFER_SZ; i++)
     {
-        result = vkCreateCommandPool(nvk.m_device, &cmdPoolInfo, NULL, &m_perThreadData->m_cmdPoolDynamic[i]);
-		m_perThreadData->m_dynamicCmdBufferIdx[i] = 0;
+        result = nvk.createCommandPool(&cmdPoolInfo, NULL, &m_perThreadData->m_cmdPoolDynamic[i]);
     }
-    m_perThreadData->m_curCmdPoolDynamic = m_perThreadData->m_cmdPoolDynamic[(CMDPOOL_BUFFER_SZ-1)];
-	m_perThreadData->m_curDynamicallyAllocatedCmdBuffers = &m_perThreadData->m_dynamicallyAllocatedCmdBuffers[(CMDPOOL_BUFFER_SZ-1)];
-	m_perThreadData->m_nextAvailableCmdBuffer = &m_perThreadData->m_dynamicCmdBufferIdx[(CMDPOOL_BUFFER_SZ-1)];
+    m_perThreadData->m_curCmdPoolDynamic = &(m_perThreadData->m_cmdPoolDynamic[0]);
     return true;
 }
 //------------------------------------------------------------------------------
@@ -1412,19 +1405,21 @@ void RendererVk::releaseThreadLocalVars()
 {
     VkCommandPoolCreateInfo cmdPoolInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
     cmdPoolInfo.queueFamilyIndex = 0;
-    m_perThreadData->m_curCmdPoolDynamic = VK_NULL_HANDLE;
-    vkQueueWaitIdle(nvk.m_queue); // need to wait: some command-buffers could be used by the GPU
-    for(int i=0; i<CMDPOOL_BUFFER_SZ; i++)
-        if(m_perThreadData->m_cmdPoolDynamic[i])
+    m_perThreadData->m_curCmdPoolDynamic = NULL;
+    for(int i=0; i<CMDPOOL_BUFFER_SZ; i++) {
+        NVK::CommandPool &cmdPoolDynamic = m_perThreadData->m_cmdPoolDynamic[i];
+        if(cmdPoolDynamic)
         {
-            nvk.vkDestroyCommandPool(m_perThreadData->m_cmdPoolDynamic[i]);
-            m_perThreadData->m_cmdPoolDynamic[i] = VK_NULL_HANDLE;
+            cmdPoolDynamic.destroyCommandPool();
+            cmdPoolDynamic = VK_NULL_HANDLE;
         }
-    if(m_perThreadData->m_cmdPoolStatic)
-        nvk.vkDestroyCommandPool(m_perThreadData->m_cmdPoolStatic);
-    m_perThreadData->m_cmdPoolStatic = VK_NULL_HANDLE;
+    }
+    NVK::CommandPool &cmdPoolStatic = m_perThreadData->m_cmdPoolStatic;
+    if(cmdPoolStatic)
+      cmdPoolStatic.destroyCommandPool();
+    cmdPoolStatic = VK_NULL_HANDLE;
     if(m_perThreadData)
-        delete static_cast<PerThreadData*>(m_perThreadData);
+        delete m_perThreadData;
     m_perThreadData = NULL;
 }
 //------------------------------------------------------------------------------
@@ -1443,8 +1438,8 @@ void RendererVk::destroyCommandBuffers(bool bAll)
     if(bAll)
     {
         PerThreadData *perThreadData = m_perThreadData;
-        if(perThreadData->m_curCmdPoolDynamic)
-            nvk.vkResetCommandPool(perThreadData->m_curCmdPoolDynamic, 0);
+        if(perThreadData->m_curCmdPoolDynamic[0])
+            perThreadData->m_curCmdPoolDynamic->resetCommandPool(VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
     }
 }
 //------------------------------------------------------------------------------
@@ -1457,63 +1452,74 @@ bool RendererVk::terminateGraphics()
     waitForGPUIdle();
     m_bValid = false;
 
+    NVK::CommandPool &cmdPoolStatic = m_perThreadData->m_cmdPoolStatic;
+    cmdPoolStatic.destroyCommandPool(); // destroys commands that are inside, obviously
+    m_perThreadData->m_cmdPoolStatic = VK_NULL_HANDLE;
+    m_cmdBufferGrid = VK_NULL_HANDLE;
+    m_cmdSyncAndViewport = VK_NULL_HANDLE;
+
     for(int i=0; i<CMDPOOL_BUFFER_SZ; i++)
     {
-	    nvk.vkDestroyCommandPool(m_perThreadData->m_cmdPoolDynamic[i]); // destroys commands that are inside, obviously
-        m_perThreadData->m_cmdPoolDynamic[i] = VK_NULL_HANDLE;
-		nvk.vkDestroyFence(m_cmdPoolFence[i]);
-		m_cmdPoolFence[i] = VK_NULL_HANDLE;
+        NVK::CommandPool &cmdPoolDynamic = m_perThreadData->m_cmdPoolDynamic[i];
+        cmdPoolDynamic.destroyCommandPool(); // destroys commands that are inside, obviously
+        cmdPoolDynamic = VK_NULL_HANDLE;
+        nvk.destroyFence(m_cmdPoolFence[i]);
+        m_cmdPoolFence[i] = VK_NULL_HANDLE;
     }
-    m_perThreadData->m_curCmdPoolDynamic = VK_NULL_HANDLE;
+    m_perThreadData->m_curCmdPoolDynamic[0] = VK_NULL_HANDLE;
 
-	for(int i=0; i<DSET_TOTALAMOUNT; i++)
-	{
-		vkDestroyDescriptorSetLayout(nvk.m_device, m_descriptorSetLayouts[i], NULL); // general layout and objects layout
-		m_descriptorSetLayouts[i] = 0;
-	}
-	//vkFreeDescriptorSets(nvk.m_device, m_descPool, 1, &m_descriptorSetGlobal); // no really necessary: we will destroy the pool after that
+    for(int i=0; i<DSET_TOTALAMOUNT; i++)
+    {
+        vkDestroyDescriptorSetLayout(nvk.m_device, m_descriptorSetLayouts[i], NULL); // general layout and objects layout
+        m_descriptorSetLayouts[i] = 0;
+    }
+    //vkFreeDescriptorSets(nvk.m_device, m_descPool, 1, &m_descriptorSetGlobal); // no really necessary: we will destroy the pool after that
     m_descriptorSetGlobal = NULL;
 
     vkDestroyDescriptorPool(nvk.m_device, m_descPool, NULL);
     m_descPool = NULL;
 
-	vkDestroyPipelineLayout(nvk.m_device, m_pipelineLayout, NULL);
+    vkDestroyPipelineLayout(nvk.m_device, m_pipelineLayout, NULL);
     m_pipelineLayout = NULL;
 
     releaseFramebuffer();
 
-    vkDestroyPipeline(nvk.m_device, m_pipelineMeshTri, NULL);
-    m_pipelineMeshTri = NULL;
-    vkDestroyPipeline(nvk.m_device, m_pipelineMeshTriStrip, NULL);
-    m_pipelineMeshTriStrip = NULL;
-    vkDestroyPipeline(nvk.m_device, m_pipelineMeshTriFan, NULL);
-    m_pipelineMeshTriFan = NULL;
-    vkDestroyPipeline(nvk.m_device, m_pipelineMeshLine, NULL);
-    m_pipelineMeshLine = NULL;
-    vkDestroyPipeline(nvk.m_device, m_pipelineMeshLineStrip, NULL);
-    m_pipelineMeshLineStrip = NULL;
-    vkDestroyPipeline(nvk.m_device, m_pipelineGrid, NULL);
-    m_pipelineGrid = NULL;
-
     m_gridBuffer.release();
     m_matrix.release();
 
-    nvk.vkDestroySampler(m_sampler);
+    nvk.destroySampler(m_sampler);
     m_sampler = NULL;
 
     deinitTimers();
 
-    nvk.vkDestroySemaphore(m_semOpenGLReadDone);
-    nvk.vkDestroySemaphore(m_semVKRenderingDone);
+    nvk.destroySemaphore(m_semOpenGLReadDone);
+    nvk.destroySemaphore(m_semVKRenderingDone);
     m_semOpenGLReadDone = NULL;
     m_semVKRenderingDone = NULL;
-    //glGetVkInstanceProcAddrNV = NULL;
-    glWaitVkSemaphoreNV = NULL;
-    glSignalVkSemaphoreNV = NULL;
-    glSignalVkFenceNV = NULL;
-    glDrawVkImageNV = NULL;
 
-    nvk.DestroyDevice();
+    if (m_scenePass)
+      vkDestroyRenderPass(nvk.m_device, m_scenePass, NULL);
+    m_scenePass = VK_NULL_HANDLE;
+    if (m_pipelineMeshTri)
+      vkDestroyPipeline(nvk.m_device, m_pipelineMeshTri, NULL);
+    m_pipelineMeshTri = NULL;
+    if (m_pipelineMeshTriStrip)
+      vkDestroyPipeline(nvk.m_device, m_pipelineMeshTriStrip, NULL);
+    m_pipelineMeshTriStrip = NULL;
+    if (m_pipelineMeshTriFan)
+      vkDestroyPipeline(nvk.m_device, m_pipelineMeshTriFan, NULL);
+    m_pipelineMeshTriFan = NULL;
+    if (m_pipelineMeshLine)
+      vkDestroyPipeline(nvk.m_device, m_pipelineMeshLine, NULL);
+    m_pipelineMeshLine = NULL;
+    if (m_pipelineMeshLineStrip)
+      vkDestroyPipeline(nvk.m_device, m_pipelineMeshLineStrip, NULL);
+    m_pipelineMeshLineStrip = NULL;
+    if (m_pipelineGrid)
+      vkDestroyPipeline(nvk.m_device, m_pipelineGrid, NULL);
+    m_pipelineGrid = NULL;
+
+    nvk.utDestroy();
 
     m_bValid = false;
     return false;
@@ -1632,18 +1638,18 @@ bool Bk3dModelVk::releaseResources(Renderer *pRenderer)
     m_uboMaterial.release();
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
     for(int i=0; i<m_ObjVBOs.size(); i++)
-	{
+    {
         m_ObjVBOs[i].release();
-	}
+    }
     for(int i=0; i<m_ObjVBOs.size(); i++)
-	{
+    {
         m_ObjEBOs[i].release();
-	}
+    }
 #else
     m_memoryVBO.free();
     m_memoryEBO.free();
 #endif
-	vkFreeDescriptorSets(nvk.m_device, pRendererVk->m_descPool, NDSETOBJECT, m_descriptorSets);
+    vkFreeDescriptorSets(nvk.m_device, pRendererVk->m_descPool, NDSETOBJECT, m_descriptorSets);
     memset(m_descriptorSets, 0, sizeof(VkDescriptorSet)*NDSETOBJECT);
     //
     // Note: No need to destroy command-buffers: the pools containing them will be destroyed anyways
@@ -1662,8 +1668,8 @@ bool Bk3dModelVk::releaseResources(Renderer *pRenderer)
     //
     bk3d::Mesh *pMesh = NULL;
     for(int i=0; i< m_pGenericModel->m_meshFile->pMeshes->n; i++)
-	{
-		pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
+    {
+        pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
         pMesh->userPtr = NULL;
         //
         // Slots: buffers for vertices
@@ -1683,7 +1689,7 @@ bool Bk3dModelVk::releaseResources(Renderer *pRenderer)
             bk3d::PrimGroup* pPG = pMesh->pPrimGroups->p[pg];
             pPG->userPtr = NULL;
         }
-	}
+    }
     return true;
 }
 
@@ -1697,9 +1703,7 @@ bool Bk3dModelVk::releaseResources(Renderer *pRenderer)
 //------------------------------------------------------------------------------
 bool Bk3dModelVk::initResources(Renderer *pRenderer)
 {
-    LOGFLUSH();
-    SHOWPROGRESS("Init resources")
-   RendererVk *pRendererVk = static_cast<RendererVk*>(pRenderer);
+    RendererVk *pRendererVk = static_cast<RendererVk*>(pRenderer);
 
     //m_pGenericModel->m_meshFile->pMeshes->n = 60000;
 
@@ -1714,10 +1718,8 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
         //
         //if(m_uboMaterial.buffer == )...
         m_uboMaterial.Sz = sizeof(MaterialBuffer) * m_pGenericModel->m_materialNItems;
-        m_uboMaterial.buffer = nvk.createAndFillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, m_uboMaterial.Sz, m_pGenericModel->m_material, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, m_uboMaterial.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        m_uboMaterial.bufferView = nvk.vkCreateBufferView(m_uboMaterial.buffer, VK_FORMAT_UNDEFINED, sizeof(vec4f));
+        m_uboMaterial.buffer = nvk.utCreateAndFillBuffer(&pRendererVk->m_perThreadData->m_cmdPoolStatic, m_uboMaterial.Sz, m_pGenericModel->m_material, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, m_uboMaterial.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         LOGI("%d materials stored in %d Kb\n", m_pGenericModel->m_meshFile->pMaterials->nMaterials, (m_uboMaterial.Sz+512)/1024);
-        LOGFLUSH();
     }
 
     //
@@ -1731,26 +1733,24 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
         //
         //if(m_uboObjectMatrices.buffer == 0)
         m_uboObjectMatrices.Sz = sizeof(MatrixBufferObject) * m_pGenericModel->m_objectMatricesNItems;
-        m_uboObjectMatrices.buffer = nvk.createAndFillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, m_uboObjectMatrices.Sz, m_pGenericModel->m_objectMatrices, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, m_uboObjectMatrices.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        m_uboObjectMatrices.bufferView = nvk.vkCreateBufferView(m_uboObjectMatrices.buffer, VK_FORMAT_UNDEFINED, sizeof(mat4f));
+        m_uboObjectMatrices.buffer = nvk.utCreateAndFillBuffer(&pRendererVk->m_perThreadData->m_cmdPoolStatic, m_uboObjectMatrices.Sz, m_pGenericModel->m_objectMatrices, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, m_uboObjectMatrices.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         LOGI("%d matrices stored in %d Kb\n", m_pGenericModel->m_meshFile->pTransforms->nBones, (m_uboObjectMatrices.Sz + 512)/1024);
-        LOGFLUSH();
     }
     //
     // DescriptorSet allocation
     //
-    (nvk.vkAllocateDescriptorSets(NVK::VkDescriptorSetAllocateInfo(pRendererVk->m_descPool,
+    (nvk.allocateDescriptorSets(NVK::DescriptorSetAllocateInfo(pRendererVk->m_descPool,
         NDSETOBJECT/*numLayouts*/, pRendererVk->m_descriptorSetLayouts + DSET_OBJECT), 
         m_descriptorSets) );
     //
     // update the descriptorset used for Global
     // later we will update the ones local to objects
     //
-    // TODO TODO TODO: we should use only one NVK::VkDescriptorBufferInfo as before
-    NVK::VkDescriptorBufferInfo descBuffers = NVK::VkDescriptorBufferInfo(m_uboObjectMatrices.buffer, 0, sizeof(mat4f));
-    NVK::VkDescriptorBufferInfo descBuffers2 = NVK::VkDescriptorBufferInfo(m_uboMaterial.buffer,       0, sizeof(vec4f));
+    // TODO TODO TODO: we should use only one NVK::DescriptorBufferInfo as before
+    NVK::DescriptorBufferInfo descBuffers = NVK::DescriptorBufferInfo(m_uboObjectMatrices.buffer, 0, sizeof(mat4f));
+    NVK::DescriptorBufferInfo descBuffers2 = NVK::DescriptorBufferInfo(m_uboMaterial.buffer,       0, sizeof(vec4f));
 
-    nvk.vkUpdateDescriptorSets(NVK::VkWriteDescriptorSet
+    nvk.updateDescriptorSets(NVK::WriteDescriptorSet
         (m_descriptorSets[0], BINDING_MATRIXOBJ, 0, descBuffers, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
         (m_descriptorSets[0], BINDING_MATERIAL,  0, descBuffers2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
         );
@@ -1768,9 +1768,9 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
     //
     bk3d::Mesh *pMesh = NULL;
     for(int i=0; i< m_pGenericModel->m_meshFile->pMeshes->n; i++)
-	{
+    {
         //g_pWinHandler->HandleMessageLoop_OnePass();
-		pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
+        pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
 
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
         pMesh->VBOIDX = (void*)m_ObjVBOs.size(); // keep track of the VBO
@@ -1780,7 +1780,7 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
         #define MAXBOSZ 200000
         if((curVBO.Sz >> 10) > (MAXBOSZ * 1024))
         {
-            curVBO.buffer = nvk.createAndFillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, curVBO.Sz, NULL, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, curVBO.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            curVBO.buffer = nvk.utCreateAndFillBuffer(&pRendererVk->m_perThreadData->m_cmdPoolStatic, curVBO.Sz, NULL, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, curVBO.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
             //
             // push this VBO and create a new one
             //
@@ -1790,7 +1790,7 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
             //
             // At the same time, create a new EBO... good enough for now
             //
-            curEBO.buffer = nvk.createAndFillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, curEBO.Sz, NULL, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, curEBO.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            curEBO.buffer = nvk.utCreateAndFillBuffer(&pRendererVk->m_perThreadData->m_cmdPoolStatic, curEBO.Sz, NULL, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, curEBO.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
             //
             // push this VBO and create a new one
             //
@@ -1839,13 +1839,13 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
             }
 #endif
         }
-	}
+    }
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
     //
     // Finalize the last set of data
     //
     {
-        curVBO.buffer = nvk.createAndFillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, curVBO.Sz, NULL, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, curVBO.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        curVBO.buffer = nvk.utCreateAndFillBuffer(&pRendererVk->m_perThreadData->m_cmdPoolStatic, curVBO.Sz, NULL, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, curVBO.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         //
         // push this VBO and create a new one
         //
@@ -1855,7 +1855,7 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
         //
         // At the same time, create a new EBO... good enough for now
         //
-        curEBO.buffer = nvk.createAndFillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, curEBO.Sz, NULL, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, curEBO.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        curEBO.buffer = nvk.utCreateAndFillBuffer(&pRendererVk->m_perThreadData->m_cmdPoolStatic, curEBO.Sz, NULL, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, curEBO.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         //
         // push this EBO and create a new one
         //
@@ -1871,12 +1871,11 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
     // second pass: put stuff in the buffer(s) and store offsets
     //
     for(int i=0; i< m_pGenericModel->m_meshFile->pMeshes->n; i++)
-	{
-        SETPROGRESSVAL(100.0f*(float)i/(float)m_pGenericModel->m_meshFile->pMeshes->n);
+    {
         VkResult result = VK_SUCCESS;
-		bk3d::Mesh *pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
+        bk3d::Mesh *pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-        int idx = (unsigned long)pMesh->VBOIDX;
+        int idx = (int)pMesh->VBOIDX;
         curVBO = m_ObjVBOs[idx];
         curEBO = m_ObjEBOs[idx];
 #endif
@@ -1885,7 +1884,7 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
         {
             bk3d::Slot* pS = pMesh->pSlots->p[s];
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-            result = nvk.fillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, pS->vtxBufferSizeBytes, result, pS->pVtxBufferData, curVBO.buffer, pS->VBOIDX.ll);
+            result = nvk.utFillBuffer(&pRendererVk->m_perThreadData->m_cmdPoolStatic, pS->vtxBufferSizeBytes, result, pS->pVtxBufferData, curVBO.buffer, (GLuint)(char*)pS->VBOIDX);
 #else
             VkBuffer buffer = m_memoryVBO.createBufferAllocFill(
                 pRendererVk->m_perThreadData->m_cmdPoolStatic, 
@@ -1900,7 +1899,7 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
             if(pPG->indexArrayByteSize > 0)
             {
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-                result = nvk.fillBuffer(pRendererVk->m_perThreadData->m_cmdPoolStatic, pPG->indexArrayByteSize, result, pPG->pIndexBufferData, curEBO.buffer, (unsigned long)pPG->EBOIDX);
+                result = nvk.utFillBuffer(&pRendererVk->m_perThreadData->m_cmdPoolStatic, pPG->indexArrayByteSize, result, pPG->pIndexBufferData, curEBO.buffer, (GLuint)(char*)pPG->EBOIDX);
 #else
                 VkBuffer buffer = m_memoryEBO.createBufferAllocFill(
                     pRendererVk->m_perThreadData->m_cmdPoolStatic, 
@@ -1910,14 +1909,12 @@ bool Bk3dModelVk::initResources(Renderer *pRenderer)
 #endif
             }
         }
-	}
+    }
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
     LOGI("meshes: %d in :%d VBOs (%f Mb) and %d EBOs (%f Mb) \n", m_pGenericModel->m_meshFile->pMeshes->n, m_ObjVBOs.size(), (float)totalVBOSz/(float)(1024*1024), m_ObjEBOs.size(), (float)totalEBOSz/(float)(1024*1024));
 #else
     LOGI("meshes: %d in : %f Mb VBO and %f Mb EBO \n", m_pGenericModel->m_meshFile->pMeshes->n, (float)totalVBOSz/(float)(1024*1024), (float)totalEBOSz/(float)(1024*1024));
 #endif
-    LOGFLUSH();
-    HIDEPROGRESS()
     return true;
 }
 
@@ -1944,7 +1941,7 @@ void Bk3dModelVk::consolidateCmdBuffers(int numCmdBuffers)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuffer, VkCommandBuffer *cmdBufferSplitTopo, int mstart, int mend)
+bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, NVK::CommandBuffer &cmdBuffer, NVK::CommandBuffer *cmdBufferSplitTopo, int mstart, int mend)
 {
     //NXPROFILEFUNC(__FUNCTION__);
     BufO        curVBO;
@@ -1957,7 +1954,7 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
 
     VkRenderPass    renderPass  = pRendererVk->m_scenePass;
     VkFramebuffer   framebuffer = pRendererVk->m_framebuffer;
-    NVK::VkRect2D   viewRect    = pRendererVk->m_viewRect;
+    NVK::Rect2D   viewRect    = pRendererVk->m_viewRect;
     float           lineWidth  = 1.0;
     float width = pRendererVk->m_viewRect.extent.width;
     float height = pRendererVk->m_viewRect.extent.height;
@@ -1966,15 +1963,19 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
     //
     {
         vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pRendererVk->m_pipelineLayout, DSET_GLOBAL, 1, &pRendererVk->m_descriptorSetGlobal, 0, NULL);
-        //vkCmdSetDepthBias(cmdBuffer, 1.0f, 0.0f, 1.0f); // offset raster
-        //vkCmdSetLineWidth(cmdBuffer, lineWidth); //lineWidth
+        cmdBuffer.cmdSetDepthBias(1.0f, 0.0f, 1.0f); // offset raster
+        cmdBuffer.cmdSetLineWidth(lineWidth); //lineWidth
+        cmdBuffer.cmdSetViewport(0, 1, NVK::Viewport(0.0, 0.0, width, height, 0.0f, 1.0f));
+        cmdBuffer.cmdSetScissor(0, 1, NVK::Rect2D(0.0, 0.0, width, height));
         if(cmdBufferSplitTopo)
         {
             for(int i=0; i<5; i++)
             {
                 vkCmdBindDescriptorSets(cmdBufferSplitTopo[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pRendererVk->m_pipelineLayout, DSET_GLOBAL, 1, &pRendererVk->m_descriptorSetGlobal, 0, NULL);
-                //vkCmdSetDepthBias(cmdBufferSplitTopo[i], 1.0f, 0.0f, 1.0f); // offset raster
-                //vkCmdSetLineWidth(cmdBufferSplitTopo[i], lineWidth); //lineWidth
+                cmdBufferSplitTopo[i].cmdSetDepthBias(1.0f, 0.0f, 1.0f); // offset raster
+                cmdBufferSplitTopo[i].cmdSetLineWidth(lineWidth); //lineWidth
+                cmdBufferSplitTopo[i].cmdSetViewport(0, 1, NVK::Viewport(0.0, 0.0, width, height, 0.0f, 1.0f));
+                cmdBufferSplitTopo[i].cmdSetScissor(0, 1, NVK::Rect2D(0.0, 0.0, width, height));
                 switch(i)
                 {
                 case 0:
@@ -1996,22 +1997,20 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
             }
         }
     }
-    //vkCmdSetViewport(cmdBuffer, 1, NVK::VkViewport(0.0,0.0, width, height, 0.0f, 1.0f) );
-    //vkCmdSetScissor( cmdBuffer, 1, NVK::VkRect2D(0.0,0.0, width, height) );
 
     //-------------------------------------------------------------
     // Loop in the meshes of the model
     //
-	if((mend<=0)||(mend > m_pGenericModel->m_meshFile->pMeshes->n))
+    if((mend<=0)||(mend > m_pGenericModel->m_meshFile->pMeshes->n))
         mend = m_pGenericModel->m_meshFile->pMeshes->n;
     for(int m=mstart; m< mend; m++)
-	{
-		bk3d::Mesh *pMesh = m_pGenericModel->m_meshFile->pMeshes->p[m];
+    {
+        bk3d::Mesh *pMesh = m_pGenericModel->m_meshFile->pMeshes->p[m];
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
         //
         // get back the buffers that are used by this mesh
         //
-        int idx = (unsigned long)pMesh->VBOIDX;
+        int idx = (int)pMesh->VBOIDX;
         curVBO = m_ObjVBOs[idx];
         curEBO = m_ObjEBOs[idx];
 #endif
@@ -2020,7 +2019,7 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
         //
         if(pMesh->pTransforms && (pMesh->pTransforms->n>0))
         {
-			bk3d::Bone *pTransf = pMesh->pTransforms->p[0];
+            bk3d::Bone *pTransf = pMesh->pTransforms->p[0];
             if(pTransf && (curTransf != pTransf->ID))
             {
                 curMeshTransf = pTransf->ID;
@@ -2035,11 +2034,11 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
         // 1: normal
         bk3d::Slot*      pS = pMesh->pSlots->p[0];
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-        VkDeviceSize vboffsets[] = {pS->VBOIDX.ll}; // we previously stored the offset in the buffer here...
+        VkDeviceSize vboffsets[] = {(GLuint64)pS->VBOIDX.p}; // we previously stored the offset in the buffer here...
 #else
         VkBuffer buffer;
         buffer = (VkBuffer)pS->userPtr.p;
-        VkDeviceSize vboffsets[] = {0};//(GLuint64)pS->VBOIDX.ll}; // we previously stored the offset in the buffer here...
+        VkDeviceSize vboffsets[] = {0};//(GLuint64)pS->VBOIDX.p}; // we previously stored the offset in the buffer here...
 #endif
         {
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
@@ -2071,8 +2070,8 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
             //}                
         //}
         //====> render primitive groups
-		for(int pg=0; pg<pMesh->pPrimGroups->n; pg++)
-		{
+        for(int pg=0; pg<pMesh->pPrimGroups->n; pg++)
+        {
             bool needUpdateDSetOffsets = false;
             bk3d::PrimGroup* pPG = pMesh->pPrimGroups->p[pg];
             // filter unsuported primitives: QUADS + Line loops
@@ -2086,7 +2085,7 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
             //
             // Material: point to the right one in the table
             //
-			bk3d::Material *pMat = pPG->pMaterial;
+            bk3d::Material *pMat = pPG->pMaterial;
             if(pMat && (curMaterial != pMat->ID))
             {
                 curMaterial = pMat->ID;
@@ -2094,7 +2093,7 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
             }
             if((pPG->pTransforms) && (pPG->pTransforms->n>0) )
             {
-			    bk3d::Bone *pTransf = pPG->pTransforms->p[0];
+                bk3d::Bone *pTransf = pPG->pTransforms->p[0];
                 if(pTransf && (curTransf != pTransf->ID))
                 {
                     curTransf = pTransf->ID;
@@ -2151,9 +2150,7 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
                     }
                     break;
                 default:
-#ifdef WIN32
                     DebugBreak();
-#endif
                     // not-handled cases...
                     break;
                 }
@@ -2205,8 +2202,8 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk * pRendererVk, VkCommandBuffer cmdBuf
                     vkCmdDraw(m_curCmdBufferSplitTopo, pPG->indexCount, 1, 0, 0);
                 }
             }
-		}
-	}
+        }
+    }
     return true;
 }
 //------------------------------------------------------------------------------
@@ -2229,14 +2226,14 @@ bool Bk3dModelVk::buildCmdBuffer(Renderer *pRenderer, int bufIdx, int mstart, in
     {
         //if(topologies & 0x20)
         {
-		    cmdBuffer.full = pRendererVk->requestDynamicCommandBuffer();
-            nvk.vkBeginCommandBuffer(cmdBuffer.full, false);//, NVK::VkCommandBufferInheritanceInfo(renderPass, 0, framebuffer, VK_FALSE, 0,0) );
-        } //else 
+            cmdBuffer.full = pRendererVk->m_perThreadData->m_curCmdPoolDynamic->allocateCommandBuffer(false);
+            cmdBuffer.full.beginCommandBuffer(false, true, NVK::CommandBufferInheritanceInfo(renderPass, 0, framebuffer, VK_FALSE/*occlusionQueryEnable*/, 0/*queryFlags*/, 0/*pipelineStatistics*/) );
+        } //else cmdBuffer.full.beginCommandBuffer(false, true);//, NVK::CommandBufferInheritanceInfo(renderPass, 0, framebuffer, VK_FALSE, 0,0) );
         {
             for(int i=0; i<5; i++)
             {
-			    cmdBuffer.SplitTopo[i] = pRendererVk->requestDynamicCommandBuffer();
-                nvk.vkBeginCommandBuffer(cmdBuffer.SplitTopo[i], false);//, NVK::VkCommandBufferInheritanceInfo(renderPass, 0, framebuffer, VK_FALSE, 0,0) );
+                cmdBuffer.SplitTopo[i] = pRendererVk->m_perThreadData->m_curCmdPoolDynamic->allocateCommandBuffer(false);
+                cmdBuffer.SplitTopo[i].beginCommandBuffer(false, true, NVK::CommandBufferInheritanceInfo(renderPass, 0, framebuffer, VK_FALSE/*occlusionQueryEnable*/, 0/*queryFlags*/, 0/*pipelineStatistics*/));
             }
         }
         //
@@ -2249,10 +2246,10 @@ bool Bk3dModelVk::buildCmdBuffer(Renderer *pRenderer, int bufIdx, int mstart, in
         res = feedCmdBuffer(pRendererVk, cmdBuffer.full, cmdBuffer.SplitTopo, mstart, mend);
 
         //if(topologies & 0x20)
-            nvk.vkEndCommandBuffer(cmdBuffer.full);
+            cmdBuffer.full.endCommandBuffer();
         //else 
             for(int i=0; i<5; i++)
-            nvk.vkEndCommandBuffer(cmdBuffer.SplitTopo[i]);
+            cmdBuffer.SplitTopo[i].endCommandBuffer();
 
     } //if(m_pGenericModel->m_meshFile)
     return res;
@@ -2271,19 +2268,19 @@ void Bk3dModelVk::displayObject(Renderer *pRenderer, const mat4f& cameraView, co
         if(topologies & 0x20)
         {
             // Un-sorted primitives case: created the mesh as the primitive groups arrived
-            vkCmdExecuteCommands(pCmd, 1, &cmdBuffer.full);
+            vkCmdExecuteCommands(pCmd, 1, cmdBuffer.full);
         } else 
         {
             if((topologies & 0x01)&&(cmdBuffer.SplitTopo[0]))
-                vkCmdExecuteCommands(pCmd, 1, &cmdBuffer.SplitTopo[0]);
+                vkCmdExecuteCommands(pCmd, 1, cmdBuffer.SplitTopo[0]);
             if((topologies & 0x02)&&(cmdBuffer.SplitTopo[1]))
-                vkCmdExecuteCommands(pCmd, 1, &cmdBuffer.SplitTopo[1]);
+                vkCmdExecuteCommands(pCmd, 1, cmdBuffer.SplitTopo[1]);
             if((topologies & 0x04)&&(cmdBuffer.SplitTopo[2]))
-                vkCmdExecuteCommands(pCmd, 1, &cmdBuffer.SplitTopo[2]);
+                vkCmdExecuteCommands(pCmd, 1, cmdBuffer.SplitTopo[2]);
             if((topologies & 0x08)&&(cmdBuffer.SplitTopo[3]))
-                vkCmdExecuteCommands(pCmd, 1, &cmdBuffer.SplitTopo[3]);
+                vkCmdExecuteCommands(pCmd, 1, cmdBuffer.SplitTopo[3]);
             if((topologies & 0x10)&&(cmdBuffer.SplitTopo[4]))
-                vkCmdExecuteCommands(pCmd, 1, &cmdBuffer.SplitTopo[4]);
+                vkCmdExecuteCommands(pCmd, 1, cmdBuffer.SplitTopo[4]);
         }
     }
 }

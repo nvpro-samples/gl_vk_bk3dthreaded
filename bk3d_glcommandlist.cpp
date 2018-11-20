@@ -1,36 +1,29 @@
-/*-----------------------------------------------------------------------
-    Copyright (c) 2016, NVIDIA. All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions
-    are met:
-     * Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
-     * Neither the name of its contributors may be used to endorse 
-       or promote products derived from this software without specific
-       prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-    PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-    CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-    EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-    PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-    PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-    OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    feedback to tlorach@nvidia.com (Tristan Lorach)
-
-    Note: this section of the code is showing a basic implementation of
-    Command-lists using a binary format called bk3d.
-    This format has no value for command-list. However you will see that
-    it allows to use pre-baked art asset without too parsing: all is
-    available from structures in the file (after pointer resolution)
-
-*/ //--------------------------------------------------------------------
+/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 #define EXTERNSVCUI
 #define WINDOWINERTIACAMERA_EXTERN
 #define EMUCMDLIST_EXTERN
@@ -48,8 +41,8 @@ namespace glcmdlist
 //------------------------------------------------------------------------------
 // Globals
 //------------------------------------------------------------------------------
-GLuint			g_MaxBOSz				= 200000;
-int				g_TokenBufferGrouping   = 0;
+GLuint            g_MaxBOSz                = 200000;
+int               g_TokenBufferGrouping   = 0;
 
 //-----------------------------------------------------------------------------
 // Shaders
@@ -101,79 +94,79 @@ static const char *s_glslf_mesh =
 "\n"
 "vec3 Sky( vec3 ray )\n"
 "{\n"
-"	return mix( vec3(.8), vec3(0), exp2(-(1.0/max(ray.y,.01))*vec3(.4,.6,1.0)) );\n"
+"    return mix( vec3(.8), vec3(0), exp2(-(1.0/max(ray.y,.01))*vec3(.4,.6,1.0)) );\n"
 "}\n"
 "\n"
 "mat2 mm2(in float a){float c = cos(a), s = sin(a);return mat2(c,-s,s,c);}\n"
 "\n"
 "vec3 Voronoi( vec3 pos )\n"
 "{\n"
-"	vec3 d[8];\n"
-"	d[0] = vec3(0,0,0);\n"
-"	d[1] = vec3(1,0,0);\n"
-"	d[2] = vec3(0,1,0);\n"
-"	d[3] = vec3(1,1,0);\n"
-"	d[4] = vec3(0,0,1);\n"
-"	d[5] = vec3(1,0,1);\n"
-"	d[6] = vec3(0,1,1);\n"
-"	d[7] = vec3(1,1,1);\n"
-"	\n"
-"	const float maxDisplacement = .7; //tweak this to hide grid artefacts\n"
-"	\n"
+"    vec3 d[8];\n"
+"    d[0] = vec3(0,0,0);\n"
+"    d[1] = vec3(1,0,0);\n"
+"    d[2] = vec3(0,1,0);\n"
+"    d[3] = vec3(1,1,0);\n"
+"    d[4] = vec3(0,0,1);\n"
+"    d[5] = vec3(1,0,1);\n"
+"    d[6] = vec3(0,1,1);\n"
+"    d[7] = vec3(1,1,1);\n"
+"    \n"
+"    const float maxDisplacement = .7; //tweak this to hide grid artefacts\n"
+"    \n"
 "   vec3 pf = floor(pos);\n"
 "\n"
 "    const float phi = 1.61803398875;\n"
 "\n"
-"	float closest = 12.0;\n"
-"	vec3 result;\n"
-"	for ( int i=0; i < 8; i++ )\n"
-"	{\n"
+"    float closest = 12.0;\n"
+"    vec3 result;\n"
+"    for ( int i=0; i < 8; i++ )\n"
+"    {\n"
 "        vec3 v = (pf+d[i]);\n"
-"		vec3 r = fract(phi*v.yzx+17.*fract(v.zxy*phi)+v*v*.03);//Noise(ivec3(floor(pos+d[i])));\n"
-"		vec3 p = d[i] + maxDisplacement*(r.xyz-.5);\n"
-"		p -= fract(pos);\n"
-"		float lsq = dot(p,p);\n"
-"		if ( lsq < closest )\n"
-"		{\n"
-"			closest = lsq;\n"
-"			result = r;\n"
-"		}\n"
-"	}\n"
-"	return fract(result.xyz);//+result.www); // random colour\n"
+"        vec3 r = fract(phi*v.yzx+17.*fract(v.zxy*phi)+v*v*.03);//Noise(ivec3(floor(pos+d[i])));\n"
+"        vec3 p = d[i] + maxDisplacement*(r.xyz-.5);\n"
+"        p -= fract(pos);\n"
+"        float lsq = dot(p,p);\n"
+"        if ( lsq < closest )\n"
+"        {\n"
+"            closest = lsq;\n"
+"            result = r;\n"
+"        }\n"
+"    }\n"
+"    return fract(result.xyz);//+result.www); // random colour\n"
 "}\n"
 "\n"
 "vec3 shade( vec3 pos, vec3 norm, vec3 rayDir, vec3 lightDir )\n"
 "{\n"
 "    vec3 paint = material.diffuse;\n"
 "\n"
-"	vec3 norm2 = normalize(norm+.02*(Voronoi(pos*800.0)*2.0-1.0));\n"
-"	\n"
-"	if ( dot(norm2,rayDir) > 0.0 ) // we shouldn't see flecks that point away from us\n"
-"		norm2 -= 2.0*dot(norm2,rayDir)*rayDir;\n"
+"    vec3 norm2 = normalize(norm+.02*(Voronoi(pos*800.0)*2.0-1.0));\n"
+"    \n"
+"    if ( dot(norm2,rayDir) > 0.0 ) // we shouldn't see flecks that point away from us\n"
+"        norm2 -= 2.0*dot(norm2,rayDir)*rayDir;\n"
 "\n"
 "\n"
-"	// diffuse layer, reduce overall contrast\n"
-"	vec3 result = paint*.6*(pow(max(0.0,dot(norm,lightDir)),2.0)+.2);\n"
+"    // diffuse layer, reduce overall contrast\n"
+"    vec3 result = paint*.6*(pow(max(0.0,dot(norm,lightDir)),2.0)+.2);\n"
 "\n"
-"	vec3 h = normalize( lightDir-rayDir );\n"
-"	vec3 s = pow(max(0.0,dot(h,norm2)),50.0)*10.0*vec3(1);\n"
+"    vec3 h = normalize( lightDir-rayDir );\n"
+"    vec3 s = pow(max(0.0,dot(h,norm2)),50.0)*10.0*vec3(1);\n"
 "\n"
-"	float rdotn = dot(rayDir,norm2);\n"
-"	vec3 reflection = rayDir-2.0*rdotn*norm;\n"
-"	s += Sky( reflection );\n"
+"    float rdotn = dot(rayDir,norm2);\n"
+"    vec3 reflection = rayDir-2.0*rdotn*norm;\n"
+"    s += Sky( reflection );\n"
 "\n"
-"	float f = pow(1.0+rdotn,5.0);\n"
-"	f = mix( .2, 1.0, f );\n"
-"	\n"
-"	result = mix(result,paint*s,f);\n"
-"	\n"
-"	// gloss layer\n"
-"	s = pow(max(0.0,dot(h,norm)),1000.0)*32.0*vec3(1);\n"
-"	\n"
-"	rdotn = dot(rayDir,norm);\n"
-"	reflection = rayDir-2.0*rdotn*norm;\n"
-"	\n"
-"	return result;\n"
+"    float f = pow(1.0+rdotn,5.0);\n"
+"    f = mix( .2, 1.0, f );\n"
+"    \n"
+"    result = mix(result,paint*s,f);\n"
+"    \n"
+"    // gloss layer\n"
+"    s = pow(max(0.0,dot(h,norm)),1000.0)*32.0*vec3(1);\n"
+"    \n"
+"    rdotn = dot(rayDir,norm);\n"
+"    reflection = rayDir-2.0*rdotn*norm;\n"
+"    \n"
+"    return result;\n"
 "}\n"
 "\n"
 "void main()\n"
@@ -249,15 +242,15 @@ static GLuint      s_vao = 0;
 
 namespace grid
 {
-	static CommandStatesBatch   command;
-	static TokenBuffer          tokenBuffer;
-	GLSLShader		shader;
-	static GLuint   vbo;
-	static GLuint   vboSz;
-	static GLuint64 vboAddr;
-	static GLuint   vboCross;
-	static GLuint   vboCrossSz;
-	static GLuint64 vboCrossAddr;
+    static CommandStatesBatch   command;
+    static TokenBuffer          tokenBuffer;
+    GLSLShader        shader;
+    static GLuint   vbo;
+    static GLuint   vboSz;
+    static GLuint64 vboAddr;
+    static GLuint   vboCross;
+    static GLuint   vboCrossSz;
+    static GLuint64 vboCrossAddr;
 };
 
 TokenBuffer g_tokenBufferViewport;
@@ -278,9 +271,9 @@ private:
 
     int         m_winSz[2];
 
-    GLuint		m_depthTexture;
-    GLuint		m_colorTexture;
-	GLuint		m_FBO;
+    GLuint        m_depthTexture;
+    GLuint        m_colorTexture;
+    GLuint        m_FBO;
     GLuint      m_MSAA;
 
     void fboResize(int w, int h);
@@ -294,34 +287,34 @@ private:
 
     nv_helpers_gl::ProfilerTimersGL m_gltimers;
 public:
-	RendererCMDList() { 
+    RendererCMDList() { 
         m_bValid = false;
-		g_renderers[g_numRenderers++] = this;
+        g_renderers[g_numRenderers++] = this;
         m_winSz[0] = 100;
         m_winSz[1] = 100;
-	}
-	virtual ~RendererCMDList() {}
-	virtual const char *getName() { return "OpenGL Command-list"; }
+    }
+    virtual ~RendererCMDList() {}
+    virtual const char *getName() { return "OpenGL Command-list"; }
     virtual bool valid()          { return m_bValid; };
-	virtual bool initGraphics(int w, int h, int MSAA);
-	virtual bool terminateGraphics();
+    virtual bool initGraphics(int w, int h, int MSAA);
+    virtual bool terminateGraphics();
     virtual bool initThreadLocalVars(int threadId);
     virtual void releaseThreadLocalVars();
     virtual void destroyCommandBuffers(bool bAll);
     virtual void waitForGPUIdle();
 
-	virtual bool attachModel(Bk3dModel* pModel);
+    virtual bool attachModel(Bk3dModel* pModel);
     virtual bool detachModels();
 
-	virtual bool initResourcesModel(Bk3dModel* pModel);
-	virtual bool releaseResourcesModel(Bk3dModel* pModel);
-	
+    virtual bool initResourcesModel(Bk3dModel* pModel);
+    virtual bool releaseResourcesModel(Bk3dModel* pModel);
+    
     virtual bool buildPrimaryCmdBuffer();
     virtual bool deleteCmdBuffers();
-	virtual bool buildCmdBufferModel(Bk3dModel* pModel, int bufIdx, int mstart, int mend);
+    virtual bool buildCmdBufferModel(Bk3dModel* pModel, int bufIdx, int mstart, int mend);
     virtual void consolidateCmdBuffersModel(Bk3dModel* pModel, int numCmdBuffers);
-	virtual bool deleteCmdBufferModel(Bk3dModel* pModel);
-	
+    virtual bool deleteCmdBufferModel(Bk3dModel* pModel);
+    
     virtual bool updateForChangedRenderTarget(Bk3dModel* pModel);
 
     virtual void displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f &projection);
@@ -350,13 +343,13 @@ RendererCMDList s_renderer;
 class Bk3dModelCMDList
 {
 public:
-	static GLSLShader  shader;
-	static GLSLShader  shaderLine;
-	
-	Bk3dModelCMDList(Bk3dModel* pGenericModel);
+    static GLSLShader  shader;
+    static GLSLShader  shaderLine;
+    
+    Bk3dModelCMDList(Bk3dModel* pGenericModel);
     ~Bk3dModelCMDList();
 private:
-	Bk3dModel*          m_pGenericModel;
+    Bk3dModel*          m_pGenericModel;
     int                 m_numUsedCmdBuffers;
     CommandStatesBatch  m_commandModel2[MAXCMDBUFFERS];
     std::string         m_tokenBufferModel2[MAXCMDBUFFERS]; // contains the commands to send to the GPU for setup and draw
@@ -383,10 +376,10 @@ private:
     struct StateLess
     {
         bool operator()(const States& _Left, const States& _Right) const
-	    {
+        {
             // check primRestartIndex, too
-	        return (_Left.topology < _Right.topology);
-	    }
+            return (_Left.topology < _Right.topology);
+        }
     };
     std::map<States, GLuint, StateLess > m_glStates;
 
@@ -415,7 +408,7 @@ void RendererCMDList::fboResize(int w, int h)
     m_winSz[0] = w;
     m_winSz[1] = h;
 
-	if(m_depthTexture)
+    if(m_depthTexture)
     {
         texture::deleteTexture(m_depthTexture);
         m_depthTexture = 0;
@@ -427,12 +420,12 @@ void RendererCMDList::fboResize(int w, int h)
         fbo::detachColorTexture(m_FBO, 0, m_MSAA);
         fbo::detachDSTTexture(m_FBO, m_MSAA);
     }
-	// initialize color texture
+    // initialize color texture
     m_colorTexture = texture::createRGBA8(w, h, m_MSAA, 0);
     fbo::attachTexture2D(m_FBO, m_colorTexture, 0, m_MSAA);
     m_depthTexture = texture::createDST(w, h, m_MSAA, 0);
     fbo::attachDSTTexture2D(m_FBO, m_depthTexture, m_MSAA);
-	fbo::CheckStatus();
+    fbo::CheckStatus();
 }
 void RendererCMDList::fboInitialize(int w, int h, int MSAA)
 {
@@ -445,12 +438,12 @@ void RendererCMDList::fboInitialize(int w, int h, int MSAA)
     fbo::attachTexture2D(m_FBO, m_colorTexture, 0, MSAA);
     m_depthTexture = texture::createDST(w, h, MSAA, 0);
     fbo::attachDSTTexture2D(m_FBO, m_depthTexture, MSAA);
-	fbo::CheckStatus();
+    fbo::CheckStatus();
 }
 
 void RendererCMDList::fboFinish()
 {
-	if(m_depthTexture)
+    if(m_depthTexture)
     {
         texture::deleteTexture(m_depthTexture);
         m_depthTexture = 0;
@@ -481,76 +474,76 @@ void RendererCMDList::fboMakeResourcesResident()
 //------------------------------------------------------------------------------
 bool RendererCMDList::deleteResourcesGrid()
 {
-	if (grid::vbo)
-	{
-		glMakeNamedBufferNonResidentNV(grid::vbo);
-		glDeleteBuffers(1, &grid::vbo);
-		grid::vbo = 0;
-		grid::vboSz = 0;
-		grid::vboAddr = 0;
-	}
-	if (grid::vboCross)
-	{
-		glMakeNamedBufferNonResidentNV(grid::vboCross);
-		glDeleteBuffers(1, &grid::vboCross);
-		grid::vboCross = 0;
-		grid::vboCrossSz = 0;
-		grid::vboCrossAddr = 0;
-	}
-	return true;
+    if (grid::vbo)
+    {
+        glMakeNamedBufferNonResidentNV(grid::vbo);
+        glDeleteBuffers(1, &grid::vbo);
+        grid::vbo = 0;
+        grid::vboSz = 0;
+        grid::vboAddr = 0;
+    }
+    if (grid::vboCross)
+    {
+        glMakeNamedBufferNonResidentNV(grid::vboCross);
+        glDeleteBuffers(1, &grid::vboCross);
+        grid::vboCross = 0;
+        grid::vboCrossSz = 0;
+        grid::vboCrossAddr = 0;
+    }
+    return true;
 }
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
 bool RendererCMDList::initResourcesGrid()
 {
-	deleteResourcesGrid();
-	//
-	// Grid floor
-	//
-	glGenBuffers(1, &grid::vbo);
-	vec3f *data = new vec3f[GRIDDEF * 4];
-	vec3f *p = data;
-	int j = 0;
-	for (int i = 0; i<GRIDDEF; i++)
-	{
-		*(p++) = vec3f(-GRIDSZ, 0.0, GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF));
-		*(p++) = vec3f(GRIDSZ*(1.0f - 2.0f / (float)GRIDDEF), 0.0, GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF));
-		*(p++) = vec3f(GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF), 0.0, -GRIDSZ);
-		*(p++) = vec3f(GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF), 0.0, GRIDSZ*(1.0f - 2.0f / (float)GRIDDEF));
-	}
-	grid::vboSz = sizeof(vec3f)*GRIDDEF * 4;
-	glNamedBufferDataEXT(grid::vbo, grid::vboSz, data[0].vec_array, GL_STATIC_DRAW);
-	// make the buffer resident and get its pointer
-	glGetNamedBufferParameterui64vNV(grid::vbo, GL_BUFFER_GPU_ADDRESS_NV, &grid::vboAddr);
-	glMakeNamedBufferResidentNV(grid::vbo, GL_READ_ONLY);
-	delete[] data;
-	//
-	// Target Cross
-	//
-	glGenBuffers(1, &grid::vboCross);
-	vec3f crossVtx[6] = {
-		vec3f(-CROSSSZ, 0.0f, 0.0f), vec3f(CROSSSZ, 0.0f, 0.0f),
-		vec3f(0.0f, -CROSSSZ, 0.0f), vec3f(0.0f, CROSSSZ, 0.0f),
-		vec3f(0.0f, 0.0f, -CROSSSZ), vec3f(0.0f, 0.0f, CROSSSZ),
-	};
-	grid::vboCrossSz = sizeof(vec3f)* 6;
-	glNamedBufferDataEXT(grid::vboCross, grid::vboCrossSz, crossVtx[0].vec_array, GL_STATIC_DRAW);
-	// make the buffer resident and get its pointer
-	glGetNamedBufferParameterui64vNV(grid::vboCross, GL_BUFFER_GPU_ADDRESS_NV, &grid::vboCrossAddr);
-	glMakeNamedBufferResidentNV(grid::vboCross, GL_READ_WRITE);
-	return true;
+    deleteResourcesGrid();
+    //
+    // Grid floor
+    //
+    glCreateBuffers(1, &grid::vbo);
+    vec3f *data = new vec3f[GRIDDEF * 4];
+    vec3f *p = data;
+    int j = 0;
+    for (int i = 0; i<GRIDDEF; i++)
+    {
+        *(p++) = vec3f(-GRIDSZ, 0.0, GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF));
+        *(p++) = vec3f(GRIDSZ*(1.0f - 2.0f / (float)GRIDDEF), 0.0, GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF));
+        *(p++) = vec3f(GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF), 0.0, -GRIDSZ);
+        *(p++) = vec3f(GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF), 0.0, GRIDSZ*(1.0f - 2.0f / (float)GRIDDEF));
+    }
+    grid::vboSz = sizeof(vec3f)*GRIDDEF * 4;
+    glNamedBufferData(grid::vbo, grid::vboSz, data[0].vec_array, GL_STATIC_DRAW);
+    // make the buffer resident and get its pointer
+    glGetNamedBufferParameterui64vNV(grid::vbo, GL_BUFFER_GPU_ADDRESS_NV, &grid::vboAddr);
+    glMakeNamedBufferResidentNV(grid::vbo, GL_READ_ONLY);
+    delete[] data;
+    //
+    // Target Cross
+    //
+    glCreateBuffers(1, &grid::vboCross);
+    vec3f crossVtx[6] = {
+        vec3f(-CROSSSZ, 0.0f, 0.0f), vec3f(CROSSSZ, 0.0f, 0.0f),
+        vec3f(0.0f, -CROSSSZ, 0.0f), vec3f(0.0f, CROSSSZ, 0.0f),
+        vec3f(0.0f, 0.0f, -CROSSSZ), vec3f(0.0f, 0.0f, CROSSSZ),
+    };
+    grid::vboCrossSz = sizeof(vec3f)* 6;
+    glNamedBufferData(grid::vboCross, grid::vboCrossSz, crossVtx[0].vec_array, GL_STATIC_DRAW);
+    // make the buffer resident and get its pointer
+    glGetNamedBufferParameterui64vNV(grid::vboCross, GL_BUFFER_GPU_ADDRESS_NV, &grid::vboCrossAddr);
+    glMakeNamedBufferResidentNV(grid::vboCross, GL_READ_WRITE);
+    return true;
 }
 //------------------------------------------------------------------------------
 // cleanup commandList for the Grid
 //------------------------------------------------------------------------------
 void cleanTokenBufferGrid()
 {
-	glDeleteBuffers(1, &grid::tokenBuffer.bufferID);
-	grid::tokenBuffer.bufferID = 0;
-	grid::tokenBuffer.bufferAddr = NULL;
-	grid::tokenBuffer.data.clear();
-	grid::command.release();
+    glDeleteBuffers(1, &grid::tokenBuffer.bufferID);
+    grid::tokenBuffer.bufferID = 0;
+    grid::tokenBuffer.bufferAddr = NULL;
+    grid::tokenBuffer.data.clear();
+    grid::command.release();
 }
 
 //------------------------------------------------------------------------------
@@ -566,60 +559,59 @@ bool RendererCMDList::deleteCmdBuffers()
 //------------------------------------------------------------------------------
 bool RendererCMDList::buildPrimaryCmdBuffer()
 {
-	cleanTokenBufferGrid();
-	//
-	// build address command for attribute #0
-	// - assign UBO addresses to uniform index for a given shader stage
-	// - assign a VBO address to attribute 0 (only one needed here)
-	// - issue draw commands
-	//
-	std::string data = buildUniformAddressCommand(UBO_MATRIX, g_uboMatrix.Addr, g_uboMatrix.Sz, STAGE_VERTEX);
-	data += buildAttributeAddressCommand(0, grid::vboAddr, grid::vboSz);
-	data += buildDrawArraysCommand(GL_LINES, GRIDDEF * 4);
-	//
-	// build another drawcall for the target cross
-	//
-	data += buildLineWidthCommand(1.0);//m_fboBox.getSSFactor());
-	data += buildAttributeAddressCommand(0, grid::vboCrossAddr, grid::vboCrossSz);
-	data += buildDrawArraysCommand(GL_LINES, 6);
-	grid::tokenBuffer.data = data;                      // token buffer containing commands
-	//
-	// Generate the token buffer in which we copy tokenBuffer.data
-	//
-	glGenBuffers(1, &grid::tokenBuffer.bufferID);
-	glNamedBufferDataEXT(grid::tokenBuffer.bufferID, data.size(), &data[0], GL_STATIC_DRAW);
-	glGetNamedBufferParameterui64vNV(grid::tokenBuffer.bufferID, GL_BUFFER_GPU_ADDRESS_NV, &grid::tokenBuffer.bufferAddr);
-	glMakeNamedBufferResidentNV(grid::tokenBuffer.bufferID, GL_READ_WRITE);
-	//
-	// Build the tables for the command-state batch
-	//
-	// token buffer for the viewport setting
-	grid::command.pushBatch(m_stateObjGridLine, m_FBO,// m_fboBox.GetFBO(),
-		g_tokenBufferViewport.bufferAddr,
-		&g_tokenBufferViewport.data[0],
-		g_tokenBufferViewport.data.size());
-	// token buffer for drawing the grid
-	grid::command.pushBatch(m_stateObjGridLine, m_FBO,// m_fboBox.GetFBO(),
-		grid::tokenBuffer.bufferAddr,
-		&grid::tokenBuffer.data[0],
-		grid::tokenBuffer.data.size());
+    cleanTokenBufferGrid();
+    //
+    // build address command for attribute #0
+    // - assign UBO addresses to uniform index for a given shader stage
+    // - assign a VBO address to attribute 0 (only one needed here)
+    // - issue draw commands
+    //
+    std::string data = buildUniformAddressCommand(UBO_MATRIX, g_uboMatrix.Addr, g_uboMatrix.Sz, STAGE_VERTEX);
+    data += buildAttributeAddressCommand(0, grid::vboAddr, grid::vboSz);
+    data += buildDrawArraysCommand(GL_LINES, GRIDDEF * 4);
+    //
+    // build another drawcall for the target cross
+    //
+    data += buildLineWidthCommand(1.0);//m_fboBox.getSSFactor());
+    data += buildAttributeAddressCommand(0, grid::vboCrossAddr, grid::vboCrossSz);
+    data += buildDrawArraysCommand(GL_LINES, 6);
+    grid::tokenBuffer.data = data;                      // token buffer containing commands
+    //
+    // Generate the token buffer in which we copy tokenBuffer.data
+    //
+    glCreateBuffers(1, &grid::tokenBuffer.bufferID);
+    glNamedBufferData(grid::tokenBuffer.bufferID, data.size(), &data[0], GL_STATIC_DRAW);
+    glGetNamedBufferParameterui64vNV(grid::tokenBuffer.bufferID, GL_BUFFER_GPU_ADDRESS_NV, &grid::tokenBuffer.bufferAddr);
+    glMakeNamedBufferResidentNV(grid::tokenBuffer.bufferID, GL_READ_WRITE);
+    //
+    // Build the tables for the command-state batch
+    //
+    // token buffer for the viewport setting
+    grid::command.pushBatch(m_stateObjGridLine, m_FBO,// m_fboBox.GetFBO(),
+        g_tokenBufferViewport.bufferAddr,
+        &g_tokenBufferViewport.data[0],
+        g_tokenBufferViewport.data.size());
+    // token buffer for drawing the grid
+    grid::command.pushBatch(m_stateObjGridLine, m_FBO,// m_fboBox.GetFBO(),
+        grid::tokenBuffer.bufferAddr,
+        &grid::tokenBuffer.data[0],
+        grid::tokenBuffer.data.size());
 
-	LOGI("Token buffer created for Grid\n");
-	LOGFLUSH();
+    LOGI("Token buffer created for Grid\n");
 
-	glDisableClientState(GL_VERTEX_ATTRIB_ARRAY_UNIFIED_NV);
-	glDisableClientState(GL_ELEMENT_ARRAY_UNIFIED_NV);
-	glDisableClientState(GL_UNIFORM_BUFFER_UNIFIED_NV);
-	return true;
+    glDisableClientState(GL_VERTEX_ATTRIB_ARRAY_UNIFIED_NV);
+    glDisableClientState(GL_ELEMENT_ARRAY_UNIFIED_NV);
+    glDisableClientState(GL_UNIFORM_BUFFER_UNIFIED_NV);
+    return true;
 }
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
 void RendererCMDList::displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f &projection)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
-	glEnable(GL_MULTISAMPLE_ARB);
-	glViewport(0, 0, m_winSz[0], m_winSz[1]);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
+    glEnable(GL_MULTISAMPLE);
+    glViewport(0, 0, m_winSz[0], m_winSz[1]);
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
 }
 void RendererCMDList::displayEnd()
@@ -630,47 +622,47 @@ void RendererCMDList::displayEnd()
 //------------------------------------------------------------------------------
 void RendererCMDList::blitToBackbuffer()
 {
-	glBindFramebuffer( GL_READ_FRAMEBUFFER, m_FBO);
-	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0);
-	glBlitFramebuffer( 0, 0, m_winSz[0], m_winSz[1], 0, 0, m_winSz[0], m_winSz[1], GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer( GL_READ_FRAMEBUFFER, m_FBO);
+    glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer( 0, 0, m_winSz[0], m_winSz[1], 0, 0, m_winSz[0], m_winSz[1], GL_COLOR_BUFFER_BIT, GL_NEAREST);
 }
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
 void RendererCMDList::displayGrid(const InertiaCamera& camera, const mat4f projection)
 {
-	//
-	// Update what is inside buffers
-	//
-	g_globalMatrices.mVP = projection * camera.m4_view;
-	g_globalMatrices.mW = mat4f(array16_id);
-	glNamedBufferSubDataEXT(g_uboMatrix.Id, 0, sizeof(g_globalMatrices), &g_globalMatrices);
-	//
-	// The cross vertex change is an example on how command-list are compatible with changing
-	// what is inside the vertex buffers. VBOs are outside of the token buffers...
-	//
-	const vec3f& p = camera.curFocusPos;
-	vec3f crossVtx[6] = {
-		vec3f(p.x - CROSSSZ, p.y, p.z), vec3f(p.x + CROSSSZ, p.y, p.z),
-		vec3f(p.x, p.y - CROSSSZ, p.z), vec3f(p.x, p.y + CROSSSZ, p.z),
-		vec3f(p.x, p.y, p.z - CROSSSZ), vec3f(p.x, p.y, p.z + CROSSSZ),
-	};
-	glNamedBufferSubDataEXT(grid::vboCross, 0, sizeof(vec3f)* 6, crossVtx);
-	//
-	// execute the commands from the token buffer
-	//
-	{
-		//
-		// real Command-list's Token buffer with states execution
-		//
-		glDrawCommandsStatesAddressNV(
-			&grid::command.dataGPUPtrs[0],
-			&grid::command.sizes[0],
-			&grid::command.stateGroups[0],
-			&grid::command.fbos[0],
-			int(grid::command.numItems));
-	}
-	return;
+    //
+    // Update what is inside buffers
+    //
+    g_globalMatrices.mVP = projection * camera.m4_view;
+    g_globalMatrices.mW = mat4f(array16_id);
+    glNamedBufferSubData(g_uboMatrix.Id, 0, sizeof(g_globalMatrices), &g_globalMatrices);
+    //
+    // The cross vertex change is an example on how command-list are compatible with changing
+    // what is inside the vertex buffers. VBOs are outside of the token buffers...
+    //
+    const vec3f& p = camera.curFocusPos;
+    vec3f crossVtx[6] = {
+        vec3f(p.x - CROSSSZ, p.y, p.z), vec3f(p.x + CROSSSZ, p.y, p.z),
+        vec3f(p.x, p.y - CROSSSZ, p.z), vec3f(p.x, p.y + CROSSSZ, p.z),
+        vec3f(p.x, p.y, p.z - CROSSSZ), vec3f(p.x, p.y, p.z + CROSSSZ),
+    };
+    glNamedBufferSubData(grid::vboCross, 0, sizeof(vec3f)* 6, crossVtx);
+    //
+    // execute the commands from the token buffer
+    //
+    {
+        //
+        // real Command-list's Token buffer with states execution
+        //
+        glDrawCommandsStatesAddressNV(
+            &grid::command.dataGPUPtrs[0],
+            &grid::command.sizes[0],
+            &grid::command.stateGroups[0],
+            &grid::command.fbos[0],
+            int(grid::command.numItems));
+    }
+    return;
 }
 
 
@@ -688,45 +680,45 @@ void RendererCMDList::updateViewport(GLint x, GLint y, GLsizei width, GLsizei he
     m_winSz[1] = height;
     fboResize(width, height);
     fboMakeResourcesResident();
-	// could have way more commands here...
-	// ...
-	if (g_tokenBufferViewport.bufferAddr == NULL)
-	{
-		// first time: create
-		g_tokenBufferViewport.data = buildViewportCommand(x, y, width, height);
-		g_tokenBufferViewport.data += buildLineWidthCommand(1.0);
-		glGenBuffers(1, &g_tokenBufferViewport.bufferID);
-		glNamedBufferDataEXT(
-			g_tokenBufferViewport.bufferID,
-			g_tokenBufferViewport.data.size(),
-			&g_tokenBufferViewport.data[0], GL_STATIC_DRAW);
-		glGetNamedBufferParameterui64vNV(
-			g_tokenBufferViewport.bufferID,
-			GL_BUFFER_GPU_ADDRESS_NV,
-			&g_tokenBufferViewport.bufferAddr);
-		glMakeNamedBufferResidentNV(
-			g_tokenBufferViewport.bufferID,
-			GL_READ_WRITE);
-	}
-	else {
-		// change arguments in the token buffer: better keep the same system memory pointer, too:
-		// CPU system memory used by the command-list compilation
-		// this is a simple use-case here: only one token cmd with related structure...
-		//
-		Token_Viewport *dc = (Token_Viewport *)&g_tokenBufferViewport.data[0];
-		dc->cmd.x = x;
-		dc->cmd.y = y;
-		dc->cmd.width = width;
-		dc->cmd.height = height;
-		Token_LineWidth *lw = (Token_LineWidth *)(dc + 1);
-		lw->cmd.lineWidth = 1.0;
-		//
-		// just update. Offset is always 0 in our simple case
-		glNamedBufferSubDataEXT(
-			g_tokenBufferViewport.bufferID,
-			0/*offset*/, g_tokenBufferViewport.data.size(),
-			&g_tokenBufferViewport.data[0]);
-	}
+    // could have way more commands here...
+    // ...
+    if (g_tokenBufferViewport.bufferAddr == NULL)
+    {
+        // first time: create
+        g_tokenBufferViewport.data = buildViewportCommand(x, y, width, height);
+        g_tokenBufferViewport.data += buildLineWidthCommand(1.0);
+        glCreateBuffers(1, &g_tokenBufferViewport.bufferID);
+        glNamedBufferData(
+            g_tokenBufferViewport.bufferID,
+            g_tokenBufferViewport.data.size(),
+            &g_tokenBufferViewport.data[0], GL_STATIC_DRAW);
+        glGetNamedBufferParameterui64vNV(
+            g_tokenBufferViewport.bufferID,
+            GL_BUFFER_GPU_ADDRESS_NV,
+            &g_tokenBufferViewport.bufferAddr);
+        glMakeNamedBufferResidentNV(
+            g_tokenBufferViewport.bufferID,
+            GL_READ_WRITE);
+    }
+    else {
+        // change arguments in the token buffer: better keep the same system memory pointer, too:
+        // CPU system memory used by the command-list compilation
+        // this is a simple use-case here: only one token cmd with related structure...
+        //
+        Token_Viewport *dc = (Token_Viewport *)&g_tokenBufferViewport.data[0];
+        dc->cmd.x = x;
+        dc->cmd.y = y;
+        dc->cmd.width = width;
+        dc->cmd.height = height;
+        Token_LineWidth *lw = (Token_LineWidth *)(dc + 1);
+        lw->cmd.lineWidth = 1.0;
+        //
+        // just update. Offset is always 0 in our simple case
+        glNamedBufferSubData(
+            g_tokenBufferViewport.bufferID,
+            0/*offset*/, g_tokenBufferViewport.data.size(),
+            &g_tokenBufferViewport.data[0]);
+    }
     glBindFramebuffer(GL_FRAMEBUFFER, 0); 
     buildPrimaryCmdBuffer();
 }
@@ -735,39 +727,35 @@ void RendererCMDList::updateViewport(GLint x, GLint y, GLsizei width, GLsizei he
 //------------------------------------------------------------------------------
 bool RendererCMDList::initGraphics(int w, int h, int MSAA)
 {
-	//
-	// some offscreen buffer
-	//
-	fboInitialize(w, h, MSAA);
-	fboMakeResourcesResident();
-	//
-	// Check mandatory extensions
-	//
-	if (!glewIsSupported("GL_NV_vertex_buffer_unified_memory"))// GL_NV_uniform_buffer_unified_memory"))
-	{
-		LOGE("Failed to initialize NVIDIA Bindless graphics\n");
-		return false;
-	}
-	//
-	// Initialize basic command-list extension stuff
-	//
-	extern int initNVcommandList();
-	if (!::initNVcommandList())
-	{
-		LOGE("Failed to initialize CommandList extension\n");
-		return true;
-	}
-	initTokenInternals();
+    //
+    // some offscreen buffer
+    //
+    fboInitialize(w, h, MSAA);
+    fboMakeResourcesResident();
+    //
+    // Check mandatory extensions
+    //
+  if (!has_GL_NV_command_list)
+    {
+        LOGE("Failed to initialize NVIDIA command-list\n");
+        return false;
+    }
+  if (!has_GL_NV_vertex_buffer_unified_memory)
+    {
+        LOGE("Failed to initialize NVIDIA Bindless graphics\n");
+        return false;
+    }
+    initTokenInternals();
 
-	//
-	// Shader compilation
-	//
-	if (!grid::shader.addVertexShaderFromString(g_glslv_grid))
+    //
+    // Shader compilation
+    //
+    if (!grid::shader.addVertexShaderFromString(g_glslv_grid))
         return false;
-	if (!grid::shader.addFragmentShaderFromString(g_glslf_grid))
+    if (!grid::shader.addFragmentShaderFromString(g_glslf_grid))
         return false;
-	if (!grid::shader.link())
-		return false;
+    if (!grid::shader.link())
+        return false;
     if(!Bk3dModelCMDList::shader.addVertexShaderFromString(s_glslv_mesh))
         return false;
     if(!Bk3dModelCMDList::shader.addFragmentShaderFromString(s_glslf_mesh))
@@ -781,30 +769,30 @@ bool RendererCMDList::initGraphics(int w, int h, int MSAA)
     if(!Bk3dModelCMDList::shaderLine.link())
         return false;
 
-	//
-	// Create some UBO for later share their 64 bits
-	//
-	glGenBuffers(1, &g_uboMatrix.Id);
-	g_uboMatrix.Sz = sizeof(MatrixBufferGlobal);
-	glNamedBufferDataEXT(g_uboMatrix.Id, g_uboMatrix.Sz, &g_globalMatrices, GL_STREAM_DRAW);
-	glGetNamedBufferParameterui64vNV(g_uboMatrix.Id, GL_BUFFER_GPU_ADDRESS_NV, (GLuint64EXT*)&g_uboMatrix.Addr);
-	glMakeNamedBufferResidentNV(g_uboMatrix.Id, GL_READ_WRITE);
-	//glBindBufferBase(GL_UNIFORM_BUFFER,UBO_MATRIX, g_uboMatrix.Id);
-	//
-	// Trivial Light info...
-	//
-	glGenBuffers(1, &g_uboLight.Id);
-	g_uboLight.Sz = sizeof(LightBuffer);
-	glNamedBufferDataEXT(g_uboLight.Id, g_uboLight.Sz, &s_light, GL_STREAM_DRAW);
-	glGetNamedBufferParameterui64vNV(g_uboLight.Id, GL_BUFFER_GPU_ADDRESS_NV, (GLuint64EXT*)&g_uboLight.Addr);
-	glMakeNamedBufferResidentNV(g_uboLight.Id, GL_READ_WRITE);
-	//glBindBufferBase(GL_UNIFORM_BUFFER,UBO_LIGHT, g_uboLight.Id);
-	//
-	// Misc OGL setup
-	//
-	glClearColor(0.0f, 0.1f, 0.15f, 1.0f);
-	glGenVertexArrays(1, &s_vao);
-	glBindVertexArray(s_vao);
+    //
+    // Create some UBO for later share their 64 bits
+    //
+    glCreateBuffers(1, &g_uboMatrix.Id);
+    g_uboMatrix.Sz = sizeof(MatrixBufferGlobal);
+    glNamedBufferData(g_uboMatrix.Id, g_uboMatrix.Sz, &g_globalMatrices, GL_STREAM_DRAW);
+    glGetNamedBufferParameterui64vNV(g_uboMatrix.Id, GL_BUFFER_GPU_ADDRESS_NV, (GLuint64EXT*)&g_uboMatrix.Addr);
+    glMakeNamedBufferResidentNV(g_uboMatrix.Id, GL_READ_WRITE);
+    //glBindBufferBase(GL_UNIFORM_BUFFER,UBO_MATRIX, g_uboMatrix.Id);
+    //
+    // Trivial Light info...
+    //
+    glCreateBuffers(1, &g_uboLight.Id);
+    g_uboLight.Sz = sizeof(LightBuffer);
+    glNamedBufferData(g_uboLight.Id, g_uboLight.Sz, &s_light, GL_STREAM_DRAW);
+    glGetNamedBufferParameterui64vNV(g_uboLight.Id, GL_BUFFER_GPU_ADDRESS_NV, (GLuint64EXT*)&g_uboLight.Addr);
+    glMakeNamedBufferResidentNV(g_uboLight.Id, GL_READ_WRITE);
+    //glBindBufferBase(GL_UNIFORM_BUFFER,UBO_LIGHT, g_uboLight.Id);
+    //
+    // Misc OGL setup
+    //
+    glClearColor(0.0f, 0.1f, 0.15f, 1.0f);
+    glGenVertexArrays(1, &s_vao);
+    glBindVertexArray(s_vao);
     //
     // Grid
     //
@@ -812,17 +800,17 @@ bool RendererCMDList::initGraphics(int w, int h, int MSAA)
         return false;
     LOGOK("Initialized renderer %s\n", getName());
 
-	//
-	// state objects
+    //
+    // state objects
     // assume that the state machine is correctly setup from there.
     // best would be to exhaustively reset OpenGL states...
-	//
+    //
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glDisable(GL_CULL_FACE);
-	glClearColor(0.0f, 0.1f, 0.15f, 1.0f);
-	glGenVertexArrays(1, &s_vao);
-	glBindVertexArray(s_vao);
+    glClearColor(0.0f, 0.1f, 0.15f, 1.0f);
+    glGenVertexArrays(1, &s_vao);
+    glBindVertexArray(s_vao);
     glBindBufferBase(GL_UNIFORM_BUFFER, UBO_MATRIX, 0);
     glBindBufferBase(GL_UNIFORM_BUFFER, UBO_LIGHT, 0);
     glBindBufferBase(GL_UNIFORM_BUFFER, UBO_MATRIXOBJ, 0);
@@ -852,7 +840,7 @@ bool RendererCMDList::initGraphics(int w, int h, int MSAA)
         glBindVertexBuffer(1, 0, 0, 24);
         glVertexAttribFormat(1,3, GL_FLOAT, GL_FALSE, 12);
         for(int a=2; a<16; a++)
-	        glDisableVertexAttribArray(a);
+            glDisableVertexAttribArray(a);
         Bk3dModelCMDList::shader.bindShader();
         glStateCaptureNV(m_stateObjMeshTri, GL_TRIANGLES);
     }
@@ -871,7 +859,7 @@ bool RendererCMDList::initGraphics(int w, int h, int MSAA)
         glBindVertexBuffer(0, 0, 0, 12);
         glVertexAttribFormat(0,3, GL_FLOAT, GL_FALSE, 0);
         for(int a=1; a<16; a++)
-	        glDisableVertexAttribArray(a);
+            glDisableVertexAttribArray(a);
         glCreateStatesNV(1, &m_stateObjMeshLine);
         glStateCaptureNV(m_stateObjMeshLine, GL_LINES);
     }
@@ -881,19 +869,19 @@ bool RendererCMDList::initGraphics(int w, int h, int MSAA)
 
     m_bValid = true;
     {
-	    cleanTokenBufferGrid();
-	    grid::shader.bindShader();
+        cleanTokenBufferGrid();
+        grid::shader.bindShader();
         //
         // Again here we know that the grid has a specific vertex Input format
         //
-	    glEnableVertexAttribArray(0);
-	    glBindVertexBuffer(0, grid::vbo, 0, sizeof(vec3f));
-	    glVertexAttribFormat(0, 3, GL_FLOAT, GL_FALSE, 0);
-	    for (int i = 1; i<16; i++)
-		    glDisableVertexAttribArray(i);
-	    glEnableClientState(GL_VERTEX_ATTRIB_ARRAY_UNIFIED_NV);
-	    glDisableClientState(GL_ELEMENT_ARRAY_UNIFIED_NV);
-	    glEnableClientState(GL_UNIFORM_BUFFER_UNIFIED_NV);
+        glEnableVertexAttribArray(0);
+        glBindVertexBuffer(0, grid::vbo, 0, sizeof(vec3f));
+        glVertexAttribFormat(0, 3, GL_FLOAT, GL_FALSE, 0);
+        for (int i = 1; i<16; i++)
+            glDisableVertexAttribArray(i);
+        glEnableClientState(GL_VERTEX_ATTRIB_ARRAY_UNIFIED_NV);
+        glDisableClientState(GL_ELEMENT_ARRAY_UNIFIED_NV);
+        glEnableClientState(GL_UNIFORM_BUFFER_UNIFIED_NV);
 
 //glViewport(0,0,1280,720);
         glCreateStatesNV(1, &m_stateObjGridLine);
@@ -911,15 +899,15 @@ bool RendererCMDList::initGraphics(int w, int h, int MSAA)
 //------------------------------------------------------------------------------
 bool RendererCMDList::terminateGraphics()
 {
-	fboFinish();
+    fboFinish();
     detachModels();
     deleteResourcesGrid();
-	cleanTokenBufferGrid();
+    cleanTokenBufferGrid();
     glDeleteVertexArrays(1, &s_vao);
     s_vao = 0;
-	g_uboLight.release();
+    g_uboLight.release();
     g_uboMatrix.release();
-	grid::shader.cleanup();
+    grid::shader.cleanup();
     Bk3dModelCMDList::shader.cleanup();
     Bk3dModelCMDList::shaderLine.cleanup();
     m_gltimers.deinit();
@@ -929,7 +917,7 @@ bool RendererCMDList::terminateGraphics()
     glDisableClientState(GL_UNIFORM_BUFFER_UNIFIED_NV);
     glDisableClientState(GL_ELEMENT_ARRAY_UNIFIED_NV);
     for(int a=2; a<16; a++)
-	    glDisableVertexAttribArray(a);
+        glDisableVertexAttribArray(a);
     return true;
 }
 //------------------------------------------------------------------------------
@@ -1189,12 +1177,12 @@ bool Bk3dModelCMDList::buildCmdBuffer(RendererCMDList * pRenderer, int bufIdx, i
     //////////////////////////////////////////////
     // Loop through meshes
     //
-	if((mend<=0)||(mend > m_pGenericModel->m_meshFile->pMeshes->n))
+    if((mend<=0)||(mend > m_pGenericModel->m_meshFile->pMeshes->n))
         mend = m_pGenericModel->m_meshFile->pMeshes->n;
     for(int m=mstart; m< mend; m++)
-	{
-		bk3d::Mesh *pMesh = m_pGenericModel->m_meshFile->pMeshes->p[m];
-        int idx = (unsigned long)pMesh->userPtr;
+    {
+        bk3d::Mesh *pMesh = m_pGenericModel->m_meshFile->pMeshes->p[m];
+        int idx = (int)pMesh->userPtr;
         curVBO = m_ObjVBOs[idx];
         curEBO = m_ObjEBOs[idx];
         //
@@ -1276,26 +1264,18 @@ bool Bk3dModelCMDList::buildCmdBuffer(RendererCMDList * pRenderer, int bufIdx, i
                 break;
             case GL_QUADS:
                 //m_pGenericModel->m_stats.primitives += pPG->indexCount/4;
-#ifdef WIN32
                 DebugBreak();
-#endif
                 break;
             case GL_QUAD_STRIP:
                 //m_pGenericModel->m_stats.primitives += pPG->indexCount-3;
-#ifdef WIN32
                 DebugBreak();
-#endif
                 break;
             case GL_POINTS:
                 //m_pGenericModel->m_stats.primitives += pPG->indexCount;
-#ifdef WIN32
                 DebugBreak();
-#endif
                 break;
             default:
-#ifdef WIN32
                 DebugBreak();
-#endif
                 // not-handled cases...
                 break;
             }
@@ -1397,15 +1377,14 @@ bool Bk3dModelCMDList::deleteResourcesObject()
 bool Bk3dModelCMDList::initResourcesObject()
 {
     NXPROFILEFUNC(__FUNCTION__);
-    LOGFLUSH();
     BufO curVBO;
     BufO curEBO;
     unsigned int totalVBOSz = 0;
     unsigned int totalEBOSz = 0;
     memset(&curVBO, 0, sizeof(curVBO));
     memset(&curEBO, 0, sizeof(curEBO));
-	glGenBuffers(1, &curVBO.Id);
-	glGenBuffers(1, &curEBO.Id);
+    glCreateBuffers(1, &curVBO.Id);
+    glCreateBuffers(1, &curEBO.Id);
 
     //m_pGenericModel->m_meshFile->pMeshes->n = 60000;
     //
@@ -1418,16 +1397,15 @@ bool Bk3dModelCMDList::initResourcesObject()
         // Then offset in it for various drawcalls
         //
         if(m_uboMaterial.Id == 0)
-            glGenBuffers(1, &m_uboMaterial.Id);
+            glCreateBuffers(1, &m_uboMaterial.Id);
 
         m_uboMaterial.Sz = sizeof(MaterialBuffer) * m_pGenericModel->m_materialNItems;
-        glNamedBufferDataEXT(m_uboMaterial.Id, m_uboMaterial.Sz, m_pGenericModel->m_material, GL_STREAM_DRAW);
+        glNamedBufferData(m_uboMaterial.Id, m_uboMaterial.Sz, m_pGenericModel->m_material, GL_STREAM_DRAW);
         glGetNamedBufferParameterui64vNV(m_uboMaterial.Id, GL_BUFFER_GPU_ADDRESS_NV, (GLuint64EXT*)&m_uboMaterial.Addr);
         glMakeNamedBufferResidentNV(m_uboMaterial.Id, GL_READ_WRITE);
         glBindBufferBase(GL_UNIFORM_BUFFER,UBO_MATERIAL, m_uboMaterial.Id);
 
         LOGI("%d materials stored in %d Kb\n", m_pGenericModel->m_meshFile->pMaterials->nMaterials, (m_uboMaterial.Sz+512)/1024);
-        LOGFLUSH();
     }
 
     //
@@ -1440,16 +1418,15 @@ bool Bk3dModelCMDList::initResourcesObject()
         // Then offset in it for various drawcalls
         //
         if(m_uboObjectMatrices.Id == 0)
-            glGenBuffers(1, &m_uboObjectMatrices.Id);
+            glCreateBuffers(1, &m_uboObjectMatrices.Id);
 
         m_uboObjectMatrices.Sz = sizeof(MatrixBufferObject) * m_pGenericModel->m_objectMatricesNItems;
-        glNamedBufferDataEXT(m_uboObjectMatrices.Id, m_uboObjectMatrices.Sz, m_pGenericModel->m_objectMatrices, GL_STREAM_DRAW);
+        glNamedBufferData(m_uboObjectMatrices.Id, m_uboObjectMatrices.Sz, m_pGenericModel->m_objectMatrices, GL_STREAM_DRAW);
         glGetNamedBufferParameterui64vNV(m_uboObjectMatrices.Id, GL_BUFFER_GPU_ADDRESS_NV, (GLuint64EXT*)&m_uboObjectMatrices.Addr);
         glMakeNamedBufferResidentNV(m_uboObjectMatrices.Id, GL_READ_WRITE);
         glBindBufferBase(GL_UNIFORM_BUFFER,UBO_MATRIXOBJ, m_uboObjectMatrices.Id);
 
         LOGI("%d matrices stored in %d Kb\n", m_pGenericModel->m_meshFile->pTransforms->nBones, (m_uboObjectMatrices.Sz + 512)/1024);
-        LOGFLUSH();
     }
 
     //
@@ -1458,19 +1435,19 @@ bool Bk3dModelCMDList::initResourcesObject()
     //
     bk3d::Mesh *pMesh = NULL;
     for(int i=0; i< m_pGenericModel->m_meshFile->pMeshes->n; i++)
-	{
-		pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
+    {
+        pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
         pMesh->userPtr = (void*)m_ObjVBOs.size(); // keep track of the VBO
         //
         // When we reached the arbitrary limit: switch to another VBO
         //
         if(curVBO.Sz > (g_MaxBOSz * 1024*1024))
         {
-	        glGenBuffers(1, &curVBO.Id);
+            glCreateBuffers(1, &curVBO.Id);
         #if 1
-            glNamedBufferDataEXT(curVBO.Id, curVBO.Sz, NULL, GL_STATIC_DRAW);
+            glNamedBufferData(curVBO.Id, curVBO.Sz, NULL, GL_STATIC_DRAW);
         #else
-            glNamedBufferStorageEXT(curVBO.Id, curVBO.Sz, NULL, 0); // Not working with NSight !!! https://www.opengl.org/registry/specs/ARB/buffer_storage.txt
+            glNamedBufferStorage(curVBO.Id, curVBO.Sz, NULL, 0); // Not working with NSight !!! https://www.opengl.org/registry/specs/ARB/buffer_storage.txt
         #endif
             glGetNamedBufferParameterui64vNV(curVBO.Id, GL_BUFFER_GPU_ADDRESS_NV, &curVBO.Addr);
             glMakeNamedBufferResidentNV(curVBO.Id, GL_READ_ONLY);
@@ -1483,11 +1460,11 @@ bool Bk3dModelCMDList::initResourcesObject()
             //
             // At the same time, create a new EBO... good enough for now
             //
-            glGenBuffers(1, &curEBO.Id); // store directly to a user-space dedicated to this kind of things
+            glCreateBuffers(1, &curEBO.Id); // store directly to a user-space dedicated to this kind of things
         #if 1
-            glNamedBufferDataEXT(curEBO.Id, curEBO.Sz, NULL, GL_STATIC_DRAW);
+            glNamedBufferData(curEBO.Id, curEBO.Sz, NULL, GL_STATIC_DRAW);
         #else
-            glNamedBufferStorageEXT(curEBO.Id, curEBO.Sz, NULL, 0); // Not working with NSight !!! https://www.opengl.org/registry/specs/ARB/buffer_storage.txt
+            glNamedBufferStorage(curEBO.Id, curEBO.Sz, NULL, 0); // Not working with NSight !!! https://www.opengl.org/registry/specs/ARB/buffer_storage.txt
         #endif
             glGetNamedBufferParameterui64vNV(curEBO.Id, GL_BUFFER_GPU_ADDRESS_NV, &curEBO.Addr);
             glMakeNamedBufferResidentNV(curEBO.Id, GL_READ_ONLY);
@@ -1529,16 +1506,16 @@ bool Bk3dModelCMDList::initResourcesObject()
                 pPG->userPtr = NULL;
             }
         }
-	}
+    }
     //
     // Finalize the last set of data
     //
     {
-	    glGenBuffers(1, &curVBO.Id);
+        glCreateBuffers(1, &curVBO.Id);
     #if 1
-        glNamedBufferDataEXT(curVBO.Id, curVBO.Sz, NULL, GL_STATIC_DRAW);
+        glNamedBufferData(curVBO.Id, curVBO.Sz, NULL, GL_STATIC_DRAW);
     #else
-        glNamedBufferStorageEXT(curVBO.Id, curVBO.Sz, NULL, 0); // Not working with NSight !!! https://www.opengl.org/registry/specs/ARB/buffer_storage.txt
+        glNamedBufferStorage(curVBO.Id, curVBO.Sz, NULL, 0); // Not working with NSight !!! https://www.opengl.org/registry/specs/ARB/buffer_storage.txt
     #endif
         glGetNamedBufferParameterui64vNV(curVBO.Id, GL_BUFFER_GPU_ADDRESS_NV, &curVBO.Addr);
         glMakeNamedBufferResidentNV(curVBO.Id, GL_READ_ONLY);
@@ -1551,11 +1528,11 @@ bool Bk3dModelCMDList::initResourcesObject()
         //
         // At the same time, create a new EBO... good enough for now
         //
-        glGenBuffers(1, &curEBO.Id); // store directly to a user-space dedicated to this kind of things
+        glCreateBuffers(1, &curEBO.Id); // store directly to a user-space dedicated to this kind of things
     #if 1
-        glNamedBufferDataEXT(curEBO.Id, curEBO.Sz, NULL, GL_STATIC_DRAW);
+        glNamedBufferData(curEBO.Id, curEBO.Sz, NULL, GL_STATIC_DRAW);
     #else
-        glNamedBufferStorageEXT(curEBO.Id, curEBO.Sz, NULL, 0); // Not working with NSight !!! https://www.opengl.org/registry/specs/ARB/buffer_storage.txt
+        glNamedBufferStorage(curEBO.Id, curEBO.Sz, NULL, 0); // Not working with NSight !!! https://www.opengl.org/registry/specs/ARB/buffer_storage.txt
     #endif
         glGetNamedBufferParameterui64vNV(curEBO.Id, GL_BUFFER_GPU_ADDRESS_NV, &curEBO.Addr);
         glMakeNamedBufferResidentNV(curEBO.Id, GL_READ_ONLY);
@@ -1570,27 +1547,26 @@ bool Bk3dModelCMDList::initResourcesObject()
     // second pass: put stuff in the buffer and store offsets
     //
     for(int i=0; i< m_pGenericModel->m_meshFile->pMeshes->n; i++)
-	{
-		bk3d::Mesh *pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
-        int idx = (unsigned long)pMesh->userPtr;
+    {
+        bk3d::Mesh *pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
+        int idx = (int)pMesh->userPtr;
         curVBO = m_ObjVBOs[idx];
         curEBO = m_ObjEBOs[idx];
         int n = pMesh->pSlots->n;
         for(int s=0; s<n; s++)
         {
             bk3d::Slot* pS = pMesh->pSlots->p[s];
-            glNamedBufferSubDataEXT(curVBO.Id, (unsigned long)(char*)pS->userPtr, pS->vtxBufferSizeBytes, pS->pVtxBufferData);
+            glNamedBufferSubData(curVBO.Id, (GLuint)(char*)pS->userPtr, pS->vtxBufferSizeBytes, pS->pVtxBufferData);
         }
         for(int pg=0; pg<pMesh->pPrimGroups->n; pg++)
         {
             bk3d::PrimGroup* pPG = pMesh->pPrimGroups->p[pg];
             if(pPG->indexArrayByteSize > 0)
-                glNamedBufferSubDataEXT(curEBO.Id, (unsigned long)(char*)pPG->userPtr, pPG->indexArrayByteSize, pPG->pIndexBufferData);
+                glNamedBufferSubData(curEBO.Id, (GLuint)(char*)pPG->userPtr, pPG->indexArrayByteSize, pPG->pIndexBufferData);
         }
         //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	}
+    }
     LOGI("meshes: %d in :%d VBOs (%f Mb) and %d EBOs (%f Mb) \n", m_pGenericModel->m_meshFile->pMeshes->n, m_ObjVBOs.size(), (float)totalVBOSz/(float)(1024*1024), m_ObjEBOs.size(), (float)totalEBOSz/(float)(1024*1024));
-    LOGFLUSH();
     return true;
 }
 
@@ -1606,9 +1582,9 @@ void Bk3dModelCMDList::displayObject(Renderer *pRenderer, const mat4f& cameraVie
     cameraView.get_translation(g_globalMatrices.eyePos);
     //g_globalMatrices.mW.rotate(nv_to_rad*180.0f, vec3f(0,1,0));
     g_globalMatrices.mW.rotate(-nv_to_rad*90.0f, vec3f(1,0,0));
-	g_globalMatrices.mW.translate(-m_pGenericModel->m_posOffset);
+    g_globalMatrices.mW.translate(-m_pGenericModel->m_posOffset);
     g_globalMatrices.mW.scale(m_pGenericModel->m_scale);
-    glNamedBufferSubDataEXT(g_uboMatrix.Id, 0, sizeof(g_globalMatrices), &g_globalMatrices);
+    glNamedBufferSubData(g_uboMatrix.Id, 0, sizeof(g_globalMatrices), &g_globalMatrices);
 
     //
     // execute the commands from the token buffer
@@ -1671,15 +1647,15 @@ void Bk3dModelCMDList::consolidateCmdBuffers(int numCmdBuffers)
     if(prevSz < m_tokenBufferModel.data.size())
     {
         if(m_tokenBufferModel.bufferID == 0)
-            glGenBuffers(1, &m_tokenBufferModel.bufferID);
+            glCreateBuffers(1, &m_tokenBufferModel.bufferID);
         else
             glMakeNamedBufferNonResidentNV(m_tokenBufferModel.bufferID);
-        glNamedBufferDataEXT(m_tokenBufferModel.bufferID, m_tokenBufferModel.data.size(), &m_tokenBufferModel.data[0], GL_STREAM_DRAW);//GL_STATIC_DRAW);
+        glNamedBufferData(m_tokenBufferModel.bufferID, m_tokenBufferModel.data.size(), &m_tokenBufferModel.data[0], GL_STREAM_DRAW);//GL_STATIC_DRAW);
         // get the 64 bits pointer and make it resident: bedcause we will go through its pointer
         glGetNamedBufferParameterui64vNV(m_tokenBufferModel.bufferID, GL_BUFFER_GPU_ADDRESS_NV, &m_tokenBufferModel.bufferAddr);
         glMakeNamedBufferResidentNV(m_tokenBufferModel.bufferID, GL_READ_ONLY);
     } else {
-        glNamedBufferSubDataEXT(m_tokenBufferModel.bufferID, 0, m_tokenBufferModel.data.size(), &m_tokenBufferModel.data[0]);
+        glNamedBufferSubData(m_tokenBufferModel.bufferID, 0, m_tokenBufferModel.data.size(), &m_tokenBufferModel.data[0]);
     }
     //
     // start at i=1 because the first is the Viewport, resolved...

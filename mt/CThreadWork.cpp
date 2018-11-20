@@ -38,37 +38,38 @@
 
 #include <stdio.h>
 #include "CThreadWork.h"
+#include "nv_helpers/nvprint.hpp"
 
-#ifdef ANDROID
-#pragma mark - Android defs
-#   pragma message("-----------------------------------------------")
-#   pragma message("---- coreRenderer.h : ANDROID -----------------")
-#   pragma message("-----------------------------------------------")
-#   include <android/log.h>
-#   define  LOG_TAG    "nvFXTest1"
-#   define  LOGI(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
-#   define  LOGE(...)  __android_log_print(ANDROID_LOG_ERROR,LOG_TAG,__VA_ARGS__)
-#elif defined(IOS)
-#pragma mark - IOS defs
-#   define  LOGI(...)  { printf(__VA_ARGS__); printf("\n"); }
-#   define  LOGE(...)  { printf(__VA_ARGS__); printf("\n"); }
-#elif defined (ES2EMU)
-#pragma mark - ES2Emu
-#   pragma message("-----------------------------------------------")
-#   pragma message("---- coreRenderer.h : Windows ES2 Emulation ---")
-#   pragma message("-----------------------------------------------")
-#   include "logging.h"
-#   define  LOGI(...)  { PRINTF((__VA_ARGS__)); PRINTF(("\n")); }
-#   define  LOGE(...)  { PRINTF((__VA_ARGS__)); PRINTF(("\n")); }
-#else
-#pragma mark - Windows defs
-#   pragma message("-----------------------------------------------")
-#   pragma message("---- coreRenderer.h : Windows + Glew ----------")
-#   pragma message("-----------------------------------------------")
+//#ifdef ANDROID
+//#pragma mark - Android defs
+//#   pragma message("-----------------------------------------------")
+//#   pragma message("---- coreRenderer.h : ANDROID -----------------")
+//#   pragma message("-----------------------------------------------")
+//#   include <android/log.h>
+//#   define  LOG_TAG    "nvFXTest1"
+//#   define  LOGI(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
+//#   define  LOGE(...)  __android_log_print(ANDROID_LOG_ERROR,LOG_TAG,__VA_ARGS__)
+//#elif defined(IOS)
+//#pragma mark - IOS defs
+//#   define  LOGI(...)  { printf(__VA_ARGS__); printf("\n"); }
+//#   define  LOGE(...)  { printf(__VA_ARGS__); printf("\n"); }
+//#elif defined (ES2EMU)
+//#pragma mark - ES2Emu
+//#   pragma message("-----------------------------------------------")
+//#   pragma message("---- coreRenderer.h : Windows ES2 Emulation ---")
+//#   pragma message("-----------------------------------------------")
 //#   include "logging.h"
-#   define  LOGI(...)  { PRINTF((__VA_ARGS__)); PRINTF(("\n")); }
-#   define  LOGE(...)  { PRINTF((__VA_ARGS__)); PRINTF(("\n")); }
-#endif
+//#   define  LOGI(...)  { PRINTF((__VA_ARGS__)); PRINTF(("\n")); }
+//#   define  LOGE(...)  { PRINTF((__VA_ARGS__)); PRINTF(("\n")); }
+//#else
+//#pragma mark - Windows defs
+//#   pragma message("-----------------------------------------------")
+//#   pragma message("---- coreRenderer.h : Windows + Glew ----------")
+//#   pragma message("-----------------------------------------------")
+////#   include "logging.h"
+//#   define  LOGI(...)  { PRINTF((__VA_ARGS__)); PRINTF(("\n")); }
+//#   define  LOGE(...)  { PRINTF((__VA_ARGS__)); PRINTF(("\n")); }
+//#endif
 
 
 //#pragma mark - Task base
@@ -497,8 +498,8 @@ ThreadWorker::ThreadWorker(const std::string& threadName, bool discardQueuedOnEx
   m_discardQueuedOnExit(discardQueuedOnExit), //m_alertableOnExit(waitAleratableOnExit),
   m_threadName(threadName)
 {
-	static int cnt = 0;
-	m_workerID = cnt++;
+    static int cnt = 0;
+    m_workerID = cnt++;
 #ifdef WIN32
     unsigned int temp;
     // http://msdn.microsoft.com/en-us/library/kdzttdcb(v=VS.90).aspx

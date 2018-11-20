@@ -1,58 +1,60 @@
-/*-----------------------------------------------------------------------
-    Copyright (c) 2016, NVIDIA. All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions
-    are met:
-     * Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
-     * Neither the name of its contributors may be used to endorse 
-       or promote products derived from this software without specific
-       prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-    PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-    CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-    EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-    PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-    PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-    OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    feedback to tlorach@nvidia.com (Tristan Lorach)
-*/ //--------------------------------------------------------------------
+/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 #define DEFAULT_RENDERER 2
+#include <imgui/imgui_impl_gl.h>
 #include "gl_vk_bk3dthreaded.h"
 
 //-----------------------------------------------------------------------------
-// variables
+// renderers
 //-----------------------------------------------------------------------------
-Renderer*               g_renderers[10];
-int                     g_numRenderers = 0;
-static Renderer*        s_pCurRenderer = NULL;
-static int              s_curRenderer = DEFAULT_RENDERER;
-
-#ifdef USESVCUI
-IWindowFolding*   g_pTweakContainer = NULL;
-#endif
+Renderer*              g_renderers[10];
+int                        g_numRenderers  = 0;
+static Renderer*        s_pCurRenderer  = NULL;
+static int                  s_curRenderer   = DEFAULT_RENDERER;
+//-----------------------------------------------------------------------------
+// timing/profiling
+//-----------------------------------------------------------------------------
+double                    g_statsCpuTime = 0;
+double                    g_statsGpuTime = 0;
 nv_helpers::Profiler      g_profiler;
-
+//-----------------------------------------------------------------------------
+// Toggles
+//-----------------------------------------------------------------------------
 bool        g_bDisplayObject        = true;
 bool        g_bRefreshCmdBuffers    = true;
 int         g_bRefreshCmdBuffersCounter = 2;
 bool        g_bDisplayGrid          = true;
-
 bool        g_bTopologyLines        = true;
 bool        g_bTopologylinestrip    = true;
 bool        g_bTopologytriangles    = true;
 bool        g_bTopologytristrips    = true;
 bool        g_bTopologytrifans      = true;
 int         g_bUnsortedPrims        = 0;
-
-int         g_MSAA             = 8;
+int         g_MSAA                  = 8;
 
 MatrixBufferGlobal      g_globalMatrices;
 
@@ -110,9 +112,6 @@ static bool     s_bStats            = true;
 // Stuff for Multi-threading, using 'Workers'
 //-----------------------------------------------------------------------------
 #include "mt/CThreadWork.h"
-//
-// Pool of workers
-//
 #define NUMTHREADS 8
 ThreadWorkerPool*   g_mainThreadPool  = NULL;
 CEvent              g_dataReadyEvent;
@@ -120,20 +119,23 @@ TaskQueue*          g_mainThreadQueue = NULL;
 CCriticalSection *  g_crs_bk3d = NULL;   // for concurrent access on the model
 CCriticalSection *  g_crs_VK = NULL;   // for concurrent access on Vulkan
 CEvent           *  g_evt_cmdbuf = NULL;
-bool                g_useWorkers = true;
+bool                g_useWorkers = false;
 #endif
 int                 g_numCmdBuffers = 16;
-
+//-----------------------------------------------------------------------------
+// forward declarations
+//-----------------------------------------------------------------------------
 void destroyCommandBuffers(bool bAll);
-void initThreadLocalVars();
 void releaseThreadLocalVars();
+void initThreadLocalVars();
 //-----------------------------------------------------------------------------
 // Derive the Window for this sample
 //-----------------------------------------------------------------------------
-class MyWindow: public WindowInertiaCamera
+class MyWindow: public AppWindowCameraInertia
 {
-private:
 public:
+    ImGuiH::Registry    guiRegistry;
+
     MyWindow();
 
     virtual bool init();
@@ -147,10 +149,11 @@ public:
     virtual void keyboardchar(unsigned char key, int mods, int x, int y);
     //virtual void idle();
     virtual void display();
+    void processUI(int width, int height, double dt);
 };
 
 MyWindow::MyWindow() :
-    WindowInertiaCamera(
+    AppWindowCameraInertia(
     vec3f(-0.43,-0.20,-0.01), vec3f(-0.14,-0.34,0.40)
 
     )
@@ -178,28 +181,16 @@ void initThreads()
 
 void terminateThreads()
 {
-    if(g_mainThreadPool)
-    {
-        g_mainThreadPool->FlushTasks();
-        g_mainThreadPool->Terminate(); // issue with NWTPS_SHARED_QUEUE
-        delete g_mainThreadPool;
-        g_mainThreadPool = NULL;
-    }
-    if(g_mainThreadQueue)
-    {
-        delete g_mainThreadQueue;
-        g_mainThreadQueue = NULL;
-    }
-    if(g_crs_bk3d)
-    {
-        delete g_crs_bk3d;
-        g_crs_bk3d = NULL;
-    }
-    if(g_crs_VK)
-    {
-        delete g_crs_VK;
-        g_crs_VK = NULL;
-    }
+    g_mainThreadPool->FlushTasks();
+    g_mainThreadPool->Terminate(); // issue with NWTPS_SHARED_QUEUE
+    delete g_mainThreadPool;
+    g_mainThreadPool = NULL;
+    delete g_mainThreadQueue;
+    g_mainThreadQueue = NULL;
+    delete g_crs_bk3d;
+    g_crs_bk3d = NULL;
+    delete g_crs_VK;
+    g_crs_VK = NULL;
 }
 #endif
 //------------------------------------------------------------------------------
@@ -207,22 +198,6 @@ void terminateThreads()
 //------------------------------------------------------------------------------
 void sample_print(int level, const char * txt)
 {
-#ifdef USESVCUI
-    switch(level)
-    {
-    case 0:
-    case 1:
-        logMFCUI(level, txt);
-        break;
-    case 2:
-        logMFCUI(level, txt);
-        break;
-    default:
-        logMFCUI(level, txt);
-        break;
-    }
-#else
-#endif
 }
 
 
@@ -292,16 +267,14 @@ Bk3dModel::~Bk3dModel()
 bool Bk3dModel::loadModel()
 {
     LOGI("Loading Mesh %s..\n", m_name.c_str());
-    SHOWPROGRESS("Loading Mesh")
-    SETPROGRESSVAL(50)
-    LOGFLUSH();
     std::vector<std::string> m_paths;
     m_paths.push_back(m_name);
+    m_paths.push_back(std::string("downloaded_resources/") + m_name);
     m_paths.push_back(std::string("../downloaded_resources/") + m_name);
     m_paths.push_back(std::string("../../downloaded_resources/") + m_name);
     m_paths.push_back(std::string("../../../downloaded_resources/") + m_name);
-    m_paths.push_back(std::string(PROJECT_RELDIRECTORY) + m_name);
-    m_paths.push_back(std::string(PROJECT_ABSDIRECTORY) + m_name);
+    //paths.push_back(std::string(PROJECT_RELDIRECTORY) + name);
+    //paths.push_back(std::string(PROJECT_ABSDIRECTORY) + name);
     for(int i=0; i<m_paths.size(); i++)
     {
         if(m_meshFile = bk3d::load(m_paths[i].c_str() ))
@@ -361,7 +334,7 @@ bool Bk3dModel::loadModel()
             // this is for now a fake material: very few items (diffuse)
             // in a real application, material information could contain more
             // we'd need 16 vec4 to fill 256 bytes
-            memcpy(m_material[i].diffuse.vec_array, m_meshFile->pMaterials->pMaterials[i]->getDiffuse(), sizeof(vec3f));
+            memcpy(m_material[i].diffuse.vec_array, m_meshFile->pMaterials->pMaterials[i]->Diffuse(), sizeof(vec3f));
             //...
             // hack for visual result...
             if(length(m_material[i].diffuse) <= 0.1f)
@@ -378,10 +351,9 @@ bool Bk3dModel::loadModel()
         for(int i=0; i<m_meshFile->pTransforms->nBones; i++)
         {
             // 256 bytes aligned...
-            memcpy(m_objectMatrices[i].mO.mat_array, m_meshFile->pTransforms->pBones[i]->getMatrix().m, sizeof(mat4f));
+            memcpy(m_objectMatrices[i].mO.mat_array, m_meshFile->pTransforms->pBones[i]->Matrix().m, sizeof(mat4f));
         }
     }
-    HIDEPROGRESS()
     return true;
 }
 
@@ -402,190 +374,107 @@ void Bk3dModel::printPosition()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
+
+#define COMBO_MSAA 0
+#define COMBO_SORT 1
+#define COMBO_RENDERER 2
+#define SCALAR_NCMDBUF 3
+#define CHECK_WORKERS 4
+void MyWindow::processUI(int width, int height, double dt)
+{
+    // Update imgui configuration
+    auto &imgui_io = ImGui::GetIO();
+    imgui_io.DeltaTime = static_cast<float>(dt);
+    imgui_io.DisplaySize = ImVec2(width, height);
+
+    ImGui::NewFrame();
+    ImGui::SetNextWindowBgAlpha(0.5);
+    ImGui::SetNextWindowSize(ImVec2(450, 0), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("NVIDIA " PROJECT_NAME, nullptr))
+    {
+
+        guiRegistry.enumCombobox(COMBO_RENDERER, "Renderer", &s_curRenderer);
+#ifdef USEWORKERS
+        guiRegistry.checkbox(CHECK_WORKERS, "UseWorkers", &g_useWorkers);
+#endif
+        guiRegistry.inputIntClamped(SCALAR_NCMDBUF, "N Objs x&y", &g_numCmdBuffers, 1, MAXCMDBUFFERS);
+        ImGui::Separator();
+        guiRegistry.enumCombobox(COMBO_SORT, "Cmd-Buf style", &g_bUnsortedPrims);
+        guiRegistry.enumCombobox(COMBO_MSAA, "MSAA", &g_MSAA);
+        ImGui::Separator();
+        //CreateCtrlButton("CURPRINT", "Ouput Pos-scale", g_pTweakContainer)->Register(&eventUI2);
+        //CreateCtrlScalar("CURO", "Cur Object", g_pTweakContainer)->SetBounds(0.0, 10.)->SetIntMode()->Register(&eventUI2), &s_curObject);
+        //ImGui::InputFloat("CURX", v, 0.1f, 1.0f, 2);
+        // ...
+        //ImGui::Separator();
+        ImGui::Checkbox("command buffer continuous refresh\n", &g_bRefreshCmdBuffers);
+        ImGui::Checkbox("continuous rendering\n", &m_realtime.bNonStopRendering);
+        ImGui::Checkbox("object display\n", &g_bDisplayObject);
+        ImGui::Checkbox("grid display\n", &g_bDisplayGrid);
+        ImGui::Checkbox("stats\n", &s_bStats);
+        ImGui::Checkbox("animate camera\n", &s_bCameraAnim);
+        ImGui::Checkbox("Topology Lines\n", &g_bTopologyLines);
+        ImGui::Checkbox("Topology Line-Strip\n", &g_bTopologylinestrip);
+        ImGui::Checkbox("Topology Triangles\n", &g_bTopologytriangles);
+        ImGui::Checkbox("Topology Tri-Strips\n", &g_bTopologytristrips);
+        ImGui::Checkbox("Topology Tri-Fans\n", &g_bTopologytrifans);
+        ImGui::Separator();
+        ImGui::Text("('h' to toggle help)");
+        //if(s_bStats)
+        //    h += m_oglTextBig.drawString(5, m_winSz[1]-h, hudStats.c_str(), 0, vec4f(0.8,0.8,1.0,0.5).vec_array);
+
+        if (s_helpText)
+        {
+            ImGui::BeginChild("Help", ImVec2(400, 110), true);
+            // camera help
+            //ImGui::SetNextWindowCollapsed(0);
+            const char *txt = getHelpText();
+            ImGui::Text(txt);
+            ImGui::EndChild();
+        }
+
+        int avg = 10;
+
+        if (g_profiler.getAveragedFrames("scene") % avg == avg - 1) {
+          g_profiler.getAveragedValues("scene", g_statsCpuTime, g_statsGpuTime);
+        }
+
+        float gpuTimeF = float(g_statsGpuTime);
+        float cpuTimeF = float(g_statsCpuTime);
+        float maxTimeF = std::max(std::max(cpuTimeF, gpuTimeF), 0.0001f);
+
+        ImGui::Text("Frame     [ms]: %2.1f", dt*1000.0f);
+        ImGui::Text("Scene GPU [ms]: %2.3f", gpuTimeF / 1000.0f);
+        ImGui::ProgressBar(gpuTimeF / maxTimeF, ImVec2(0.0f, 0.0f));
+        ImGui::Text("Scene CPU [ms]: %2.3f", cpuTimeF / 1000.0f);
+        ImGui::ProgressBar(cpuTimeF / maxTimeF, ImVec2(0.0f, 0.0f));
+    }
+    ImGui::End();
+}
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 bool MyWindow::init()
 {
-    if(!WindowInertiaCamera::init())
+    if(!AppWindowCameraInertia::init())
         return false;
-
+    ImGui::InitGL();
     //
     // UI
     //
-#ifdef USESVCUI
-    initMFCUIBase(0, m_winSz[1]+40, m_winSz[0], 300);
-#endif
-    //
-    // easy Toggles
-    //
-#ifdef USESVCUI
-    class EventUI: public IEventsWnd
+    auto &imgui_io = ImGui::GetIO();
+    imgui_io.IniFilename = nullptr;
+    guiRegistry.enumAdd(COMBO_MSAA, 1, "MSAA OFF");
+    guiRegistry.enumAdd(COMBO_MSAA, 4, "MSAA 4x");
+    guiRegistry.enumAdd(COMBO_MSAA, 8, "MSAA 8x");
+    guiRegistry.enumAdd(COMBO_SORT, 0, "Sort on primitive types");
+    guiRegistry.enumAdd(COMBO_SORT, 1, "Unsorted primitive types");
+    for (int i = 0; i<g_numRenderers; i++)
     {
-    public:
-        void Button(IWindow *pWin, int pressed)
-            { reinterpret_cast<MyWindow*>(pWin->GetUserData())->m_bAdjustTimeScale = true; };
-        void ScalarChanged(IControlScalar *pWin, float &v, float prev)
-        {
-            if(!strcmp(pWin->GetID(), "NCMDBUF"))
-            {
-                destroyCommandBuffers(true);
-                g_numCmdBuffers = (int)v;
-                g_bRefreshCmdBuffersCounter = 2;
-            }
-        }
-        void CheckBoxChanged(IControlScalar *pWin, bool &value, bool prev)
-        {
-#ifdef USEWORKERS
-            if(!strcmp(pWin->GetID(), "WORKERS"))
-            {
-                // changing the method: let's first destroy command buffers (via threads or not)
-                destroyCommandBuffers(true);
-                g_useWorkers = value;
-                g_bRefreshCmdBuffersCounter = 2;
-            }
-#endif
-        }
-        void ComboSelectionChanged(IControlCombo *pWin, unsigned int selectedidx)
-            {   
-                if(!strcmp(pWin->GetID(), "RENDER"))
-                {
-                    MyWindow* p = reinterpret_cast<MyWindow*>(pWin->GetUserData());
-                    releaseThreadLocalVars();
-                    s_pCurRenderer->terminateGraphics();
-                    g_profiler.reset(1);
-                    s_pCurRenderer = g_renderers[selectedidx];
-                    s_curRenderer = selectedidx;
-                    s_pCurRenderer->initGraphics(p->m_winSz[0], p->m_winSz[1], g_MSAA);
-                    g_profiler.setDefaultGPUInterface(s_pCurRenderer->getTimerInterface());
-                    initThreadLocalVars();
-                    p->reshape(p->m_winSz[0], p->m_winSz[1]);
-                    for (int m = 0; m<g_bk3dModels.size(); m++)
-                    {
-                        s_pCurRenderer->attachModel(g_bk3dModels[m]);
-                        s_pCurRenderer->initResourcesModel(g_bk3dModels[m]);
-                    }
-                    g_bRefreshCmdBuffersCounter = 2;
-                }
-                else if(!strcmp(pWin->GetID(), "MSAA"))
-                {
-                    g_MSAA = pWin->GetItemData(selectedidx);
-                    // involves some changes at the source of initialization... re-create all
-                    MyWindow* p = reinterpret_cast<MyWindow*>(pWin->GetUserData());
-                    releaseThreadLocalVars();
-                    s_pCurRenderer->terminateGraphics();
-                    g_profiler.reset(1);
-                    s_pCurRenderer->initGraphics(p->m_winSz[0], p->m_winSz[1], g_MSAA);
-                    initThreadLocalVars();
-                    s_pCurRenderer->buildPrimaryCmdBuffer();
-                    for (int m = 0; m<g_bk3dModels.size(); m++)
-                    {
-                        s_pCurRenderer->attachModel(g_bk3dModels[m]);
-                        s_pCurRenderer->initResourcesModel(g_bk3dModels[m]);
-                    }
-                    g_bRefreshCmdBuffersCounter = 2;
-                }
-            }
-    };
-    static EventUI eventUI;
-    //g_pWinHandler->CreateCtrlButton("TIMESCALE", "re-scale timing", g_pToggleContainer)
-    //    ->SetUserData(this)
-    //    ->Register(&eventUI);
-
-    g_pToggleContainer->UnFold(false);
-
-#ifdef USEWORKERS
-    g_pWinHandler->CreateCtrlCheck("WORKERS", "UseWorkers", g_pToggleContainer)->SetValue(g_useWorkers)->Register(&eventUI);
-#endif
-    g_pWinHandler->CreateCtrlScalar("NCMDBUF", "cmd buffers amount", g_pToggleContainer)
-        ->SetBounds(1, MAXCMDBUFFERS)->SetIntMode()->SetValue(g_numCmdBuffers)->Register(&eventUI);
-
-    IControlCombo* pCombo = g_pWinHandler->CreateCtrlCombo("RENDER", "Renderer", g_pToggleContainer);
-    pCombo->SetUserData(this)->Register(&eventUI);
-    for(int i=0; i<g_numRenderers; i++)
-    {
-        pCombo->AddItem(g_renderers[i]->getName(), i);
+        guiRegistry.enumAdd(COMBO_RENDERER, i, g_renderers[i]->getName() );
     }
-    pCombo->SetSelectedByIndex(DEFAULT_RENDERER);
-
-    pCombo = g_pWinHandler->CreateCtrlCombo("CLMODE", "Cmd-Buf style", g_pToggleContainer);
-    pCombo->SetUserData(this)->Register(&eventUI);
-    pCombo->AddItem("Sort on primitive types", 0);
-    pCombo->AddItem("Unsorted primitive types", 1);
-    g_pWinHandler->VariableBind(pCombo, &g_bUnsortedPrims);
-    //pCombo->SetSelectedByIndex(0);
-
-    pCombo = g_pWinHandler->CreateCtrlCombo("MSAA", "MSAA", g_pToggleContainer);
-    pCombo->AddItem("MSAA 1x", 1);
-    pCombo->AddItem("MSAA 4x", 4);
-    pCombo->AddItem("MSAA 8x", 8);
-    pCombo->SetUserData(this)->Register(&eventUI);
-    pCombo->SetSelectedByData(g_MSAA);
-
-    g_pToggleContainer->UnFold();
-
-#if 1
-    //
-    // This code is to adjust models in the scene. Then output the values with '2' or button
-    // and create the scene file (used with -i <file>)
-    //
-    class EventUI2: public IEventsWnd
-    {
-    public:
-        void Button(IWindow *pWin, int pressed)
-        {
-            if(!strcmp(pWin->GetID(), "CURPRINT"))
-            {
-                if (s_curObject < g_bk3dModels.size())
-                    g_bk3dModels[s_curObject]->printPosition();
-            }
-        };
-        void ScalarChanged(IControlScalar *pWin, float &v, float prev)
-        {
-            if(!strcmp(pWin->GetID(), "CURO"))
-            {
-                if (g_bk3dModels.size() >(int)v)
-                {
-                    LOGI("Object %d %s now current\n", (int)v, g_bk3dModels[(int)v]->m_name.c_str());
-                    g_pWinHandler->VariableBind(g_pWinHandler->Get("CURX"), &(g_bk3dModels[(int)v]->m_posOffset.x));
-                    g_pWinHandler->VariableBind(g_pWinHandler->Get("CURY"), &(g_bk3dModels[(int)v]->m_posOffset.y));
-                    g_pWinHandler->VariableBind(g_pWinHandler->Get("CURZ"), &(g_bk3dModels[(int)v]->m_posOffset.z));
-                    g_pWinHandler->VariableBind(g_pWinHandler->Get("CURS"), &(g_bk3dModels[(int)v]->m_scale));
-                }
-            }
-        };
-    };
-    static EventUI2 eventUI2;
-    (g_pTweakContainer = g_pWinHandler->CreateWindowFolding("TWEAK", "Tweaks", NULL))
-        ->SetLocation(0+(m_winSz[0]*70/100), m_winSz[1]+40)
-        ->SetSize(m_winSz[0]*30/100, 300)
-        ->SetVisible();
-    g_pWinHandler->CreateCtrlButton("CURPRINT", "Ouput Pos-scale", g_pTweakContainer)->Register(&eventUI2);
-    g_pWinHandler->VariableBind(g_pWinHandler->CreateCtrlScalar("CURO", "Cur Object", g_pTweakContainer)
-        ->SetBounds(0.0, 10.)->SetIntMode()->Register(&eventUI2), &s_curObject);
-    g_pWinHandler->CreateCtrlScalar("CURX", "CurX", g_pTweakContainer)
-        ->SetBounds(-1.0, 1.0);
-    g_pWinHandler->CreateCtrlScalar("CURY", "CurY", g_pTweakContainer)
-        ->SetBounds(-1.0, 1.0);
-    g_pWinHandler->CreateCtrlScalar("CURZ", "CurZ", g_pTweakContainer)
-        ->SetBounds(-1.0, 1.0);
-    g_pWinHandler->CreateCtrlScalar("CURS", "Cur scale", g_pTweakContainer)
-        ->SetBounds(0.0, 2.0);
-    g_pTweakContainer->UnFold();
-    g_pTweakContainer->SetVisible(0);
-#endif
-
-#endif
-    addToggleKeyToMFCUI('c', &g_bRefreshCmdBuffers, "c: toggles command buffer continuous refresh\n");
-    addToggleKeyToMFCUI(' ', &m_realtime.bNonStopRendering, "space: toggles continuous rendering\n");
-    addToggleKeyToMFCUI('o', &g_bDisplayObject, "'o': toggles object display\n");
-    addToggleKeyToMFCUI('g', &g_bDisplayGrid, "'g': toggles grid display\n");
-    addToggleKeyToMFCUI('s', &s_bStats, "'s': toggle stats\n");
-    addToggleKeyToMFCUI('a', &s_bCameraAnim, "'a': animate camera\n");
-
-    addToggleKeyToMFCUI('1', &g_bTopologyLines, "'1': Topology Lines\n");
-    addToggleKeyToMFCUI('2', &g_bTopologylinestrip, "'2': Topology Line-Strip\n");
-    addToggleKeyToMFCUI('3', &g_bTopologytriangles, "'3': Topology Triangles\n");
-    addToggleKeyToMFCUI('4', &g_bTopologytristrips, "'4': Topology Tri-Strips\n");
-    addToggleKeyToMFCUI('5', &g_bTopologytrifans, "'5': Topology Tri-Fans\n");
-
+    guiRegistry.checkboxAdd(CHECK_WORKERS);
+    guiRegistry.inputIntAdd(SCALAR_NCMDBUF, g_numCmdBuffers);
     return true;
 }
 
@@ -594,15 +483,9 @@ bool MyWindow::init()
 //------------------------------------------------------------------------------
 void MyWindow::shutdown()
 {
-#ifdef USESVCUI
-    shutdownMFCUI();
-#endif
-    #ifdef USEWORKERS
-    releaseThreadLocalVars();
-    terminateThreads();
-    #endif
-    WindowInertiaCamera::shutdown();
     s_pCurRenderer->terminateGraphics();
+    AppWindowCameraInertia::shutdown();
+
     for (int i = 0; i<g_bk3dModels.size(); i++)
     {
         delete g_bk3dModels[i];
@@ -617,7 +500,7 @@ void MyWindow::reshape(int w, int h)
 {
     if(w == 0) w = m_winSz[0];
     if(h == 0) h = m_winSz[1];
-    WindowInertiaCamera::reshape(w, h);
+    AppWindowCameraInertia::reshape(w, h);
     if (s_pCurRenderer)
     {
         if (s_pCurRenderer->bFlipViewport())
@@ -647,7 +530,7 @@ void MyWindow::reshape(int w, int h)
 #define KEYTAU 0.10f
 void MyWindow::keyboard(NVPWindow::KeyCode key, MyWindow::ButtonAction action, int mods, int x, int y)
 {
-    WindowInertiaCamera::keyboard(key, action, mods, x, y);
+    AppWindowCameraInertia::keyboard(key, action, mods, x, y);
 
     if(action == MyWindow::BUTTON_RELEASE)
         return;
@@ -661,9 +544,6 @@ void MyWindow::keyboard(NVPWindow::KeyCode key, MyWindow::ButtonAction action, i
     //...
     case NVPWindow::KEY_F12:
         break;
-    case NVPWindow::KEY_ESCAPE:
-        postQuit();
-        break;
     }
 }
 
@@ -672,7 +552,7 @@ void MyWindow::keyboard(NVPWindow::KeyCode key, MyWindow::ButtonAction action, i
 //------------------------------------------------------------------------------
 void MyWindow::keyboardchar( unsigned char key, int mods, int x, int y )
 {
-    WindowInertiaCamera::keyboardchar(key, mods, x, y);
+    AppWindowCameraInertia::keyboardchar(key, mods, x, y);
     switch(key)
     {
     case '1':
@@ -690,9 +570,6 @@ void MyWindow::keyboardchar( unsigned char key, int mods, int x, int y )
         s_helpText = HELPDURATION;
     break;
     }
-#ifdef USESVCUI
-    flushMFCUIToggle(key);
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -827,19 +704,16 @@ void initThreadLocalVars()
     //---------------------------------------------------------------------
     // Invoke a Task on all the threads to setup some thread-local variable
     //
-    class SetThreadLocalVars : public TaskSyncCall
-    {
-    public:
-        void Invoke()
-        { // We are now in the Thread : let's create the context, share it and make it current
-            int threadId = getThreadNumber() + 1;
-            s_pCurRenderer->initThreadLocalVars(threadId);
-        }
-    };
+            class SetThreadLocalVars : public TaskSyncCall
+            {
+            public:
+                void Invoke()
+                { // We are now in the Thread : let's create the context, share it and make it current
+                    int threadId = getThreadNumber() + 1;
+                    s_pCurRenderer->initThreadLocalVars(threadId);
+                }
+            };
     //---------------------------------------------------------------------
-    // Note that there is no need to run threads in parallel, here:
-    // we only want to iterate throught them one by one so we can setup
-    // the local variables
     static SetThreadLocalVars setThreadLocalVars;
     for(unsigned int i=0; i<g_mainThreadPool->getThreadCount(); i++)
     {
@@ -854,24 +728,19 @@ void initThreadLocalVars()
 void releaseThreadLocalVars()
 {
 #ifdef USEWORKERS
-    if(g_mainThreadPool == NULL)
-        return;
     NXPROFILEFUNC(__FUNCTION__);
     //---------------------------------------------------------------------
     // Invoke a Task on all the threads to setup some thread-local variable
     //
-    class ReleaseThreadLocalVars : public TaskSyncCall
-    {
-    public:
-        void Invoke()
-        { // We are now in the Thread : let's create the context, share it and make it current
-            s_pCurRenderer->releaseThreadLocalVars();
-        }
-    };
+            class ReleaseThreadLocalVars : public TaskSyncCall
+            {
+            public:
+                void Invoke()
+                { // We are now in the Thread : let's create the context, share it and make it current
+                    s_pCurRenderer->releaseThreadLocalVars();
+                }
+            };
     //---------------------------------------------------------------------
-    // Note that there is no need to run threads in parallel, here:
-    // we only want to iterate throught them one by one so we can setup
-    // the local variables
     static ReleaseThreadLocalVars releaseThreadLocalVars;
     for(unsigned int i=0; i<g_mainThreadPool->getThreadCount(); i++)
     {
@@ -983,7 +852,7 @@ void MyWindow::display()
 {
   if(g_bRefreshCmdBuffers || (g_bRefreshCmdBuffersCounter>0))
     resetCommandBuffersPool();
-  WindowInertiaCamera::display();
+  AppWindowCameraInertia::display();
   if(!s_pCurRenderer->valid())
   {
       glClearColor(0.5,0.0,0.0,0.0);
@@ -1001,9 +870,6 @@ void MyWindow::display()
       {
           LOGE("NO Animation loaded (-i <file>)\n");
           s_bCameraAnim = false;
-          #ifdef USESVCUI
-          g_pWinHandler->VariableFlush(&s_bCameraAnim);
-          #endif
       }
       s_cameraAnimIntervals -= dt;
       if( (m_camera.eyeD <= 0.01/*m_camera.epsilon*/)
@@ -1022,10 +888,8 @@ void MyWindow::display()
   //
   // render the scene
   //
-  std::string stats;
-  static std::string hudStats = "...";
+  g_profiler.beginFrame();
   {
-    nv_helpers::Profiler::FrameHelper helper(g_profiler,sysGetTime(), 2.0, stats);
     PROFILE_SECTION("frame");
 
     mat4f mW;
@@ -1104,46 +968,20 @@ void MyWindow::display()
         //
         s_pCurRenderer->blitToBackbuffer();
     }
-    //
-    // additional HUD stuff
-    //
-    WindowInertiaCamera::beginDisplayHUD();
-    s_helpText -= dt;
-    m_oglTextBig.drawString(5, 5, "('h' for help)", 1, vec4f(0.8,0.8,1.0,0.5f).vec_array);
-    float h = 30;
-    if(s_bStats)
-        h += m_oglTextBig.drawString(5, m_winSz[1]-h, hudStats.c_str(), 0, vec4f(0.8,0.8,1.0,0.5).vec_array);
-    if(s_helpText > 0)
-    {
-        // camera help
-        const char *txt = getHelpText();
-        h += m_oglTextBig.drawString(5, m_winSz[1]-h, txt, 0, vec4f(0.8,0.8,1.0,s_helpText/HELPDURATION).vec_array);
-        h += m_oglTextBig.drawString(5, m_winSz[1]-h, s_sampleHelp, 0, vec4f(0.8,0.8,1.0,s_helpText/HELPDURATION).vec_array);
+    if (1/*useUI*/) {
+        int width = getWidth();
+        int height = getHeight();
+        processUI(width, height, dt);
+        ImDrawData *imguiDrawData;
+        ImGui::Render();
+        imguiDrawData = ImGui::GetDrawData();
+        ImGui::RenderDrawDataGL(imguiDrawData);
+        ImGui::EndFrame();
     }
-    WindowInertiaCamera::endDisplayHUD();
-    {
-      PROFILE_SECTION("SwapBuffers");
-      swapBuffers();
-    }
-  } //PROFILE_SECTION("display");
-  //
-  // Stats
-  //
-  if (s_bStats && (!stats.empty()))
-  {
-    //char tmp[200];
-    //LOGOK("%s\n",stats.c_str());
-    Bk3dModel::Stats modelstats = {0,0,0,0};
-    FOREACHMODEL(addStats(modelstats));
-    hudStats = stats; // make a copy for the hud display
-    //sprintf(tmp,"%.0f primitives/S %.0f drawcalls/S\n", (float)modelstats.primitives/dt, (float)modelstats.drawcalls/dt);
-    //hudStats += tmp;
-    //sprintf(tmp,"%.0f attr.updates/S %.0f uniform updates/S\n", (float)modelstats.attr_update/dt, (float)modelstats.uniform_update/dt);
-    //hudStats += tmp;
-    //sprintf(tmp,"All Models together: %d Prims; %d drawcalls; %d attribute update; %d uniform update\n"
-    //    , modelstats.primitives, modelstats.drawcalls, modelstats.attr_update, modelstats.uniform_update);
-    //hudStats += tmp;
-  }
+  } //PROFILE_SECTION("frame");
+  swapBuffers();
+  g_profiler.endFrame();
+
 
 }
 //------------------------------------------------------------------------------
@@ -1208,10 +1046,11 @@ int sample_main(int argc, const char** argv)
 {
     // you can create more than only one
     static MyWindow myWindow;
+    SETLOGFILENAME();
     // -------------------------------
     // Basic OpenGL settings
     //
-    NVPWindow::ContextFlags context(
+    NVPWindow::ContextFlagsGL context(
     4,      //major;
     3,      //minor;
     false,   //core;
@@ -1227,7 +1066,7 @@ int sample_main(int argc, const char** argv)
     // -------------------------------
     // Create the window
     //
-    if(!myWindow.create("gl_vk_bk3dthreaded", &context, 1280,720))
+    if (!myWindow.activate(NVPWindow::WINDOW_API_OPENGL, 1280, 720, "gl_vk_bk3dthreaded", &context))
     {
         LOGE("Failed to initialize the sample\n");
         return false;
@@ -1276,9 +1115,6 @@ int sample_main(int argc, const char** argv)
             break;
         case 'q':
             g_MSAA = atoi(argv[++i]);
-            #ifdef USESVCUI
-            if(g_pWinHandler) g_pWinHandler->GetCombo("MSAA")->SetSelectedByData(g_MSAA);
-            #endif
             LOGI("g_MSAA set to %d\n", g_MSAA);
             break;
         case 'i':
@@ -1289,9 +1125,6 @@ int sample_main(int argc, const char** argv)
             }
             break;
         case 'd':
-            #ifdef USESVCUI
-            if(g_pTweakContainer) g_pTweakContainer->SetVisible(atoi(argv[++i]) ? 1 : 0);
-            #endif
             break;
         default:
             LOGE("Wrong command-line\n");
@@ -1300,8 +1133,9 @@ int sample_main(int argc, const char** argv)
             break;
         }
     }
-    s_pCurRenderer = g_renderers[s_curRenderer];
-    s_pCurRenderer->initGraphics(myWindow.getWidth(), myWindow.getHeight(), g_MSAA);
+      s_pCurRenderer = g_renderers[s_curRenderer];
+      if(s_pCurRenderer->initGraphics(myWindow.getWidth(), myWindow.getHeight(), g_MSAA) == false)
+      return 1;
     g_profiler.init();
     g_profiler.setDefaultGPUInterface(s_pCurRenderer->getTimerInterface());
     // -------------------------------
@@ -1324,7 +1158,8 @@ int sample_main(int argc, const char** argv)
     }
     for (int m = 0; m<g_bk3dModels.size(); m++)
     {
-        g_bk3dModels[m]->loadModel();
+        if(g_bk3dModels[m]->loadModel() == false)
+          return 1;
         s_pCurRenderer->attachModel(g_bk3dModels[m]);
         // TODO: break-down what is inside and issue Task-workers
         s_pCurRenderer->initResourcesModel(g_bk3dModels[m]);
@@ -1338,7 +1173,7 @@ int sample_main(int argc, const char** argv)
     // the current renderer will store things local to each thread (in TLS):
     initThreadLocalVars();
     #endif
-    myWindow.makeContextCurrent();
+    myWindow.makeContextCurrentGL();
     myWindow.swapInterval(0);
     //
     // reshape will setup the first windows size and related stuff: main command-buffer, for example
@@ -1356,15 +1191,84 @@ int sample_main(int argc, const char** argv)
             //LOGI("More than 1 task...\n");
         }
         #endif
+
         myWindow.idle();
-    }
+
+        if (myWindow.guiRegistry.checkValueChange(SCALAR_NCMDBUF))
+        {
+            destroyCommandBuffers(true);
+            //g_numCmdBuffers
+            g_bRefreshCmdBuffersCounter = 2;
+        }
+#ifdef USEWORKERS
+        if (myWindow.guiRegistry.checkValueChange(CHECK_WORKERS))
+        {
+            // changing the method: let's first destroy command buffers (via threads or not)
+            destroyCommandBuffers(true);
+            //g_useWorkers
+            g_bRefreshCmdBuffersCounter = 2;
+        }
+#endif
+        if (myWindow.guiRegistry.checkValueChange(COMBO_RENDERER))
+        {
+            s_pCurRenderer->waitForGPUIdle();
+            releaseThreadLocalVars();
+            s_pCurRenderer->terminateGraphics();
+            g_profiler.reset(1);
+            s_pCurRenderer = g_renderers[s_curRenderer]; // s_curRenderer setup by ImGui
+            s_pCurRenderer->initGraphics(myWindow.getWidth(), myWindow.getHeight(), g_MSAA);
+            g_profiler.setDefaultGPUInterface(s_pCurRenderer->getTimerInterface());
+            initThreadLocalVars();
+            myWindow.reshape(myWindow.getWidth(), myWindow.getHeight());
+            for (int m = 0; m<g_bk3dModels.size(); m++)
+            {
+                s_pCurRenderer->attachModel(g_bk3dModels[m]);
+                s_pCurRenderer->initResourcesModel(g_bk3dModels[m]);
+            }
+            g_bRefreshCmdBuffersCounter = 2;
+        }
+        if (myWindow.guiRegistry.checkValueChange(COMBO_MSAA))
+        {
+            //g_MSAA setup by ImGui
+            // involves some changes at the source of initialization... re-create all
+            s_pCurRenderer->waitForGPUIdle();
+            releaseThreadLocalVars();
+            s_pCurRenderer->terminateGraphics();
+            g_profiler.reset(1);
+            s_pCurRenderer->initGraphics(myWindow.getWidth(), myWindow.getHeight(), g_MSAA);
+            initThreadLocalVars();
+            s_pCurRenderer->buildPrimaryCmdBuffer();
+            for (int m = 0; m<g_bk3dModels.size(); m++)
+            {
+                s_pCurRenderer->attachModel(g_bk3dModels[m]);
+                s_pCurRenderer->initResourcesModel(g_bk3dModels[m]);
+            }
+            g_bRefreshCmdBuffersCounter = 2;
+        }
+        if (0)//myWindow.guiRegistry.checkValueChange(BUTTON_PRINT))
+        {
+            if (s_curObject < g_bk3dModels.size())
+                g_bk3dModels[s_curObject]->printPosition();
+        }
+        if (0)//myWindow.guiRegistry.checkValueChange(SCALAR_OBJ))
+        {
+            //if (g_bk3dModels.size() > ...)
+            {
+                //LOGI("Object %d %s now current\n", (int)v, g_bk3dModels[(int)v]->m_name.c_str());
+                //Get("CURX")...
+            }
+        }
+    } // while(MyWindow::sysPollEvents(false) )
     // -------------------------------
     // Terminate
     //
     #ifdef USEWORKERS
     releaseThreadLocalVars();
+    s_pCurRenderer->terminateGraphics();
+    //
+    // terminate the threads at the very end (terminateGraphics() could still need it... for TLS)
+    //
     terminateThreads();
     #endif
-    s_pCurRenderer->terminateGraphics();
     return true;
 }

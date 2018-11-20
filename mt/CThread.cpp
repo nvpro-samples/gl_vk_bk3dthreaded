@@ -49,8 +49,8 @@
 void thread_function(void *pData)
 {
     NXPROFILEFUNCCOL(__FUNCTION__, 0xFF800000);
-	CThread* pthread = static_cast<CThread*>(pData);
-	pthread->CThreadProc();
+    CThread* pthread = static_cast<CThread*>(pData);
+    pthread->CThreadProc();
 }
 
 #if defined WIN32
@@ -66,108 +66,108 @@ void thread_function(void *pData)
 CThread::CThread(const bool startNow, const bool Critical)
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	m_thread = CreateThread(thread_function, static_cast<CThread*>(this), startNow, Critical);
+    m_thread = CreateThread(thread_function, static_cast<CThread*>(this), startNow, Critical);
 }
 
 CThread::~CThread()
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	CancelThread();
-	DeleteThread();
+    CancelThread();
+    DeleteThread();
 }
 
 // CpuCount
 int CThread::CpuCount() 
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	static int Cpus = -1;
-	if(-1 == Cpus) {
-		SYSTEM_INFO si;
-		GetSystemInfo(&si);
-		Cpus = (int)si.dwNumberOfProcessors > 1 ? (int)si.dwNumberOfProcessors : 1;
-		//if(Cpus>4)Cpus=4;
-	}
-	return Cpus;
+    static int Cpus = -1;
+    if(-1 == Cpus) {
+        SYSTEM_INFO si;
+        GetSystemInfo(&si);
+        Cpus = (int)si.dwNumberOfProcessors > 1 ? (int)si.dwNumberOfProcessors : 1;
+        //if(Cpus>4)Cpus=4;
+    }
+    return Cpus;
 }
 //int CThread::CpuCount0() 
 //{
-//	static int Cpus = -1;
-//	if(-1 == Cpus) {
-//		SYSTEM_INFO si;
-//		GetSystemInfo(&si);
-//		Cpus = (int)si.dwNumberOfProcessors > 1 ? (int)si.dwNumberOfProcessors : 1;
-//	}
-//	return Cpus;
+//    static int Cpus = -1;
+//    if(-1 == Cpus) {
+//        SYSTEM_INFO si;
+//        GetSystemInfo(&si);
+//        Cpus = (int)si.dwNumberOfProcessors > 1 ? (int)si.dwNumberOfProcessors : 1;
+//    }
+//    return Cpus;
 //}
 
 // Sleep
 void CThread::Sleep(const unsigned long Milliseconds) 
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	::Sleep(Milliseconds);
+    ::Sleep(Milliseconds);
 }
 
 // CreateThread
 NThreadHandle CThread::CreateThread(ThreadProc Proc, void *Param, bool startNow, const bool Critical) 
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	NThreadHandle hThread = ::CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Proc, Param, CREATE_SUSPENDED, NULL);
-	if(Critical) {
-		SetThreadPriority(hThread, THREAD_PRIORITY_TIME_CRITICAL);
-	}
-	if(startNow)
-		::ResumeThread(hThread);
-	return hThread;
+    NThreadHandle hThread = ::CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Proc, Param, CREATE_SUSPENDED, NULL);
+    if(Critical) {
+        SetThreadPriority(hThread, THREAD_PRIORITY_TIME_CRITICAL);
+    }
+    if(startNow)
+        ::ResumeThread(hThread);
+    return hThread;
 }
 
 // CancelThread
 void CThread::CancelThread() 
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	TerminateThread(m_thread, 0);
+    TerminateThread(m_thread, 0);
 }
 
 // DeleteThread
 void CThread::DeleteThread() 
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	CloseHandle(m_thread);
-	m_thread = NULL;
+    CloseHandle(m_thread);
+    m_thread = NULL;
 }
 
 // WaitThread
 void CThread::WaitThread() 
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	WaitForSingleObject(m_thread, INFINITE);
+    WaitForSingleObject(m_thread, INFINITE);
 }
 
 // WaitThreads
 void CThread::WaitThreads(const NThreadHandle *Threads, const int Count) 
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	WaitForMultipleObjects(Count, Threads, TRUE, INFINITE);
+    WaitForMultipleObjects(Count, Threads, TRUE, INFINITE);
 }
 
 // SuspendThread
 bool CThread::SuspendThread()
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	return ::SuspendThread(m_thread) == -1 ? false : true;
+    return ::SuspendThread(m_thread) == -1 ? false : true;
 }
 
 // ResumeThread
 bool CThread::ResumeThread()
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	return ::ResumeThread(m_thread) == -1 ? false : true;
+    return ::ResumeThread(m_thread) == -1 ? false : true;
 }
 
 //SetThreadAffinity
 void CThread::SetThreadAffinity(unsigned int mask)
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	SetThreadAffinityMask(m_thread, mask);
+    SetThreadAffinityMask(m_thread, mask);
 }
 /////////////////////////////////////////////////////////////////////////////////////
 // MUTEX MUTEX MUTEX MUTEX MUTEX MUTEX MUTEX MUTEX MUTEX MUTEX MUTEX MUTEX MUTEX   //
@@ -175,28 +175,28 @@ void CThread::SetThreadAffinity(unsigned int mask)
 CMutex::CMutex()
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	CMutex::CreateMutex(m_mutex);
+    CMutex::CreateMutex(m_mutex);
 }
 
 CMutex::~CMutex()
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	CMutex::DeleteMutex();
+    CMutex::DeleteMutex();
 }
 
 // CreateMutex
 void CMutex::CreateMutex(NMutexHandle &Mutex) 
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	Mutex = ::CreateMutex(NULL, FALSE, NULL);
+    Mutex = ::CreateMutex(NULL, FALSE, NULL);
 }
 
 // DeleteMutex
 void CMutex::DeleteMutex() 
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	CloseHandle(m_mutex);
-	m_mutex = NULL;
+    CloseHandle(m_mutex);
+    m_mutex = NULL;
 }
 
 // LockMutex
@@ -210,9 +210,9 @@ bool CMutex::LockMutex(int ms, long *dbg)
 
 // UnlockMutex
 void CMutex::UnlockMutex() 
-{	
+{    
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	BOOL bRes = ReleaseMutex(m_mutex);
+    BOOL bRes = ReleaseMutex(m_mutex);
     assert(bRes);
 }
 
@@ -222,100 +222,100 @@ void CMutex::UnlockMutex()
 CSemaphore::CSemaphore()
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	CSemaphore::CreateSemaphore(m_semaphore, 0, 0xFFFF);
+    CSemaphore::CreateSemaphore(m_semaphore, 0, 0xFFFF);
 }
 
 CSemaphore::CSemaphore(long initialCnt, long maxCnt)
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	CSemaphore::CreateSemaphore(m_semaphore, initialCnt, maxCnt);
+    CSemaphore::CreateSemaphore(m_semaphore, initialCnt, maxCnt);
 }
 
 CSemaphore::~CSemaphore()
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	CSemaphore::DeleteSemaphore();
+    CSemaphore::DeleteSemaphore();
 }
 
-int	CSemaphore::num_Semaphores = 0;
+int    CSemaphore::num_Semaphores = 0;
 // CreateSemaphore
 void CSemaphore::CreateSemaphore(NSemaphoreHandle &Semaphore, long initialCnt, long maxCnt) 
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	num_Semaphores++;
-	Semaphore = ::CreateSemaphoreA(NULL, initialCnt, maxCnt, NULL);
+    num_Semaphores++;
+    Semaphore = ::CreateSemaphoreA(NULL, initialCnt, maxCnt, NULL);
 }
 
 // DeleteSemaphore
 void CSemaphore::DeleteSemaphore() 
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	CloseHandle(m_semaphore);
-	m_semaphore = NULL;
-	num_Semaphores--;
+    CloseHandle(m_semaphore);
+    m_semaphore = NULL;
+    num_Semaphores--;
 }
 
 // AcquireSemaphore
 bool CSemaphore::AcquireSemaphore(int ms) 
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	return WaitForSingleObject(m_semaphore, ms == -1 ? INFINITE : ms) == WAIT_TIMEOUT ? false : true;
+    return WaitForSingleObject(m_semaphore, ms == -1 ? INFINITE : ms) == WAIT_TIMEOUT ? false : true;
 }
 
 // ReleaseSemaphore
 void CSemaphore::ReleaseSemaphore(long cnt) 
-{	
+{    
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	BOOL bRes = ::ReleaseSemaphore(m_semaphore, cnt, NULL);
+    BOOL bRes = ::ReleaseSemaphore(m_semaphore, cnt, NULL);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
 // EVENT EVENT EVENT EVENT EVENT EVENT EVENT EVENT EVENT EVENT EVENT EVENT EVENT   //
 /////////////////////////////////////////////////////////////////////////////////////
-int	CEvent::num_events = 0;
+int    CEvent::num_events = 0;
 CEvent::CEvent(bool manualReset, bool initialState)
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	CEvent::CreateEvent(m_event, manualReset, initialState);
+    CEvent::CreateEvent(m_event, manualReset, initialState);
 }
 CEvent::~CEvent()
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	CEvent::DeleteEvent();
+    CEvent::DeleteEvent();
 }
 
 void CEvent::CreateEvent(NEventHandle &Event, bool manualReset, bool initialState)
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	num_events++;
-	Event = ::CreateEventA(NULL, manualReset, initialState, NULL);
+    num_events++;
+    Event = ::CreateEventA(NULL, manualReset, initialState, NULL);
 }
 void CEvent::DeleteEvent()
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	CloseHandle(m_event);
-	m_event = NULL;
-	num_events--;
+    CloseHandle(m_event);
+    m_event = NULL;
+    num_events--;
 }
 bool CEvent::Set()
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	return SetEvent(m_event) ? true : false;
+    return SetEvent(m_event) ? true : false;
 }
 bool CEvent::Pulse()
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	return PulseEvent(m_event) ? true : false;
+    return PulseEvent(m_event) ? true : false;
 }
 bool CEvent::Reset()
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	return ResetEvent(m_event) ? true : false;
+    return ResetEvent(m_event) ? true : false;
 }
 bool CEvent::WaitOnEvent(int ms)
 {
     NXPROFILEFUNCCOL(__FUNCTION__, COLOR_RED);
-	return WaitForSingleObject(m_event, ms == -1 ? INFINITE : ms) == WAIT_TIMEOUT ? false : true;
+    return WaitForSingleObject(m_event, ms == -1 ? INFINITE : ms) == WAIT_TIMEOUT ? false : true;
 }
 
 
@@ -327,51 +327,51 @@ bool CEvent::WaitOnEvent(int ms)
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
-#if defined IOS || defined ANDROID || defined LINUX
+#if defined IOS || defined ANDROID
 
 /////////////////////////////////////////////////////////////////////////////////////
 // CThread CThread CThread CThread CThread CThread CThread CThread CThread CThread //
 /////////////////////////////////////////////////////////////////////////////////////
 CThread::CThread(const bool startNow, const bool Critical)
 {
-	m_thread = CreateThread(thread_function, static_cast<CThread*>(this), startNow, Critical);
+    m_thread = CreateThread(thread_function, static_cast<CThread*>(this), startNow, Critical);
 }
 
 CThread::~CThread()
 {
-	CancelThread();
-	DeleteThread();
+    CancelThread();
+    DeleteThread();
 }
 
 
 // CpuCount
 int CThread::CpuCount() {
-	static int Cpus = -1;
-	if(-1 == Cpus) {
+    static int Cpus = -1;
+    if(-1 == Cpus) {
 #ifdef IOS
-		size_t s = sizeof(Cpus);
-		sysctlbyname("hw.logicalcpu", &Cpus, &s, NULL, 0);
+        size_t s = sizeof(Cpus);
+        sysctlbyname("hw.logicalcpu", &Cpus, &s, NULL, 0);
 #endif // IOS
 #ifdef ANDROID
-		Cpus = sysconf(_SC_NPROCESSORS_ONLN);
+        Cpus = sysconf(_SC_NPROCESSORS_ONLN);
 #endif // ANDROID
-		Cpus = Cpus > 1 ? Cpus : 1;
-	}
-	return Cpus;
+        Cpus = Cpus > 1 ? Cpus : 1;
+    }
+    return Cpus;
 }
 
 // Sleep
 void CThread::Sleep(const unsigned long Milliseconds) {
-	usleep(1000 * (useconds_t)Milliseconds);
+    usleep(1000 * (useconds_t)Milliseconds);
 }
 
 // CreateThread
 NThreadHandle CThread::CreateThread(ThreadProc Proc, void *Param, bool startNow, const bool Critical) 
 {
-	pthread_t th;
-	//bool startNow, ?
-	pthread_create(&th, NULL, (void *(*)(void *))Proc, Param);
-	return th;
+    pthread_t th;
+    //bool startNow, ?
+    pthread_create(&th, NULL, (void *(*)(void *))Proc, Param);
+    return th;
 }
 
 // CancelThread
@@ -379,26 +379,26 @@ void CThread::CancelThread() {
 #if defined ANDROID
     pthread_kill(m_thread, SIGUSR1);
 #else
-	pthread_cancel(m_thread);
+    pthread_cancel(m_thread);
 #endif
 }
 
 // DeleteThread
 void CThread::DeleteThread() {
-	pthread_detach(m_thread);
+    pthread_detach(m_thread);
 }
 
 // WaitThread
 void CThread::WaitThread() {
-	pthread_join(m_thread, NULL);
+    pthread_join(m_thread, NULL);
 }
 
 // WaitThreads
 void CThread::WaitThreads(const NThreadHandle *Threads, const int Count) {
-	int i;
-	for(i = 0; i < Count; i++) {
-		pthread_join(Threads[i], NULL);
-	}
+    int i;
+    for(i = 0; i < Count; i++) {
+        pthread_join(Threads[i], NULL);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -406,34 +406,34 @@ void CThread::WaitThreads(const NThreadHandle *Threads, const int Count) {
 ///////////////////////////////////////////////////////////////////////////////////
 CMutex::CMutex()
 {
-	CMutex::CreateMutex(m_mutex);
+    CMutex::CreateMutex(m_mutex);
 }
 
 CMutex::~CMutex()
 {
-	CMutex::DeleteMutex();
+    CMutex::DeleteMutex();
 }
 // CreateMutex
 void CMutex::CreateMutex(NMutexHandle &Mutex) 
 {
-	pthread_mutex_init(&Mutex, NULL);
+    pthread_mutex_init(&Mutex, NULL);
 }
 
 // NMutexHandle
 void CMutex::DeleteMutex() 
 {
-	pthread_mutex_destroy(&m_mutex);
+    pthread_mutex_destroy(&m_mutex);
 }
 
 // LockMutex
 bool CMutex::LockMutex(int ms, long *dbg) {
-	pthread_mutex_lock(&m_mutex);
-	return true;
+    pthread_mutex_lock(&m_mutex);
+    return true;
 }
 
 // UnlockMutex
 void CMutex::UnlockMutex() {
-	pthread_mutex_unlock(&m_mutex);
+    pthread_mutex_unlock(&m_mutex);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -441,19 +441,19 @@ void CMutex::UnlockMutex() {
 /////////////////////////////////////////////////////////////////////////////////////
 CSemaphore::CSemaphore(long initialCnt, long maxCnt)
 {
-	CSemaphore::CreateSemaphore(m_semaphore, initialCnt, maxCnt);
+    CSemaphore::CreateSemaphore(m_semaphore, initialCnt, maxCnt);
 }
 
 CSemaphore::~CSemaphore()
 {
-	CSemaphore::DeleteSemaphore();
+    CSemaphore::DeleteSemaphore();
 }
 
-int	CSemaphore::num_Semaphores = 0;
+int    CSemaphore::num_Semaphores = 0;
 // CreateSemaphore
 void CSemaphore::CreateSemaphore(NSemaphoreHandle &Semaphore, long initialCnt, long maxCnt) 
 {
-	num_Semaphores++;
+    num_Semaphores++;
     sem_init(&Semaphore, 0, (unsigned int)initialCnt);
 }
 
@@ -461,8 +461,8 @@ void CSemaphore::CreateSemaphore(NSemaphoreHandle &Semaphore, long initialCnt, l
 void CSemaphore::DeleteSemaphore() 
 {
     sem_destroy(&m_semaphore);
-	//!@$!#$@#$m_semaphore = NULL;
-	num_Semaphores--;
+    //!@$!#$@#$m_semaphore = NULL;
+    num_Semaphores--;
 }
 
 // AcquireSemaphore
@@ -492,13 +492,13 @@ bool CSemaphore::AcquireSemaphore(int msTimeOut)
         }
         return true;
     }*/
-	return true;
+    return true;
 }
 
 //void NCountSemaphore::Post() const
 // ReleaseSemaphore
 void CSemaphore::ReleaseSemaphore(long cnt) 
-{	
+{    
     for(;cnt > 0; cnt--)
         sem_post(&m_semaphore);
     
@@ -508,10 +508,10 @@ void CSemaphore::ReleaseSemaphore(long cnt)
 /////////////////////////////////////////////////////////////////////////////////////
 // EVENT EVENT EVENT EVENT EVENT EVENT EVENT EVENT EVENT EVENT EVENT EVENT EVENT   //
 /////////////////////////////////////////////////////////////////////////////////////
-int	CEvent::num_events = 0;
+int    CEvent::num_events = 0;
 CEvent::CEvent(bool manualReset, bool initialState)
 {
-	CEvent::CreateEvent(m_event, manualReset, initialState);
+    CEvent::CreateEvent(m_event, manualReset, initialState);
     m_signaled = initialState;
     m_manualReset = manualReset;
     // TODO: put it in CreateEvent
@@ -519,18 +519,18 @@ CEvent::CEvent(bool manualReset, bool initialState)
 }
 CEvent::~CEvent()
 {
-	CEvent::DeleteEvent();
+    CEvent::DeleteEvent();
 }
 
 void CEvent::CreateEvent(NEventHandle &event, bool manualReset, bool initialState)
 {
-	num_events++;
+    num_events++;
     pthread_cond_init(&event, NULL);
 }
 void CEvent::DeleteEvent()
 {
-	//m_event = NULL;
-	num_events--;
+    //m_event = NULL;
+    num_events--;
     pthread_cond_destroy(&m_event);
     pthread_mutex_destroy(&m_mutex);
 }

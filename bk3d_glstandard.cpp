@@ -1,36 +1,29 @@
-/*-----------------------------------------------------------------------
-    Copyright (c) 2016, NVIDIA. All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions
-    are met:
-     * Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
-     * Neither the name of its contributors may be used to endorse 
-       or promote products derived from this software without specific
-       prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-    PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-    CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-    EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-    PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-    PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-    OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    feedback to tlorach@nvidia.com (Tristan Lorach)
-
-    Note: this section of the code is showing a basic implementation of
-    Command-lists using a binary format called bk3d.
-    This format has no value for command-list. However you will see that
-    it allows to use pre-baked art asset without too parsing: all is
-    available from structures in the file (after pointer resolution)
-
-*/ //--------------------------------------------------------------------
+/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 #define EXTERNSVCUI
 #define WINDOWINERTIACAMERA_EXTERN
 #define EMUCMDLIST_EXTERN
@@ -47,8 +40,8 @@ namespace glstandard
 //------------------------------------------------------------------------------
 // Globals
 //------------------------------------------------------------------------------
-GLuint			g_MaxBOSz				= 200000;
-int				g_TokenBufferGrouping   = 0;
+GLuint            g_MaxBOSz                = 200000;
+int                g_TokenBufferGrouping   = 0;
 
 //-----------------------------------------------------------------------------
 // Shaders
@@ -100,79 +93,79 @@ static const char *s_glslf_mesh =
 "\n"
 "vec3 Sky( vec3 ray )\n"
 "{\n"
-"	return mix( vec3(.8), vec3(0), exp2(-(1.0/max(ray.y,.01))*vec3(.4,.6,1.0)) );\n"
+"    return mix( vec3(.8), vec3(0), exp2(-(1.0/max(ray.y,.01))*vec3(.4,.6,1.0)) );\n"
 "}\n"
 "\n"
 "mat2 mm2(in float a){float c = cos(a), s = sin(a);return mat2(c,-s,s,c);}\n"
 "\n"
 "vec3 Voronoi( vec3 pos )\n"
 "{\n"
-"	vec3 d[8];\n"
-"	d[0] = vec3(0,0,0);\n"
-"	d[1] = vec3(1,0,0);\n"
-"	d[2] = vec3(0,1,0);\n"
-"	d[3] = vec3(1,1,0);\n"
-"	d[4] = vec3(0,0,1);\n"
-"	d[5] = vec3(1,0,1);\n"
-"	d[6] = vec3(0,1,1);\n"
-"	d[7] = vec3(1,1,1);\n"
-"	\n"
-"	const float maxDisplacement = .7; //tweak this to hide grid artefacts\n"
-"	\n"
+"    vec3 d[8];\n"
+"    d[0] = vec3(0,0,0);\n"
+"    d[1] = vec3(1,0,0);\n"
+"    d[2] = vec3(0,1,0);\n"
+"    d[3] = vec3(1,1,0);\n"
+"    d[4] = vec3(0,0,1);\n"
+"    d[5] = vec3(1,0,1);\n"
+"    d[6] = vec3(0,1,1);\n"
+"    d[7] = vec3(1,1,1);\n"
+"    \n"
+"    const float maxDisplacement = .7; //tweak this to hide grid artefacts\n"
+"    \n"
 "   vec3 pf = floor(pos);\n"
 "\n"
 "    const float phi = 1.61803398875;\n"
 "\n"
-"	float closest = 12.0;\n"
-"	vec3 result;\n"
-"	for ( int i=0; i < 8; i++ )\n"
-"	{\n"
+"    float closest = 12.0;\n"
+"    vec3 result;\n"
+"    for ( int i=0; i < 8; i++ )\n"
+"    {\n"
 "        vec3 v = (pf+d[i]);\n"
-"		vec3 r = fract(phi*v.yzx+17.*fract(v.zxy*phi)+v*v*.03);//Noise(ivec3(floor(pos+d[i])));\n"
-"		vec3 p = d[i] + maxDisplacement*(r.xyz-.5);\n"
-"		p -= fract(pos);\n"
-"		float lsq = dot(p,p);\n"
-"		if ( lsq < closest )\n"
-"		{\n"
-"			closest = lsq;\n"
-"			result = r;\n"
-"		}\n"
-"	}\n"
-"	return fract(result.xyz);//+result.www); // random colour\n"
+"        vec3 r = fract(phi*v.yzx+17.*fract(v.zxy*phi)+v*v*.03);//Noise(ivec3(floor(pos+d[i])));\n"
+"        vec3 p = d[i] + maxDisplacement*(r.xyz-.5);\n"
+"        p -= fract(pos);\n"
+"        float lsq = dot(p,p);\n"
+"        if ( lsq < closest )\n"
+"        {\n"
+"            closest = lsq;\n"
+"            result = r;\n"
+"        }\n"
+"    }\n"
+"    return fract(result.xyz);//+result.www); // random colour\n"
 "}\n"
 "\n"
 "vec3 shade( vec3 pos, vec3 norm, vec3 rayDir, vec3 lightDir )\n"
 "{\n"
 "    vec3 paint = material.diffuse;\n"
 "\n"
-"	vec3 norm2 = normalize(norm+.02*(Voronoi(pos*800.0)*2.0-1.0));\n"
-"	\n"
-"	if ( dot(norm2,rayDir) > 0.0 ) // we shouldn't see flecks that point away from us\n"
-"		norm2 -= 2.0*dot(norm2,rayDir)*rayDir;\n"
+"    vec3 norm2 = normalize(norm+.02*(Voronoi(pos*800.0)*2.0-1.0));\n"
+"    \n"
+"    if ( dot(norm2,rayDir) > 0.0 ) // we shouldn't see flecks that point away from us\n"
+"        norm2 -= 2.0*dot(norm2,rayDir)*rayDir;\n"
 "\n"
 "\n"
-"	// diffuse layer, reduce overall contrast\n"
-"	vec3 result = paint*.6*(pow(max(0.0,dot(norm,lightDir)),2.0)+.2);\n"
+"    // diffuse layer, reduce overall contrast\n"
+"    vec3 result = paint*.6*(pow(max(0.0,dot(norm,lightDir)),2.0)+.2);\n"
 "\n"
-"	vec3 h = normalize( lightDir-rayDir );\n"
-"	vec3 s = pow(max(0.0,dot(h,norm2)),50.0)*10.0*vec3(1);\n"
+"    vec3 h = normalize( lightDir-rayDir );\n"
+"    vec3 s = pow(max(0.0,dot(h,norm2)),50.0)*10.0*vec3(1);\n"
 "\n"
-"	float rdotn = dot(rayDir,norm2);\n"
-"	vec3 reflection = rayDir-2.0*rdotn*norm;\n"
-"	s += Sky( reflection );\n"
+"    float rdotn = dot(rayDir,norm2);\n"
+"    vec3 reflection = rayDir-2.0*rdotn*norm;\n"
+"    s += Sky( reflection );\n"
 "\n"
-"	float f = pow(1.0+rdotn,5.0);\n"
-"	f = mix( .2, 1.0, f );\n"
-"	\n"
-"	result = mix(result,paint*s,f);\n"
-"	\n"
-"	// gloss layer\n"
-"	s = pow(max(0.0,dot(h,norm)),1000.0)*32.0*vec3(1);\n"
-"	\n"
-"	rdotn = dot(rayDir,norm);\n"
-"	reflection = rayDir-2.0*rdotn*norm;\n"
-"	\n"
-"	return result;\n"
+"    float f = pow(1.0+rdotn,5.0);\n"
+"    f = mix( .2, 1.0, f );\n"
+"    \n"
+"    result = mix(result,paint*s,f);\n"
+"    \n"
+"    // gloss layer\n"
+"    s = pow(max(0.0,dot(h,norm)),1000.0)*32.0*vec3(1);\n"
+"    \n"
+"    rdotn = dot(rayDir,norm);\n"
+"    reflection = rayDir-2.0*rdotn*norm;\n"
+"    \n"
+"    return result;\n"
 "}\n"
 "\n"
 "void main()\n"
@@ -233,7 +226,7 @@ static const char *g_glslf_grid =
 "   outColor = vec4(0.5,0.7,0.5,1);\n"
 "}\n"
 ;
-GLSLShader	s_shaderGrid;
+GLSLShader    s_shaderGrid;
 
 struct BO {
     GLuint      Id;
@@ -266,9 +259,9 @@ private:
     bool initResourcesGrid();
     bool deleteResourcesGrid();
 
-    GLuint		m_depthTexture;
-    GLuint		m_colorTexture;
-	GLuint		m_FBO;
+    GLuint        m_depthTexture;
+    GLuint        m_colorTexture;
+    GLuint        m_FBO;
     GLuint      m_MSAA;
 
     void fboResize(int w, int h);
@@ -279,32 +272,32 @@ private:
 
     nv_helpers_gl::ProfilerTimersGL m_gltimers;
 public:
-	RendererStandard() { 
+    RendererStandard() { 
         m_bValid = false;
-		g_renderers[g_numRenderers++] = this;
-	}
-	virtual ~RendererStandard() {}
-	virtual const char *getName() { return "Naive Standard VBO"; }
+        g_renderers[g_numRenderers++] = this;
+    }
+    virtual ~RendererStandard() {}
+    virtual const char *getName() { return "Naive Standard VBO"; }
     virtual bool valid()          { return m_bValid; };
-	virtual bool initGraphics(int w, int h, int MSAA);
-	virtual bool terminateGraphics();
+    virtual bool initGraphics(int w, int h, int MSAA);
+    virtual bool terminateGraphics();
     virtual bool initThreadLocalVars(int threadId);
     virtual void releaseThreadLocalVars();
     virtual void destroyCommandBuffers(bool bAll);
     virtual void waitForGPUIdle();
 
-	virtual bool attachModel(Bk3dModel* pModel);
+    virtual bool attachModel(Bk3dModel* pModel);
     virtual bool detachModels();
 
-	virtual bool initResourcesModel(Bk3dModel* pModel);
-	
+    virtual bool initResourcesModel(Bk3dModel* pModel);
+    
     virtual bool buildPrimaryCmdBuffer();
     virtual bool deleteCmdBuffers();
     virtual bool buildCmdBufferGrid();
-	virtual bool buildCmdBufferModel(Bk3dModel* pModel, int bufIdx, int mstart, int mend);
+    virtual bool buildCmdBufferModel(Bk3dModel* pModel, int bufIdx, int mstart, int mend);
     virtual void consolidateCmdBuffersModel(Bk3dModel* pModel, int numCmdBuffers);
-	virtual bool deleteCmdBufferModel(Bk3dModel* pModel);
-	
+    virtual bool deleteCmdBufferModel(Bk3dModel* pModel);
+    
     virtual bool updateForChangedRenderTarget(Bk3dModel* pModel);
 
     virtual bool invalidateCmdBufferGrid();
@@ -354,7 +347,7 @@ void RendererStandard::fboResize(int w, int h)
     m_winSz[0] = w;
     m_winSz[1] = h;
 
-	if(m_depthTexture)
+    if(m_depthTexture)
     {
         texture::deleteTexture(m_depthTexture);
         m_depthTexture = 0;
@@ -366,12 +359,12 @@ void RendererStandard::fboResize(int w, int h)
         fbo::detachColorTexture(m_FBO, 0, m_MSAA);
         fbo::detachDSTTexture(m_FBO, m_MSAA);
     }
-	// initialize color texture
+    // initialize color texture
     m_colorTexture = texture::createRGBA8(w, h, m_MSAA, 0);
     fbo::attachTexture2D(m_FBO, m_colorTexture, 0, m_MSAA);
     m_depthTexture = texture::createDST(w, h, m_MSAA, 0);
     fbo::attachDSTTexture2D(m_FBO, m_depthTexture, m_MSAA);
-	fbo::CheckStatus();
+    fbo::CheckStatus();
 }
 void RendererStandard::fboInitialize(int w, int h, int MSAA)
 {
@@ -384,12 +377,12 @@ void RendererStandard::fboInitialize(int w, int h, int MSAA)
     fbo::attachTexture2D(m_FBO, m_colorTexture, 0, MSAA);
     m_depthTexture = texture::createDST(w, h, MSAA, 0);
     fbo::attachDSTTexture2D(m_FBO, m_depthTexture, MSAA);
-	fbo::CheckStatus();
+    fbo::CheckStatus();
 }
 
 void RendererStandard::fboFinish()
 {
-	if(m_depthTexture)
+    if(m_depthTexture)
     {
         texture::deleteTexture(m_depthTexture);
         m_depthTexture = 0;
@@ -414,43 +407,43 @@ void RendererStandard::fboFinish()
 //------------------------------------------------------------------------------
 bool RendererStandard::initResourcesGrid()
 {
-	//
-	// Grid floor
-	//
-	glGenBuffers(1, &s_vboGrid);
-	vec3f *data = new vec3f[GRIDDEF * 4];
-	vec3f *p = data;
-	int j = 0;
-	for (int i = 0; i<GRIDDEF; i++)
-	{
-		*(p++) = vec3f(-GRIDSZ, 0.0, GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF));
-		*(p++) = vec3f(GRIDSZ*(1.0f - 2.0f / (float)GRIDDEF), 0.0, GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF));
-		*(p++) = vec3f(GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF), 0.0, -GRIDSZ);
-		*(p++) = vec3f(GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF), 0.0, GRIDSZ*(1.0f - 2.0f / (float)GRIDDEF));
-	}
-	s_vboGridSz = sizeof(vec3f)*GRIDDEF * 4;
-	glNamedBufferDataEXT(s_vboGrid, s_vboGridSz, data[0].vec_array, GL_STATIC_DRAW);
-	delete[] data;
-	//
-	// Target Cross
-	//
-	glGenBuffers(1, &s_vboCross);
-	vec3f crossVtx[6] = {
-		vec3f(-CROSSSZ, 0.0f, 0.0f), vec3f(CROSSSZ, 0.0f, 0.0f),
-		vec3f(0.0f, -CROSSSZ, 0.0f), vec3f(0.0f, CROSSSZ, 0.0f),
-		vec3f(0.0f, 0.0f, -CROSSSZ), vec3f(0.0f, 0.0f, CROSSSZ),
-	};
-	s_vboCrossSz = sizeof(vec3f)* 6;
-	glNamedBufferDataEXT(s_vboCross, s_vboCrossSz, crossVtx[0].vec_array, GL_STATIC_DRAW);
-	return true;
+    //
+    // Grid floor
+    //
+    glCreateBuffers(1, &s_vboGrid);
+    vec3f *data = new vec3f[GRIDDEF * 4];
+    vec3f *p = data;
+    int j = 0;
+    for (int i = 0; i<GRIDDEF; i++)
+    {
+        *(p++) = vec3f(-GRIDSZ, 0.0, GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF));
+        *(p++) = vec3f(GRIDSZ*(1.0f - 2.0f / (float)GRIDDEF), 0.0, GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF));
+        *(p++) = vec3f(GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF), 0.0, -GRIDSZ);
+        *(p++) = vec3f(GRIDSZ*(-1.0f + 2.0f*(float)i / (float)GRIDDEF), 0.0, GRIDSZ*(1.0f - 2.0f / (float)GRIDDEF));
+    }
+    s_vboGridSz = sizeof(vec3f)*GRIDDEF * 4;
+    glNamedBufferData(s_vboGrid, s_vboGridSz, data[0].vec_array, GL_STATIC_DRAW);
+    delete[] data;
+    //
+    // Target Cross
+    //
+    glCreateBuffers(1, &s_vboCross);
+    vec3f crossVtx[6] = {
+        vec3f(-CROSSSZ, 0.0f, 0.0f), vec3f(CROSSSZ, 0.0f, 0.0f),
+        vec3f(0.0f, -CROSSSZ, 0.0f), vec3f(0.0f, CROSSSZ, 0.0f),
+        vec3f(0.0f, 0.0f, -CROSSSZ), vec3f(0.0f, 0.0f, CROSSSZ),
+    };
+    s_vboCrossSz = sizeof(vec3f)* 6;
+    glNamedBufferData(s_vboCross, s_vboCrossSz, crossVtx[0].vec_array, GL_STATIC_DRAW);
+    return true;
 }
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
 bool RendererStandard::deleteResourcesGrid()
 {
-	glDeleteBuffers(1, &s_vboGrid);
-	glDeleteBuffers(1, &s_vboCross);
+    glDeleteBuffers(1, &s_vboGrid);
+    glDeleteBuffers(1, &s_vboCross);
     return true;
 }
 //------------------------------------------------------------------------------
@@ -458,7 +451,7 @@ bool RendererStandard::deleteResourcesGrid()
 //------------------------------------------------------------------------------
 bool RendererStandard::invalidateCmdBufferGrid()
 {
-	return true;
+    return true;
 }
 bool RendererStandard::buildPrimaryCmdBuffer()
 {
@@ -473,17 +466,17 @@ bool RendererStandard::deleteCmdBuffers()
 //------------------------------------------------------------------------------
 bool RendererStandard::buildCmdBufferGrid()
 {
-	return true;
+    return true;
 }
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
 void RendererStandard::displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
 
-	glEnable(GL_MULTISAMPLE_ARB);
-	glViewport(0, 0, m_winSz[0], m_winSz[1]);
+    glEnable(GL_MULTISAMPLE);
+    glViewport(0, 0, m_winSz[0], m_winSz[1]);
 
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
@@ -501,46 +494,46 @@ void RendererStandard::displayEnd()
 //------------------------------------------------------------------------------
 void RendererStandard::displayGrid(const InertiaCamera& camera, const mat4f projection)
 {
-	//
-	// Update what is inside buffers
-	//
-	g_globalMatrices.mVP = projection * camera.m4_view;
-	g_globalMatrices.mW = mat4f(array16_id);
-	glNamedBufferSubDataEXT(g_uboMatrix.Id, 0, sizeof(g_globalMatrices), &g_globalMatrices);
-	//
-	// The cross vertex change is an example on how command-list are compatible with changing
-	// what is inside the vertex buffers. VBOs are outside of the token buffers...
-	//
-	const vec3f& p = camera.curFocusPos;
-	vec3f crossVtx[6] = {
-		vec3f(p.x - CROSSSZ, p.y, p.z), vec3f(p.x + CROSSSZ, p.y, p.z),
-		vec3f(p.x, p.y - CROSSSZ, p.z), vec3f(p.x, p.y + CROSSSZ, p.z),
-		vec3f(p.x, p.y, p.z - CROSSSZ), vec3f(p.x, p.y, p.z + CROSSSZ),
-	};
-	glNamedBufferSubDataEXT(s_vboCross, 0, sizeof(vec3f)* 6, crossVtx);
-	// ------------------------------------------------------------------------------------------
-	// Case of regular rendering
-	//
-	s_shaderGrid.bindShader();
-	glEnableVertexAttribArray(0);
-	glDisableVertexAttribArray(1);
+    //
+    // Update what is inside buffers
+    //
+    g_globalMatrices.mVP = projection * camera.m4_view;
+    g_globalMatrices.mW = mat4f(array16_id);
+    glNamedBufferSubData(g_uboMatrix.Id, 0, sizeof(g_globalMatrices), &g_globalMatrices);
+    //
+    // The cross vertex change is an example on how command-list are compatible with changing
+    // what is inside the vertex buffers. VBOs are outside of the token buffers...
+    //
+    const vec3f& p = camera.curFocusPos;
+    vec3f crossVtx[6] = {
+        vec3f(p.x - CROSSSZ, p.y, p.z), vec3f(p.x + CROSSSZ, p.y, p.z),
+        vec3f(p.x, p.y - CROSSSZ, p.z), vec3f(p.x, p.y + CROSSSZ, p.z),
+        vec3f(p.x, p.y, p.z - CROSSSZ), vec3f(p.x, p.y, p.z + CROSSSZ),
+    };
+    glNamedBufferSubData(s_vboCross, 0, sizeof(vec3f)* 6, crossVtx);
+    // ------------------------------------------------------------------------------------------
+    // Case of regular rendering
+    //
+    s_shaderGrid.bindShader();
+    glEnableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
 
     // --------------------------------------------------------------------------------------
-	// Using regular VBO
-	//
-	glBindBufferBase(GL_UNIFORM_BUFFER, UBO_MATRIX, g_uboMatrix.Id);
-	glBindVertexBuffer(0, s_vboGrid, 0, sizeof(vec3f));
-	glVertexAttribFormat(0, 3, GL_FLOAT, GL_FALSE, 0);
-	//
-	// Draw!
-	//
-	glDrawArrays(GL_LINES, 0, GRIDDEF * 4);
+    // Using regular VBO
+    //
+    glBindBufferBase(GL_UNIFORM_BUFFER, UBO_MATRIX, g_uboMatrix.Id);
+    glBindVertexBuffer(0, s_vboGrid, 0, sizeof(vec3f));
+    glVertexAttribFormat(0, 3, GL_FLOAT, GL_FALSE, 0);
+    //
+    // Draw!
+    //
+    glDrawArrays(GL_LINES, 0, GRIDDEF * 4);
 
-	glBindVertexBuffer(0, s_vboCross, 0, sizeof(vec3f));
-	glDrawArrays(GL_LINES, 0, 6);
+    glBindVertexBuffer(0, s_vboCross, 0, sizeof(vec3f));
+    glDrawArrays(GL_LINES, 0, 6);
 
     glDisableVertexAttribArray(0);
-	//s_shaderGrid.unbindShader();
+    //s_shaderGrid.unbindShader();
 }
 
 
@@ -564,19 +557,19 @@ void RendererStandard::updateViewport(GLint x, GLint y, GLsizei width, GLsizei h
 //------------------------------------------------------------------------------
 bool RendererStandard::initGraphics(int w, int h, int MSAA)
 {
-	//
-	// some offscreen buffer
-	//
+    //
+    // some offscreen buffer
+    //
     fboInitialize(w, h, MSAA);
-	//
-	// Shader compilation
-	//
-	if(!s_shaderGrid.addVertexShaderFromString(g_glslv_grid))
+    //
+    // Shader compilation
+    //
+    if(!s_shaderGrid.addVertexShaderFromString(g_glslv_grid))
         return false;
-	if(!s_shaderGrid.addFragmentShaderFromString(g_glslf_grid))
+    if(!s_shaderGrid.addFragmentShaderFromString(g_glslf_grid))
         return false;
-	if (!s_shaderGrid.link())
-		return false;
+    if (!s_shaderGrid.link())
+        return false;
     if(!s_shaderMesh.addVertexShaderFromString(s_glslv_mesh))
         return false;
     if(!s_shaderMesh.addFragmentShaderFromString(s_glslf_mesh))
@@ -590,26 +583,26 @@ bool RendererStandard::initGraphics(int w, int h, int MSAA)
     if(!s_shaderMeshLine.link())
         return false;
 
-	//
-	// Create some UBO for later share their 64 bits
-	//
-	glGenBuffers(1, &g_uboMatrix.Id);
-	g_uboMatrix.Sz = sizeof(MatrixBufferGlobal);
-	glNamedBufferDataEXT(g_uboMatrix.Id, g_uboMatrix.Sz, &g_globalMatrices, GL_STREAM_DRAW);
-	//glBindBufferBase(GL_UNIFORM_BUFFER,UBO_MATRIX, g_uboMatrix.Id);
-	//
-	// Trivial Light info...
-	//
-	glGenBuffers(1, &g_uboLight.Id);
-	g_uboLight.Sz = sizeof(LightBuffer);
-	glNamedBufferDataEXT(g_uboLight.Id, g_uboLight.Sz, &s_light, GL_STATIC_DRAW);
-	//glBindBufferBase(GL_UNIFORM_BUFFER,UBO_LIGHT, g_uboLight.Id);
-	//
-	// Misc OGL setup
-	//
-	glClearColor(0.0f, 0.1f, 0.15f, 1.0f);
-	glGenVertexArrays(1, &s_vao);
-	glBindVertexArray(s_vao);
+    //
+    // Create some UBO for later share their 64 bits
+    //
+    glCreateBuffers(1, &g_uboMatrix.Id);
+    g_uboMatrix.Sz = sizeof(MatrixBufferGlobal);
+    glNamedBufferData(g_uboMatrix.Id, g_uboMatrix.Sz, &g_globalMatrices, GL_STREAM_DRAW);
+    //glBindBufferBase(GL_UNIFORM_BUFFER,UBO_MATRIX, g_uboMatrix.Id);
+    //
+    // Trivial Light info...
+    //
+    glCreateBuffers(1, &g_uboLight.Id);
+    g_uboLight.Sz = sizeof(LightBuffer);
+    glNamedBufferData(g_uboLight.Id, g_uboLight.Sz, &s_light, GL_STATIC_DRAW);
+    //glBindBufferBase(GL_UNIFORM_BUFFER,UBO_LIGHT, g_uboLight.Id);
+    //
+    // Misc OGL setup
+    //
+    glClearColor(0.0f, 0.1f, 0.15f, 1.0f);
+    glGenVertexArrays(1, &s_vao);
+    glBindVertexArray(s_vao);
     //
     // Grid
     //
@@ -622,7 +615,7 @@ bool RendererStandard::initGraphics(int w, int h, int MSAA)
 
     LOGOK("Initialized renderer %s\n", getName());
     m_bValid = true;
-	return true;
+    return true;
 }
 //------------------------------------------------------------------------------
 //
@@ -634,9 +627,9 @@ bool RendererStandard::terminateGraphics()
     deleteResourcesGrid();
     glDeleteVertexArrays(1, &s_vao);
     s_vao = 0;
-	glDeleteBuffers(1, &g_uboLight.Id);
+    glDeleteBuffers(1, &g_uboLight.Id);
     g_uboLight.Id = 0;
-	glDeleteBuffers(1, &g_uboMatrix.Id);
+    glDeleteBuffers(1, &g_uboMatrix.Id);
     g_uboMatrix.Id = 0;
     s_shaderGrid.cleanup();
     s_shaderMesh.cleanup();
@@ -716,9 +709,9 @@ void RendererStandard::displayBk3dModel(Bk3dModel *pGenericModel, const mat4f& c
 //------------------------------------------------------------------------------
 void RendererStandard::blitToBackbuffer()
 {
-	glBindFramebuffer( GL_READ_FRAMEBUFFER, m_FBO);
-	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0);
-	glBlitFramebuffer( 0, 0, m_winSz[0], m_winSz[1], 0, 0, m_winSz[0], m_winSz[1], GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer( GL_READ_FRAMEBUFFER, m_FBO);
+    glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer( 0, 0, m_winSz[0], m_winSz[1], 0, 0, m_winSz[0], m_winSz[1], GL_COLOR_BUFFER_BIT, GL_NEAREST);
 }
 
 //------------------------------------------------------------------------------
@@ -755,8 +748,8 @@ bool Bk3dModelStandard::deleteResourcesObject()
     bk3d::Mesh *pMesh = NULL;
 
     for(int i=0; i< m_pGenericModel->m_meshFile->pMeshes->n; i++)
-	{
-		pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
+    {
+        pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
         int n = pMesh->pSlots->n;
         for(int s=0; s<n; s++)
         {
@@ -772,13 +765,13 @@ bool Bk3dModelStandard::deleteResourcesObject()
             {
                 if((pPG->pOwnerOfIB == pPG)||(pPG->pOwnerOfIB == NULL)) // this primitive group doesn't use other's buffer
                 {
-                    GLuint id = (unsigned long)pPG->userPtr;
+                    GLuint id = (GLuint)pPG->userPtr;
                     pPG->userPtr = NULL;
                     glDeleteBuffers(1, &id);
                 }
             }
         }
-	}
+    }
     return false;
 }
 //------------------------------------------------------------------------------
@@ -788,8 +781,6 @@ bool Bk3dModelStandard::deleteResourcesObject()
 //------------------------------------------------------------------------------
 bool Bk3dModelStandard::initResourcesObject()
 {
-    LOGFLUSH();
-    SHOWPROGRESS("Init resources")
 
     //m_pGenericModel->m_meshFile->pMeshes->n = 60000;
     //
@@ -802,14 +793,13 @@ bool Bk3dModelStandard::initResourcesObject()
         // Then offset in it for various drawcalls
         //
         if(m_uboMaterial.Id == 0)
-            glGenBuffers(1, &m_uboMaterial.Id);
+            glCreateBuffers(1, &m_uboMaterial.Id);
 
         m_uboMaterial.Sz = sizeof(MaterialBuffer) * m_pGenericModel->m_materialNItems;
-        glNamedBufferDataEXT(m_uboMaterial.Id, m_uboMaterial.Sz, m_pGenericModel->m_material, GL_STATIC_DRAW);
+        glNamedBufferData(m_uboMaterial.Id, m_uboMaterial.Sz, m_pGenericModel->m_material, GL_STATIC_DRAW);
         glBindBufferBase(GL_UNIFORM_BUFFER,UBO_MATERIAL, m_uboMaterial.Id);
 
         LOGI("%d materials stored in %d Kb\n", m_pGenericModel->m_meshFile->pMaterials->nMaterials, (m_uboMaterial.Sz+512)/1024);
-        LOGFLUSH();
     }
 
     //
@@ -822,14 +812,13 @@ bool Bk3dModelStandard::initResourcesObject()
         // Then offset in it for various drawcalls
         //
         if(m_uboObjectMatrices.Id == 0)
-            glGenBuffers(1, &m_uboObjectMatrices.Id);
+            glCreateBuffers(1, &m_uboObjectMatrices.Id);
 
         m_uboObjectMatrices.Sz = sizeof(MatrixBufferObject) * m_pGenericModel->m_objectMatricesNItems;
-        glNamedBufferDataEXT(m_uboObjectMatrices.Id, m_uboObjectMatrices.Sz, m_pGenericModel->m_objectMatrices, GL_STATIC_DRAW);
+        glNamedBufferData(m_uboObjectMatrices.Id, m_uboObjectMatrices.Sz, m_pGenericModel->m_objectMatrices, GL_STATIC_DRAW);
         glBindBufferBase(GL_UNIFORM_BUFFER,UBO_MATRIXOBJ, m_uboObjectMatrices.Id);
 
         LOGI("%d matrices stored in %d Kb\n", m_pGenericModel->m_meshFile->pTransforms->nBones, (m_uboObjectMatrices.Sz + 512)/1024);
-        LOGFLUSH();
     }
 
     //
@@ -838,9 +827,8 @@ bool Bk3dModelStandard::initResourcesObject()
     //
     bk3d::Mesh *pMesh = NULL;
     for(int i=0; i< m_pGenericModel->m_meshFile->pMeshes->n; i++)
-	{
-        SETPROGRESSVAL(100.0f*(float)i/(float)m_pGenericModel->m_meshFile->pMeshes->n);
-		pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
+    {
+        pMesh = m_pGenericModel->m_meshFile->pMeshes->p[i];
         //
         // Slots: buffers for vertices
         //
@@ -849,14 +837,14 @@ bool Bk3dModelStandard::initResourcesObject()
         {
             bk3d::Slot* pS = pMesh->pSlots->p[s];
             GLuint id;
-            glGenBuffers(1, &id); // Buffer Object directly kept in the Slot
+            glCreateBuffers(1, &id); // Buffer Object directly kept in the Slot
             pS->userData = id;
             #if 1
-                glNamedBufferDataEXT(id, pS->vtxBufferSizeBytes, NULL, GL_STATIC_DRAW);
+                glNamedBufferData(id, pS->vtxBufferSizeBytes, NULL, GL_STATIC_DRAW);
             #else
-                glNamedBufferStorageEXT(id, pS->vtxBufferSizeBytes, NULL, 0); // Not working with NSight !!! https://www.opengl.org/registry/specs/ARB/buffer_storage.txt
+                glNamedBufferStorage(id, pS->vtxBufferSizeBytes, NULL, 0); // Not working with NSight !!! https://www.opengl.org/registry/specs/ARB/buffer_storage.txt
             #endif
-            glNamedBufferSubDataEXT(id, 0, pS->vtxBufferSizeBytes, pS->pVtxBufferData);
+            glNamedBufferSubData(id, 0, pS->vtxBufferSizeBytes, pS->pVtxBufferData);
         }
         //
         // Primitive groups
@@ -869,14 +857,14 @@ bool Bk3dModelStandard::initResourcesObject()
                 if((pPG->pOwnerOfIB == pPG)||(pPG->pOwnerOfIB == NULL)) // this primitive group doesn't use other's buffer
                 {
                     GLuint id;
-                    glGenBuffers(1, &id);
+                    glCreateBuffers(1, &id);
                     pPG->userPtr = (int*)id;
                 #if 1
-                    glNamedBufferDataEXT(id, pPG->indexArrayByteSize, NULL, GL_STATIC_DRAW);
+                    glNamedBufferData(id, pPG->indexArrayByteSize, NULL, GL_STATIC_DRAW);
                 #else
-                    glNamedBufferStorageEXT(id, pPG->indexArrayByteSize, NULL, 0); // Not working with NSight !!! https://www.opengl.org/registry/specs/ARB/buffer_storage.txt
+                    glNamedBufferStorage(id, pPG->indexArrayByteSize, NULL, 0); // Not working with NSight !!! https://www.opengl.org/registry/specs/ARB/buffer_storage.txt
                 #endif
-                    glNamedBufferSubDataEXT(id, pPG->indexArrayByteOffset, pPG->indexArrayByteSize, pPG->pIndexBufferData);
+                    glNamedBufferSubData(id, pPG->indexArrayByteOffset, pPG->indexArrayByteSize, pPG->pIndexBufferData);
                 } else {
                     pPG->userPtr = pPG->pOwnerOfIB->userPtr;
                 }
@@ -884,10 +872,8 @@ bool Bk3dModelStandard::initResourcesObject()
                 pPG->userPtr = NULL;
             }
         }
-	}
+    }
     //LOGI("meshes: %d in :%d VBOs (%f Mb) and %d EBOs (%f Mb) \n", m_pGenericModel->m_meshFile->pMeshes->n, .size(), (float)totalVBOSz/(float)(1024*1024), m_ObjEBOs.size(), (float)totalEBOSz/(float)(1024*1024));
-    LOGFLUSH();
-    HIDEPROGRESS()
     return true;
 }
 
@@ -903,17 +889,17 @@ void Bk3dModelStandard::displayObject(Renderer *pRenderer, const mat4f& cameraVi
     cameraView.get_translation(g_globalMatrices.eyePos);
     //g_globalMatrices.mW.rotate(nv_to_rad*180.0f, vec3f(0,1,0));
     g_globalMatrices.mW.rotate(-nv_to_rad*90.0f, vec3f(1,0,0));
-	g_globalMatrices.mW.translate(-m_pGenericModel->m_posOffset);
+    g_globalMatrices.mW.translate(-m_pGenericModel->m_posOffset);
     g_globalMatrices.mW.scale(m_pGenericModel->m_scale);
-    glNamedBufferSubDataEXT(g_uboMatrix.Id, 0, sizeof(g_globalMatrices), &g_globalMatrices);
+    glNamedBufferSubData(g_uboMatrix.Id, 0, sizeof(g_globalMatrices), &g_globalMatrices);
 
     if(m_pGenericModel->m_meshFile)
     {
         GLuint      curMaterial = 0;
         GLuint      curTransf = 0;
-	    glBindBufferBase(GL_UNIFORM_BUFFER, UBO_MATRIX, g_uboMatrix.Id);
-	    glBindBufferBase(GL_UNIFORM_BUFFER, UBO_LIGHT, g_uboLight.Id);
-	    glBindBufferBase(GL_UNIFORM_BUFFER, UBO_MATRIXOBJ, m_uboObjectMatrices.Id);
+        glBindBufferBase(GL_UNIFORM_BUFFER, UBO_MATRIX, g_uboMatrix.Id);
+        glBindBufferBase(GL_UNIFORM_BUFFER, UBO_LIGHT, g_uboLight.Id);
+        glBindBufferBase(GL_UNIFORM_BUFFER, UBO_MATRIXOBJ, m_uboObjectMatrices.Id);
         //
         // Loop 2 times: for filled topologies, then for lines
         // ideally, the models should be pre-sorted by shaders...
@@ -937,15 +923,15 @@ void Bk3dModelStandard::displayObject(Renderer *pRenderer, const mat4f& cameraVi
                 glDisable(GL_POLYGON_OFFSET_FILL);
                 s_shaderMeshLine.bindShader();
             }
-	        for(int m=1; m< m_pGenericModel->m_meshFile->pMeshes->n;m++)//m_pGenericModel->m_meshFile->pMeshes->n; m++)
-	        {
-		        bk3d::Mesh *pMesh = m_pGenericModel->m_meshFile->pMeshes->p[m];
+            for(int m=1; m< m_pGenericModel->m_meshFile->pMeshes->n;m++)//m_pGenericModel->m_meshFile->pMeshes->n; m++)
+            {
+                bk3d::Mesh *pMesh = m_pGenericModel->m_meshFile->pMeshes->p[m];
                 //
                 // First filter to eliminate meshes that aren't relevant for the pass
                 //
                 char bPrimType = 0;
-		        for(int pg=0; pg<pMesh->pPrimGroups->n; pg++)
-		        {
+                for(int pg=0; pg<pMesh->pPrimGroups->n; pg++)
+                {
                     bk3d::PrimGroup* pPG = pMesh->pPrimGroups->p[pg];
                     switch(pPG->topologyGL)
                     {
@@ -966,7 +952,7 @@ void Bk3dModelStandard::displayObject(Renderer *pRenderer, const mat4f& cameraVi
 
                 if(pMesh->pTransforms && (pMesh->pTransforms->n>0))
                 {
-			        bk3d::Bone *pTransf = pMesh->pTransforms->p[0];
+                    bk3d::Bone *pTransf = pMesh->pTransforms->p[0];
                     if(pTransf && (curTransf != pTransf->ID))
                     {
                         curTransf = pTransf->ID;
@@ -985,7 +971,7 @@ void Bk3dModelStandard::displayObject(Renderer *pRenderer, const mat4f& cameraVi
                     glBindBuffer(GL_ARRAY_BUFFER, pS->userData);
                     for(int a=0; a<pS->pAttributes->n; a++)
                     {
-	                    glEnableVertexAttribArray(bindingIndex);
+                        glEnableVertexAttribArray(bindingIndex);
                         bk3d::Attribute* pAttr = pS->pAttributes->p[a];
                         //pAttr->name would give the attribute name... assuming we are right, here.
                         //glBindVertexBuffer(bindingIndex, pS->userData, pAttr->dataOffsetBytes, pAttr->strideBytes);
@@ -999,8 +985,8 @@ void Bk3dModelStandard::displayObject(Renderer *pRenderer, const mat4f& cameraVi
                 for(int j=bindingIndex; j<=3/*15*/;j++)
                     glDisableVertexAttribArray(bindingIndex);
                 //====> render primitive groups
-		        for(int pg=0; pg<pMesh->pPrimGroups->n; pg++)
-		        {
+                for(int pg=0; pg<pMesh->pPrimGroups->n; pg++)
+                {
                     bk3d::PrimGroup* pPG = pMesh->pPrimGroups->p[pg];
                     switch(pPG->topologyGL)
                     {
@@ -1028,7 +1014,7 @@ void Bk3dModelStandard::displayObject(Renderer *pRenderer, const mat4f& cameraVi
                     //
                     // Material: point to the right one in the table
                     //
-			        bk3d::Material *pMat = pPG->pMaterial;
+                    bk3d::Material *pMat = pPG->pMaterial;
                     if(pMat && (curMaterial != pMat->ID))
                     {
                         curMaterial = pMat->ID;
@@ -1036,7 +1022,7 @@ void Bk3dModelStandard::displayObject(Renderer *pRenderer, const mat4f& cameraVi
                     }
                     if(pPG->pTransforms->n>0)
                     {
-			            bk3d::Bone *pTransf = pPG->pTransforms->p[0];
+                        bk3d::Bone *pTransf = pPG->pTransforms->p[0];
                         if(pTransf && (curTransf != pTransf->ID))
                         {
                             curTransf = pTransf->ID;
@@ -1045,23 +1031,23 @@ void Bk3dModelStandard::displayObject(Renderer *pRenderer, const mat4f& cameraVi
                     }
                     if(pPG->pIndexBufferData)
                     {
-                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (unsigned long)pPG->userPtr);
-			            glDrawElements(
-				            pPG->topologyGL,
-				            pPG->indexCount,
-				            pPG->indexFormatGL,
-				            (const void*)pPG->indexArrayByteOffset);
+                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (GLuint)pPG->userPtr);
+                        glDrawElements(
+                            pPG->topologyGL,
+                            pPG->indexCount,
+                            pPG->indexFormatGL,
+                            (const void*)pPG->indexArrayByteOffset);
                     } else {
-			            glDrawArrays(
-				            pPG->topologyGL,
-				            0, pPG->indexCount);
+                        glDrawArrays(
+                            pPG->topologyGL,
+                            0, pPG->indexCount);
                     }
-		        }
-	        } // for(int m=1; m< m_pGenericModel->m_meshFile->pMeshes->n;m++)
+                }
+            } // for(int m=1; m< m_pGenericModel->m_meshFile->pMeshes->n;m++)
         } // for(int s=0; s<2; s++)
         // normally we should diable what was really used... simplification for the sample...
-	    glDisableVertexAttribArray(0);
-	    glDisableVertexAttribArray(1);
+        glDisableVertexAttribArray(0);
+        glDisableVertexAttribArray(1);
     }
 }
 //------------------------------------------------------------------------------

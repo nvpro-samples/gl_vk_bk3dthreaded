@@ -1,28 +1,30 @@
 #pragma once
-/*-----------------------------------------------------------------------
-    Copyright (c) 2013, Tristan Lorach. All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions
-    are met:
-     * Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
-     * Neither the name of its contributors may be used to endorse 
-       or promote products derived from this software without specific
-       prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-    PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-    CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-    EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-    PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-    PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-    OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *-----------------------------------------------------------------------
     feedback to lorachnroll@gmail.com (Tristan Lorach)
 
  ** This version is used by each Nodes.
@@ -53,15 +55,15 @@ namespace bk3d
 ///
 struct FloatArray : public Node
 {
-	int		dim; ///< amount of components in f
-	float	f[1]; ///< array of dim floats. f[1] will be in fact f[dim]
-	/// Constructor of this Node
-	FloatArray() {		
-		memset((void*)this, 0, sizeof(FloatArray));
-		nodeType = NODE_FLOATARRAY;
-		version = RAWMESHVERSION;
-		strncpy(name, "FloatArray", 31);
-		}
+    int        dim; ///< amount of components in f
+    float    f[1]; ///< array of dim floats. f[1] will be in fact f[dim]
+    /// Constructor of this Node
+    FloatArray() {        
+        memset((void*)this, 0, sizeof(FloatArray));
+        nodeType = NODE_FLOATARRAY;
+        version = RAWMESHVERSION;
+        strncpy(name, "FloatArray", 31);
+        }
 };
 
 /// \brief Pool of FloatArray's
@@ -73,24 +75,24 @@ struct FloatArray : public Node
 /// in a Mesh : each Blendshape would have a curve...
 struct FloatArrayPool
 {
-	FloatArrayPool() {		
-		memset((void*)this, 0, sizeof(FloatArrayPool));
-		}
-	int			n; ///< amount of FloatArray
-	int			: 32;
-	struct Connection ///< associates the source and destination
-	{
-        char destName[32];		///< name of the destination. QUESTION: we should assume first char is the TYPE
-		PTR64(FloatArray *p);  ///<pointer to a FloatArray source
+    FloatArrayPool() {        
+        memset((void*)this, 0, sizeof(FloatArrayPool));
+        }
+    int            n; ///< amount of FloatArray
+    int            : 32;
+    struct Connection ///< associates the source and destination
+    {
+        char destName[32];        ///< name of the destination. QUESTION: we should assume first char is the TYPE
+        PTR64(FloatArray *p);  ///<pointer to a FloatArray source
         // Note (v133) : so far I don't give a type info on what is the target type... we can know it from the destName
-	    union {
-	    float *pfTarget; ///<ptr to the destination where to write the data from FloatArray. Can be NULL if we want to rely only on destName...
+        union {
+        float *pfTarget; ///<ptr to the destination where to write the data from FloatArray. Can be NULL if we want to rely only on destName...
         int   *piTarget; ///<(v133) ptr to an integer destination, instead
         int   ival[2]; ///<(v133) some cases could just be some offset with not real target (for Blendshape #, for example)
         struct { int : 32; int : 32; };// maybe ival[2] is enough an no more need for this struct (64 bits compliance)...
         };
-	};
-	Connection p[1]; ///< serie of 'n' connections
+    };
+    Connection p[1]; ///< serie of 'n' connections
 };
 
 struct Slot;
@@ -114,34 +116,34 @@ struct ConstraintPool;
 /*--------------------------------
 MAYA Animation Curves. We define them through
 - vector of curve
-	- contains curves
-		- contains keys
+    - contains curves
+        - contains keys
 ----------------------------------*/
 /// type of behavior for the curve at infinity
 enum EtInfinityType 
 {
-	kInfinityConstant=0,
-	kInfinityLinear=1,
-	kInfinityCycle=3,
-	kInfinityCycleRelative=4,
-	kInfinityOscillate=5,
-	kInfinityEnd = -1
+    kInfinityConstant=0,
+    kInfinityLinear=1,
+    kInfinityCycle=3,
+    kInfinityCycleRelative=4,
+    kInfinityOscillate=5,
+    kInfinityEnd = -1
 };
 /// tangent type of the curve
 enum EtTangentType 
 {
-	kTangentGlobal = 0,
-	kTangentFixed,
-	kTangentLinear,
-	kTangentFlat,
-	kTangentSmooth,
-	kTangentStep,
-	kTangentSlow,
-	kTangentFast,
-	kTangentClamped,
-	kTangentPlateau,
+    kTangentGlobal = 0,
+    kTangentFixed,
+    kTangentLinear,
+    kTangentFlat,
+    kTangentSmooth,
+    kTangentStep,
+    kTangentSlow,
+    kTangentFast,
+    kTangentClamped,
+    kTangentPlateau,
     kTangentStepNext,
-	kTangentEnd = -1
+    kTangentEnd = -1
 };
 
 typedef enum EtTangentType EtTangentType;
@@ -149,48 +151,48 @@ typedef enum EtTangentType EtTangentType;
 /// maya curve key. You can refer to Maya documentation for details
 struct MayaReadKey
 {
-	float			time;
-	float			value;
+    float            time;
+    float            value;
 
-	EtTangentType	inTangentType	: 32;
-	EtTangentType	outTangentType	: 32;
+    EtTangentType    inTangentType    : 32;
+    EtTangentType    outTangentType    : 32;
 
-	float			inAngle;
-	float			inWeight;
+    float            inAngle;
+    float            inWeight;
 
-	float			outAngle;
-	float			outWeight;
+    float            outAngle;
+    float            outWeight;
 };
 
 /// maya curve object. This is also related to Maya documentation
 struct MayaCurve : public Node
 {
-	MayaCurve()
-	{
-		memset((void*)this, 0, sizeof(MayaCurve));
-		nodeType = NODE_MAYACURVE;
-		version = RAWMESHVERSION;
-		inputIsTime = true;
-		outputIsAngular = false;
-		isWeighted = false;
-		preInfinity = kInfinityConstant;
-		postInfinity = kInfinityConstant;
-	}
-	// Curve Settings
-	EtInfinityType preInfinity	: 8;	///< how to evaluate pre-infinity			
-	EtInfinityType postInfinity	: 8;	///< how to evaluate post-infinity		
-	bool	inputIsTime			: 1;	///< if true, the input do not need Plugs to increase
-	bool	outputIsAngular		: 1;
-	bool	isWeighted			: 1;	///< whether or not this curve has weighted tangents 
-	int							: 13;
-	// IO
-	float	fIn;		///< input value
+    MayaCurve()
+    {
+        memset((void*)this, 0, sizeof(MayaCurve));
+        nodeType = NODE_MAYACURVE;
+        version = RAWMESHVERSION;
+        inputIsTime = true;
+        outputIsAngular = false;
+        isWeighted = false;
+        preInfinity = kInfinityConstant;
+        postInfinity = kInfinityConstant;
+    }
+    // Curve Settings
+    EtInfinityType preInfinity    : 8;    ///< how to evaluate pre-infinity            
+    EtInfinityType postInfinity    : 8;    ///< how to evaluate post-infinity        
+    bool    inputIsTime            : 1;    ///< if true, the input do not need Plugs to increase
+    bool    outputIsAngular        : 1;
+    bool    isWeighted            : 1;    ///< whether or not this curve has weighted tangents 
+    int                            : 13;
+    // IO
+    float    fIn;        ///< input value
 
-	float	fOut;		///< result
-	// KEYS
-	int		nKeys;
+    float    fOut;        ///< result
+    // KEYS
+    int        nKeys;
 
-	MayaReadKey key[1]; ///< array of keys
+    MayaReadKey key[1]; ///< array of keys
 };
 
 /// vector of maya curve. Most of the time we use vector curves (to connect to any 3D component...)
@@ -198,76 +200,76 @@ struct MayaCurve : public Node
 /// Note that we use FloatArray in order to allow these curve-vectors to be connected to something else (see FloatArrayPool )
 struct MayaCurveVector : public Node
 {
-	int		nCurves	: 32;
-	int				: 32;
-	PTR64(FloatArray	*pFloatArray); ///< place to write the final result. It's a pointer because FloatArray's size can vary
-	Ptr64<MayaCurve>	pCurve[1]; ///< nCurves that are used to define the curve-vector
-	//-----------------------
-	MayaCurveVector()
-	{
-		memset((void*)this, 0, sizeof(MayaCurveVector));
-		nodeType = NODE_MAYACURVEVECTOR;
-		version = RAWMESHVERSION;
-	}
+    int        nCurves    : 32;
+    int                : 32;
+    PTR64(FloatArray    *pFloatArray); ///< place to write the final result. It's a pointer because FloatArray's size can vary
+    Ptr64<MayaCurve>    pCurve[1]; ///< nCurves that are used to define the curve-vector
+    //-----------------------
+    MayaCurveVector()
+    {
+        memset((void*)this, 0, sizeof(MayaCurveVector));
+        nodeType = NODE_MAYACURVEVECTOR;
+        version = RAWMESHVERSION;
+    }
 };
 
 /// Quaternion curve key
 struct QuatReadKey
 {
-	float			time;
-	float			value[4];
+    float            time;
+    float            value[4];
     int             :32;
 };
 /// Curve for quaternions
 struct QuatCurve : public Node
 {
-	QuatCurve()
-	{
-		memset((void*)this, 0, sizeof(QuatCurve));
-		nodeType = NODE_QUATCURVE;
-		version = RAWMESHVERSION;
-	}
-	PTR64(FloatArray	*pFloatArray); ///< place to write the final result. It's a pointer because FloatArray's size can vary
-	// IO
-	float	fIn;		///< input value
-	float	fOut;		///< result
-	// KEYS
-	int		nKeys   : 32;
-	int		userData: 32;
+    QuatCurve()
+    {
+        memset((void*)this, 0, sizeof(QuatCurve));
+        nodeType = NODE_QUATCURVE;
+        version = RAWMESHVERSION;
+    }
+    PTR64(FloatArray    *pFloatArray); ///< place to write the final result. It's a pointer because FloatArray's size can vary
+    // IO
+    float    fIn;        ///< input value
+    float    fOut;        ///< result
+    // KEYS
+    int        nKeys   : 32;
+    int        userData: 32;
 
-	QuatReadKey key[1]; ///< array of keys
+    QuatReadKey key[1]; ///< array of keys
 };
 
 /// pool of quaternion curves
 struct QuatCurvePool //: public Node
 {
-	int				n; ///< amount of curves
-	int				: 32;
-	Ptr64<QuatCurve> p[1]; ///< array of n curves
+    int                n; ///< amount of curves
+    int                : 32;
+    Ptr64<QuatCurve> p[1]; ///< array of n curves
 };
 
 /// pool of curves
 struct MayaCurvePool //: public Node
 {
-	int				n; ///< amount of curves
-	int				: 32;
-	Ptr64<MayaCurveVector> p[1]; ///< array of n curves
+    int                n; ///< amount of curves
+    int                : 32;
+    Ptr64<MayaCurveVector> p[1]; ///< array of n curves
 };
 
 /// Pool of float values
 struct FloatPool
 {
-	int       n : 32;
-	int			: 32;
-	float     f[1];
+    int       n : 32;
+    int            : 32;
+    float     f[1];
 };
 
 /// Pool of materials
 struct MaterialAttrPool
 {
-	int			n;
-	int		  : 32;
-	Ptr64<MaterialAttr>	p[1];
+    int            n;
+    int          : 32;
+    Ptr64<MaterialAttr>    p[1];
 };
 /*--------------------------------
 Transform, Transform Pool and references
@@ -347,12 +349,12 @@ This contains all the tranformations and children/parent infos
 
   // Maya-style transforms. We don't need structure of array for them: we don't expect them to be used separately
   struct MayaTransformData {
-    Vec3Type    rotation;           	///< Euler Rotation in degres (TRANSFCOMP_rotation)
-    char        rotationOrder[3];      	///< 3 chars for "xyz" or any other (TRANSFCOMP_rotationOrder)
+    Vec3Type    rotation;               ///< Euler Rotation in degres (TRANSFCOMP_rotation)
+    char        rotationOrder[3];          ///< 3 chars for "xyz" or any other (TRANSFCOMP_rotationOrder)
     // Note: Do we really need all of them ? Overkill ?
-    Vec3Type    scalePivot;			///< TRANSFCOMP_scalePivot
-    Vec3Type    scalePivotTranslate;	///< TRANSFCOMP_scalePivotTranslate
-    Vec3Type    rotationPivot;		///< TRANSFCOMP_rotationPivot
+    Vec3Type    scalePivot;            ///< TRANSFCOMP_scalePivot
+    Vec3Type    scalePivotTranslate;    ///< TRANSFCOMP_scalePivotTranslate
+    Vec3Type    rotationPivot;        ///< TRANSFCOMP_rotationPivot
     Vec3Type    rotationPivotTranslate;///< TRANSFCOMP_rotationPivotTranslate
 
     Vec4Type    rotationOrientation; ///< TRANSFCOMP_rotationOrientation, Quaternion
@@ -418,16 +420,16 @@ This contains all the tranformations and children/parent infos
   **/
   struct TransformDOF
   {
-	TransformDOFMode mode;
-	float	DOFAlpha;///< angle of the cone
+    TransformDOFMode mode;
+    float    DOFAlpha;///< angle of the cone
 
-	float	AxisLimitStart;///< start for the limitation along one axis
-	float	AxisLimitRange;///< range for the limitation along one axis
+    float    AxisLimitStart;///< start for the limitation along one axis
+    float    AxisLimitRange;///< range for the limitation along one axis
 
     Vec4Type   quat;
     Vec4Type   abs_Quat;
-	//float	theColor[3];///< "tc" : Color to display the DOF...
-	//bool	drawLast;///< "dL" : if we want the DOF to be rendered after the 3D objects...
+    //float    theColor[3];///< "tc" : Color to display the DOF...
+    //bool    drawLast;///< "dL" : if we want the DOF to be rendered after the 3D objects...
     TransformDOF() {init();}
     void init()
     {
@@ -475,13 +477,13 @@ This contains all the tranformations and children/parent infos
 
     // Now, the table of transforms is not meant to be passed to the GPU
     // it is just a convenient way to access to the transform nodes containing a bit more, such as transform name etc.
-    Ptr64<Bone> pBones[1];    						///< transforms referenced by pointers
+    Ptr64<Bone> pBones[1];                            ///< transforms referenced by pointers
   };
 
   struct TransformPool2
   {
     int       n : 32;
-    Ptr64<Bone> p[1];    						///< transforms referenced by pointers
+    Ptr64<Bone> p[1];                            ///< transforms referenced by pointers
   };
   ///
   /// \brief Bone (NODE_BONE) : base of transformation system
@@ -494,8 +496,8 @@ This contains all the tranformations and children/parent infos
       unsigned int  ID: 32; // the id is the offset in the tables where to find data for the bone
       int             : 32;
       /// 2 User data or one user pointer
-	  union {
-	    void * userPtr;
+      union {
+        void * userPtr;
         int userData[2];
       };
       PTR64(BoneDataType* pBoneData);
@@ -519,26 +521,26 @@ This contains all the tranformations and children/parent infos
       {
         memset((void*)this, 0, sizeof(Bone));
         nodeType = NODE_BONE;
-	    version = RAWMESHVERSION;
+        version = RAWMESHVERSION;
       }
       // simple 'accessors'
 #if 1
       // This version uses the fact that we still keep an easy CPU pointer reference
       // even though we could find back the pointers through IDs:
       // this helps to debug and shall be faster on CPU
-      inline BoneDataType& getBoneData()                    { return *pBoneData; }
-      inline unsigned int& getValidComps()                  { return pBoneData->validComps; }
+      inline BoneDataType& BoneData()                    { return *pBoneData; }
+      inline unsigned int& ValidComps()                  { return pBoneData->validComps; }
       inline bool          getDirty()                       { return pBoneData->bDirty ? true:false; }
       inline void          setDirty(bool b)                 { pBoneData->bDirty = b?1:0; }
-      inline MatrixType&   getMatrix()                      { return pBoneData->matrix; }
-      inline MatrixType&   getMatrixAbs()                   { return *pMatrixAbs; }
-      inline MatrixType&   getMatrixAbsInvBindposeMatrix()  { return *pMatrixAbsInvBindposeMatrix; }
-      inline MatrixType&   getMatrixInvBindpose()           { return *pMatrixInvBindpose; }
-      inline Vec3Type&     getPosAbs()                      { return (Vec3Type&)(*pMatrixAbs->pos()); }
-      inline Vec3Type&     getPos()                         { return (Vec3Type&)(*pBoneData->matrix.pos()); }
-      inline Vec3Type&     getPosBoneTail()                 { return pBoneData->posBoneTail; }
-      inline Vec4Type&     getQuatAbs()                     { return pBoneData->quatAbs; }
-      inline Vec4Type&     getQuat()                        { return pBoneData->quat; }
+      inline MatrixType&   Matrix()                      { return pBoneData->matrix; }
+      inline MatrixType&   MatrixAbs()                   { return *pMatrixAbs; }
+      inline MatrixType&   MatrixAbsInvBindposeMatrix()  { return *pMatrixAbsInvBindposeMatrix; }
+      inline MatrixType&   MatrixInvBindpose()           { return *pMatrixInvBindpose; }
+      inline Vec3Type&     PosAbs()                      { return (Vec3Type&)(*pMatrixAbs->pos()); }
+      inline Vec3Type&     Pos()                         { return (Vec3Type&)(*pBoneData->matrix.pos()); }
+      inline Vec3Type&     PosBoneTail()                 { return pBoneData->posBoneTail; }
+      inline Vec4Type&     QuatAbs()                     { return pBoneData->quatAbs; }
+      inline Vec4Type&     Quat()                        { return pBoneData->quat; }
       inline Bone*         getParent()                      { return pParent; }
       inline int           getNumChildren()                 { return pChildren ? pChildren->n : 0; }
       inline Bone*         getChild(int n)                  { DBGASSERT(n<pChildren->n); return pChildren->p[n]; }
@@ -546,19 +548,19 @@ This contains all the tranformations and children/parent infos
 #else
       // these accessors do use directly the IDs and fetch pointers according to the logic of ID references
       // might be more expensive and more complicated for debugging purpose
-      inline BoneDataType& getBoneData()                    { return parentPool->tableBoneData.p[ID]; }
-      inline unsigned int& getValidComps()                  { return BoneData().validComps; }
+      inline BoneDataType& BoneData()                    { return parentPool->tableBoneData.p[ID]; }
+      inline unsigned int& ValidComps()                  { return BoneData().validComps; }
       inline bool          getDirty()                       { return BoneData().bDirty; }
       inline void          setDirty(bool b)                 { BoneData().bDirty = b; }
-      inline MatrixType&   getMatrix()                      { return BoneData().matrix; }
-      inline MatrixType&   getMatrixAbs()                   { return parentPool->tableMatrixAbs.p[ID]; }
-      inline MatrixType&   getMatrixAbsInvBindposeMatrix()  { return parentPool->tableMatrixAbsInvBindposeMatrix[ID]; }
-      inline MatrixType&   getMatrixInvBindpose()           { return parentPool->tableMatrixInvBindpose[ID]; }
-      inline Vec3Type&     getPosAbs()                      { return (Vec3Type&)(*parentPool->tableMatrixAbs[ID].pos()); }
-      inline Vec3Type&     getPos()                         { return (Vec3Type&)(*parentPool->tableBoneData[ID].matrix.pos()); }
-      inline Vec3Type&     getPosBoneTail()                 { return parentPool->tableBoneData[ID].posBoneTail; }
-      inline Vec4Type&     getQuatAbs()                     { return parentPool->tableBoneData[ID].quatAbs; }
-      inline Vec4Type&     getQuat()                        { return parentPool->tableBoneData[ID].quat; }
+      inline MatrixType&   Matrix()                      { return BoneData().matrix; }
+      inline MatrixType&   MatrixAbs()                   { return parentPool->tableMatrixAbs.p[ID]; }
+      inline MatrixType&   MatrixAbsInvBindposeMatrix()  { return parentPool->tableMatrixAbsInvBindposeMatrix[ID]; }
+      inline MatrixType&   MatrixInvBindpose()           { return parentPool->tableMatrixInvBindpose[ID]; }
+      inline Vec3Type&     PosAbs()                      { return (Vec3Type&)(*parentPool->tableMatrixAbs[ID].pos()); }
+      inline Vec3Type&     Pos()                         { return (Vec3Type&)(*parentPool->tableBoneData[ID].matrix.pos()); }
+      inline Vec3Type&     PosBoneTail()                 { return parentPool->tableBoneData[ID].posBoneTail; }
+      inline Vec4Type&     QuatAbs()                     { return parentPool->tableBoneData[ID].quatAbs; }
+      inline Vec4Type&     Quat()                        { return parentPool->tableBoneData[ID].quat; }
 
       inline Bone*         getParent()                      { int pID = BoneData().parentID; return pID == 0xFFFF ? NULL : (parentPool->pBones + pID)->p; }
       inline int           getNumChildren()                 { return parentPool->tableChildrenLists[BoneData().childrenListID]; }
@@ -585,10 +587,10 @@ This contains all the tranformations and children/parent infos
       {
         memset((void*)this, 0, sizeof(TransformSimple));
         nodeType = NODE_TRANSFORMSIMPLE;
-	    version = RAWMESHVERSION;
+        version = RAWMESHVERSION;
       }
-      inline Vec3Type&  getScale()      { return scale; }
-      inline Vec3Type&  getScaleAbs()   { return scaleAbs; }
+      inline Vec3Type&  Scale() { return scale; }
+      inline Vec3Type&  ScaleAbs() { return scaleAbs; }
 #ifdef _DEBUG
       inline bk3d::Transform* asTransf() { DBGASSERT(nodeType==NODE_TRANSFORM) return (bk3d::Transform*)(this); }
 #else
@@ -614,18 +616,18 @@ This contains all the tranformations and children/parent infos
       {
         memset((void*)this, 0, sizeof(Transform));
         nodeType = NODE_TRANSFORM;
-	      version = RAWMESHVERSION;
+          version = RAWMESHVERSION;
         //validComps = TRANSFCOMP_pos|TRANSFCOMP_scale|TRANSFCOMP_rotation|TRANSFCOMP_rotationOrder|TRANSFCOMP_scalePivot|TRANSFCOMP_scalePivotTranslate|TRANSFCOMP_rotationPivot|TRANSFCOMP_rotationPivotTranslate|TRANSFCOMP_rotationOrientation|TRANSFCOMP_jointOrientation|TRANSFCOMP_bindPose
       }
-      inline MayaTransformData& getTransformData()  { return parentPool->tableMayaTransformData.p[ID]; }
-      inline Vec3Type&  getRotation()               { return getTransformData().rotation; }
-      inline char*      getRotationOrder()          { return getTransformData().rotationOrder; }
-      inline Vec3Type&  getScalePivot()             { return getTransformData().scalePivot; }
-      inline Vec3Type&  getScalePivotTranslate()    { return getTransformData().scalePivotTranslate; }
-      inline Vec3Type&  getRotationPivot()          { return getTransformData().rotationPivot; }
-      inline Vec3Type&  getRotationPivotTranslate() { return getTransformData().rotationPivotTranslate; }
-      inline Vec4Type&  getRotationOrientation()    { return getTransformData().rotationOrientation; }
-      inline Vec4Type&  getJointOrientation()       { return getTransformData().jointOrientation; }
+      inline MayaTransformData& TransformData()     { return parentPool->tableMayaTransformData.p[ID]; }
+      inline Vec3Type&  Rotation()                  { return TransformData().rotation; }
+      inline char*      RotationOrder()             { return TransformData().rotationOrder; }
+      inline Vec3Type&  ScalePivot()                { return TransformData().scalePivot; }
+      inline Vec3Type&  ScalePivotTranslate()       { return TransformData().scalePivotTranslate; }
+      inline Vec3Type&  RotationPivot()             { return TransformData().rotationPivot; }
+      inline Vec3Type&  RotationPivotTranslate()    { return TransformData().rotationPivotTranslate; }
+      inline Vec4Type&  RotationOrientation()       { return TransformData().rotationOrientation; }
+      inline Vec4Type&  JointOrientation()          { return TransformData().jointOrientation; }
   };
 
   /// \brief pool of transformations
@@ -636,9 +638,9 @@ This contains all the tranformations and children/parent infos
   /// -# Simple instancing : N transforms for N instances of this same Mesh
   struct TransformRefs// : public Node
   {
-	int				 n	: 32;        
-	int					: 32;
-	Ptr64<Bone> p[1]; 		///< first we get offsets here. Load will resolve as correct ptrs
+    int                 n    : 32;        
+    int                    : 32;
+    Ptr64<Bone> p[1];         ///< first we get offsets here. Load will resolve as correct ptrs
   };
 
 ///
@@ -646,9 +648,9 @@ This contains all the tranformations and children/parent infos
 ///
 struct IKHandlePool
 {
-	int       n;
-	int		  : 32;
-	Ptr64<IKHandle> p[1];
+    int       n;
+    int          : 32;
+    Ptr64<IKHandle> p[1];
 };
 ///
 /// \brief Handle for IK
@@ -678,29 +680,29 @@ struct IKHandle : public Bone
     //PTR64(Transform         *handleTransform); ///< parent transform for the handle, if this one is part of the tree
     /// FloatArrays allow to connect to pos or target (animation...)
     PTR64(FloatArrayPool    *pFloatArrays);
-	IKHandle() {init();}
-	void init()
+    IKHandle() {init();}
+    void init()
     {
       memset((void*)this, 0, sizeof(IKHandle));
       strcpy(name, "IKHANDLE");
       nodeType = NODE_IKHANDLE;
-	  version = RAWMESHVERSION;
+      version = RAWMESHVERSION;
     }
 #if 1
-    inline IKHandleData&    getIKHandleData()           { return *pIKHandleData; }
-    inline int&             Priority()                  { return getIKHandleData().priority; }
-    inline float&           Weight()                    { return getIKHandleData().weight; }
-    inline int&             MaxIter()                   { return getIKHandleData().maxIter; }
-    inline float&           EffectorWeight(int n)       { return pEffectorWeights->f[n]; }
-    inline int              getNumEffectors()           { return pEffectorTransforms ? pEffectorTransforms->n : 0; }
+    inline IKHandleData&    IKHandleData() { return *pIKHandleData; }
+    inline int&             Priority()     { return pIKHandleData->priority; }
+    inline float&           Weight()       { return pIKHandleData->weight; }
+    inline int&             MaxIter()       { return pIKHandleData->maxIter; }
+    inline float&           EffectorWeight(int n)    { return pEffectorWeights->f[n]; }
+    inline int              getNumEffectors() { return pEffectorTransforms ? pEffectorTransforms->n : 0; }
     inline Bone*            getEffectorTransform(int n) { return pEffectorTransforms->p[n]; }
 #else
-    inline IKHandleData&    getIKHandleData() { return parentPool->tableIKHandleData.p[ID - parentPool->offsetIKHandles]; }
-    inline int&             Priority()     { return getIKHandleData().priority; }
-    inline float&           Weight()       { return getIKHandleData().weight; }
-    inline int&             MaxIter()      { return getIKHandleData().maxIter; }
+    inline IKHandleData&    IKHandleData() { return parentPool->tableIKHandleData.p[ID - parentPool->offsetIKHandles]; }
+    inline int&             Priority()     { return IKHandleData().priority; }
+    inline float&           Weight()       { return IKHandleData().weight; }
+    inline int&             MaxIter()      { return IKHandleData().maxIter; }
     inline float&           EffectorWeight(int n)    { return parentPool->tableEffectorWeights[IKHandleData().effectorWeightAndTransformListID+1+n].weight; }
-    inline int              getNumEffectors() { return getIKHandleData().numEffectors; }
+    inline int              getNumEffectors() { return IKHandleData().numEffectors; }
     inline Bone*            getEffectorTransform(int n) { return parentPool->pBones[parentPool->tableEffectorWeights[IKHandleData().effectorWeightAndTransformListID+1+n].transformID]; }
 #endif
 };
@@ -713,45 +715,45 @@ struct IKHandle : public Bone
 ///
 struct MaterialAttr
 {
-	PTR64(const char*	name);
-	union {
-		float*	pFloat;
-		int*	pInt;
-		unsigned int* pUInt;
-		void *	p;
-		struct { int : 32; int : 32; };
-	};
-	DXGI_FORMAT	type	: 32; ///< DXGI_FORMAT is rather good to have a nice list of possible things
-	int					: 32;
+    PTR64(const char*    name);
+    union {
+        float*    pFloat;
+        int*    pInt;
+        unsigned int* pUInt;
+        void *    p;
+        struct { int : 32; int : 32; };
+    };
+    DXGI_FORMAT    type    : 32; ///< DXGI_FORMAT is rather good to have a nice list of possible things
+    int                    : 32;
 };
 
 // this structure is for the table of materials: a big table we can send to the GPU
 // NOTE: later I should add some bindless texture information
 struct MaterialData
 {
-	Vec3Type    diffuse;         ///< RGB diffuse color
-	float	    specexp;            ///< exponent of the specular lighting
+    Vec3Type    diffuse;         ///< RGB diffuse color
+    float        specexp;            ///< exponent of the specular lighting
 
-	Vec3Type    ambient;         ///< RGB ambient color
-	float	    reflectivity;       ///< intensity of the reflection
+    Vec3Type    ambient;         ///< RGB ambient color
+    float        reflectivity;       ///< intensity of the reflection
 
-	Vec3Type    transparency;    ///< RGB transparency
-    float	translucency;       ///< translucency : 0, no transparency at all; 1 : object 100% transparent (transparency could be used)
+    Vec3Type    transparency;    ///< RGB transparency
+    float    translucency;       ///< translucency : 0, no transparency at all; 1 : object 100% transparent (transparency could be used)
 
-	Vec3Type    specular;        ///< specular RGB color
-	int		: 32;
+    Vec3Type    specular;        ///< specular RGB color
+    int        : 32;
 
     // TODO: Add Bindless Texture Handles for the GPU !
-	//TextureAddr	diffuseTexture;
-	//TextureAddr	specExpTexture;
-	//TextureAddr	ambientTexture;
-	//TextureAddr	reflectivityTexture;
-	//TextureAddr	transparencyTexture;
-	//TextureAddr	translucencyTexture;
-	//TextureAddr	specularTexture;
+    //TextureAddr    diffuseTexture;
+    //TextureAddr    specExpTexture;
+    //TextureAddr    ambientTexture;
+    //TextureAddr    reflectivityTexture;
+    //TextureAddr    transparencyTexture;
+    //TextureAddr    translucencyTexture;
+    //TextureAddr    specularTexture;
 
     MaterialData() {init();}
-	void init()
+    void init()
     {
       memset((void*)this, 0, sizeof(MaterialData));
     }
@@ -761,10 +763,10 @@ struct MaterialData
 ///
 struct MaterialPool //: public Node
 {
-	int			nMaterials;
-	int			: 32;
+    int            nMaterials;
+    int            : 32;
     Ptr64<MaterialData> tableMaterialData; // fetch data here with ID of material. This table can easily be sent to the GPU
-	Ptr64<Material>	pMaterials[1];
+    Ptr64<Material>    pMaterials[1];
 };
 ///
 /// \brief Material (NODE_MATERIAL) containing usual properties
@@ -775,55 +777,55 @@ struct Material : public Node
     int          : 32;
     Ptr64<MaterialPool> parentPool; // the access to where its data are stored
     PTR64(MaterialData* pMaterialData);
-	/// \name Shader information : in Maya, this would come from Custom parameters "shader" and "technique"
-	/// @{
-	PTR64(char*	shaderName);    ///< shader name if exists (most of DCC apps don't have this but we can customize it in Maya as a custom property)
-	PTR64(char*	techniqueName); ///< technique name if the shader is an effect.
-	/// @}
-	/// \brief Texture information
-	struct Texture
-	{
-		PTR64(char*	name);       ///< name of the texture
-		PTR64(char*	filename);   ///< filename of the texture. Or whatever helps to find it in whathever storage
+    /// \name Shader information : in Maya, this would come from Custom parameters "shader" and "technique"
+    /// @{
+    PTR64(char*    shaderName);    ///< shader name if exists (most of DCC apps don't have this but we can customize it in Maya as a custom property)
+    PTR64(char*    techniqueName); ///< technique name if the shader is an effect.
+    /// @}
+    /// \brief Texture information
+    struct Texture
+    {
+        PTR64(char*    name);       ///< name of the texture
+        PTR64(char*    filename);   ///< filename of the texture. Or whatever helps to find it in whathever storage
         union {
             struct {
-		        unsigned LONG userHandle; ///< when the application found the texture, one may want to keep track of resource references with this
-		        unsigned LONG userData; ///< when the application found the texture, one may want to keep track of resource references with this
+                unsigned LONG userHandle; ///< when the application found the texture, one may want to keep track of resource references with this
+                unsigned LONG userData; ///< when the application found the texture, one may want to keep track of resource references with this
             };
             char* userPtr; /// < or the same area as a pointer (32 or 64 bits)
         };
-	};
+    };
     /// \name textures for various property fields. Optional... would override the RGB/float values if defined
     /// @{
-	Texture	diffuseTexture;
-	Texture	specExpTexture;
-	Texture	ambientTexture;
-	Texture	reflectivityTexture;
-	Texture	transparencyTexture;
-	Texture	translucencyTexture;
-	Texture	specularTexture;
+    Texture    diffuseTexture;
+    Texture    specExpTexture;
+    Texture    ambientTexture;
+    Texture    reflectivityTexture;
+    Texture    transparencyTexture;
+    Texture    translucencyTexture;
+    Texture    specularTexture;
     /// @}
-	/// can be used after load for storing handles... etc. (effect & technique, for example)
-	unsigned LONG userData[2];
-	/// Extra parameters : user-defined parameters. For example uniform values for the shader shaderName
-	PTR64(MaterialAttrPool*	pAttrPool);
-	/// Basic methods
+    /// can be used after load for storing handles... etc. (effect & technique, for example)
+    unsigned LONG userData[2];
+    /// Extra parameters : user-defined parameters. For example uniform values for the shader shaderName
+    PTR64(MaterialAttrPool*    pAttrPool);
+    /// Basic methods
     Material() {init();}
-	void init()
+    void init()
     {
       memset((void*)this, 0, sizeof(Material));
-	  nodeType = NODE_MATERIAL;
-	  version = RAWMESHVERSION;
+      nodeType = NODE_MATERIAL;
+      version = RAWMESHVERSION;
     }
-    inline MaterialData&    getMaterialData()   { return *pMaterialData; }
-    //inline MaterialData&    getMaterialData() { return parentPool->tableMaterialData.p[ID]; }
-    inline Vec3Type&        getDiffuse()        { return getMaterialData().diffuse; }
-    inline Vec3Type&        getAmbient()        { return getMaterialData().ambient; }
-    inline float&           getReflectivity()   { return getMaterialData().reflectivity; }
-    inline Vec3Type&        getTransparency()   { return getMaterialData().transparency; }
-    inline float&           getTranslucency()   { return getMaterialData().translucency; }
-    inline Vec3Type&        getSpecular()       { return getMaterialData().specular; }
-    inline float&           getSpecularExp()    { return getMaterialData().specexp; }
+    inline MaterialData&    MaterialData() { return *pMaterialData; }
+    //inline MaterialData&    MaterialData() { return parentPool->tableMaterialData.p[ID]; }
+    inline Vec3Type&        Diffuse() { return MaterialData().diffuse; }
+    inline Vec3Type&        Ambient() { return MaterialData().ambient; }
+    inline float&           Reflectivity() { return MaterialData().reflectivity; }
+    inline Vec3Type&        Transparency() { return MaterialData().transparency; }
+    inline float&           Translucency() { return MaterialData().translucency; }
+    inline Vec3Type&        Specular() { return MaterialData().specular; }
+    inline float&           SpecularExp() { return MaterialData().specexp; }
 };
 
 ///
@@ -831,18 +833,18 @@ struct Material : public Node
 ///
 struct RigidBodyPool
 {
-	int       n;
-	int		  : 32;
-	Ptr64<RigidBody> p[1];
+    int       n;
+    int          : 32;
+    Ptr64<RigidBody> p[1];
 };
 ///
 /// pool of Constraints
 ///
 struct ConstraintPool
 {
-	int       n;
-	int		  : 32;
-	Ptr64<Constraint> p[1];
+    int       n;
+    int          : 32;
+    Ptr64<Constraint> p[1];
 };
 ///
 /// \brief Rigid body for physic simulation
@@ -870,11 +872,11 @@ struct RigidBody : public Bone
 
     /// Basic methods
     RigidBody() {init();}
-	void init()
+    void init()
     {
       memset((void*)this, 0, sizeof(RigidBody));
-	  nodeType = NODE_RIGIDBODY;
-	  version = RAWMESHVERSION;
+      nodeType = NODE_RIGIDBODY;
+      version = RAWMESHVERSION;
     }
 };
 ///
@@ -901,11 +903,11 @@ struct Constraint : public Bone
 
     /// Basic methods
     Constraint() {init();}
-	void init()
+    void init()
     {
       memset((void*)this, 0, sizeof(Constraint));
-	  nodeType = NODE_CONSTRAINT;
-	  version = RAWMESHVERSION;
+      nodeType = NODE_CONSTRAINT;
+      version = RAWMESHVERSION;
     }
 };
 
@@ -943,15 +945,15 @@ INLINE float* findComponentf(FileHeader *pH, const char *compname, unsigned char
         Bone *pt = pH->pTransforms->pBones[i];
         if(strcmp(pt->name, name))
             continue;
-        if(pDirty) *pDirty = &(pt->getBoneData().bDirty);
+        if(pDirty) *pDirty = &(pt->BoneData().bDirty);
         if(!strcmp(comp, "translate")) {        
-            pComp = pt->getPos();
+            pComp = pt->Pos();
         } else if(!strcmp(comp, "scale")) {     
-            pComp = ((Transform*)pt)->getScale();
+            pComp = ((Transform*)pt)->Scale();
         } else if(!strcmp(comp, "rotation")) {  
-            pComp = ((Transform*)pt)->getTransformData().rotation;
+            pComp = ((Transform*)pt)->TransformData().rotation;
         } else if((strcmp(comp, "quat"))) {  
-            pComp = pt->getBoneData().quat;
+            pComp = pt->BoneData().quat;
         } //some more to add...
         break;
     }
@@ -975,23 +977,23 @@ INLINE float* findComponentf(FileHeader *pH, const char *name, unsigned int comp
         if(strcmp(pt->name, name))
             continue;
         if(ppBone) *ppBone = pt;
-        if(pDirty) *pDirty = &(pt->getBoneData().bDirty);
+        if(pDirty) *pDirty = &(pt->BoneData().bDirty);
         switch(component)
         {
           case TRANSFCOMP_pos:
-            pComp = pt->getPos();
+            pComp = pt->Pos();
             break;
           case TRANSFCOMP_scale:
-            pComp = ((Transform*)pt)->getScale();
+            pComp = ((Transform*)pt)->Scale();
             break;
           case TRANSFCOMP_rotation:
-            pComp = ((Transform*)pt)->getRotation();
+            pComp = ((Transform*)pt)->Rotation();
             break;
           case TRANSFCOMP_Quat:
-            pComp = pt->getQuat();
+            pComp = pt->Quat();
             break;
           case TRANSFCOMP_bindpose_matrix:
-            pComp = pt->getMatrixInvBindpose();
+            pComp = pt->MatrixInvBindpose();
             break;
           case TRANSFCOMP_rotationOrder:
           case TRANSFCOMP_scalePivot:

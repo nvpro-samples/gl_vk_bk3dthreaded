@@ -13,32 +13,18 @@ if(NOT BASE_DIRECTORY) # if not defined, it means this cmake file was called as 
   # check if the external repository is outside or inside the project (as a sub-module)
   # testing the file CMakeLists_include.txt because when sub-modules are not cloned, the folders are still there...
   # we also assume here that if shared_sources is there, shared_external is, too...
+  SET(ADD_SUBDIR_BELOW 1)
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/shared_sources/CMakeLists_include.txt)
     Message(STATUS "found sub-folder shared_sources")
     SET(BASE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/shared_sources/CMakeLists_include.txt)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/shared_sources ${CMAKE_BINARY_DIR}/shared_sources)
-    # if we see that there are some common shared sources, share resrouces, too
-    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../shared_sources/CMakeLists_include.txt)
-      SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/../downloaded_resources")
-    elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources/CMakeLists_include.txt)
-      SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/../../downloaded_resources")
-    else()
-      SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
-    endif()
   elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources)
     SET(BASE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..)
     INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources/CMakeLists_include.txt)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources ${CMAKE_BINARY_DIR}/shared_sources)
-    SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
   else()
     SET(BASE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..)
     INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/../shared_sources/CMakeLists_include.txt)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../shared_sources ${CMAKE_BINARY_DIR}/shared_sources)
-    SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
   endif()
-else(NOT BASE_DIRECTORY)
-    SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
 endif(NOT BASE_DIRECTORY)
 _add_project_definitions(${PROJNAME})
 
@@ -48,13 +34,14 @@ _add_project_definitions(${PROJNAME})
 # add refs  in LIBRARIES_DEBUG
 # add files in PACKAGE_SOURCE_FILES
 #
+_add_package_OpenGL()
 _add_package_VulkanSDK()
-_add_package_NSight()
-_add_package_MFCUI()
-#_add_package_AntTweakBar()
-_add_package_OpenGLText()
 _add_package_ZLIB()
-#_add_package_nvFx()
+_add_package_ImGUI()
+
+#####################################################################################
+# process the rest of some cmake code that needs to be done *after* the packages add
+_add_shared_sources_lib()
 
 #####################################################################################
 # Source files for this project
@@ -67,15 +54,17 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/VK_nvidia)
 # download model for this demo to run. Avoids using GitHub for this
 # TODO: we need to put the models online. Should happen next week (>Dec.22)
 #
+unset(FILELISTOUT)
+set(FILELIST
+"SubMarine_134.bk3d.gz"
+)
 if(${MODEL_DOWNLOAD_SUBMARINE})
-  set(FILELIST 
-  "SubMarine_134.bk3d.gz"
-  )
   _download_files(
     "${FILELIST}"
     "http://developer.download.nvidia.com/ProGraphics/nvpro-samples"
     ${DOWNLOAD_TARGET_DIR}
     0
+    FILELISTOUT
   )
 endif()
 if(${MODEL_DOWNLOAD_MORE})
@@ -93,6 +82,7 @@ if(${MODEL_DOWNLOAD_MORE})
     "http://developer.download.nvidia.com/ProGraphics/nvpro-samples"
     ${DOWNLOAD_TARGET_DIR}
     0
+    FILELISTOUT
   )
 endif()
 #####################################################################################
@@ -102,11 +92,13 @@ endif()
 # the SpirV validator is fine as long as files are for different pipeline stages (entry points still need to be main())
 #_compile_GLSL(<source(s)> <target spv> <LIST where files are appended>)
 UNSET(GLSL_SOURCES)
-_compile_GLSL("GLSL/GLSL_mesh.vert" "GLSL/GLSL_mesh_vert.spv" GLSL_SOURCES)
-_compile_GLSL("GLSL/GLSL_mesh.frag" "GLSL/GLSL_mesh_frag.spv" GLSL_SOURCES)
-_compile_GLSL("GLSL/GLSL_mesh_lines.frag" "GLSL/GLSL_mesh_lines_frag.spv" GLSL_SOURCES)
-_compile_GLSL("GLSL/GLSL_grid.vert" "GLSL/GLSL_grid_vert.spv" GLSL_SOURCES)
-_compile_GLSL("GLSL/GLSL_grid.frag" "GLSL/GLSL_grid_frag.spv" GLSL_SOURCES)
+UNSET(SPV_OUTPUT)
+_compile_GLSL("GLSL/GLSL_mesh.vert" "GLSL/GLSL_mesh_vert.spv" GLSL_SOURCES SPV_OUTPUT)
+_compile_GLSL("GLSL/GLSL_mesh.frag" "GLSL/GLSL_mesh_frag.spv" GLSL_SOURCES SPV_OUTPUT)
+_compile_GLSL("GLSL/GLSL_mesh_lines.frag" "GLSL/GLSL_mesh_lines_frag.spv" GLSL_SOURCES SPV_OUTPUT)
+_compile_GLSL("GLSL/GLSL_mesh_lines.vert" "GLSL/GLSL_mesh_lines_vert.spv" GLSL_SOURCES SPV_OUTPUT)
+_compile_GLSL("GLSL/GLSL_grid.vert" "GLSL/GLSL_grid_vert.spv" GLSL_SOURCES SPV_OUTPUT)
+_compile_GLSL("GLSL/GLSL_grid.frag" "GLSL/GLSL_grid_frag.spv" GLSL_SOURCES SPV_OUTPUT)
 source_group(GLSL_Files FILES ${GLSL_SOURCES})
 
 #####################################################################################
@@ -132,6 +124,8 @@ if(WIN32 AND NOT GLUT_FOUND)
   add_definitions(/wd4305) #remove double to float truncation warning
   add_executable(${PROJNAME} WIN32 ${SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOURCE_FILES} ${GLSL_SOURCES})
 else()
+  # allow gcc to be tolerant on some issues. TODO:should remove this option
+  add_definitions(-fpermissive)
   add_executable(${PROJNAME} ${SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOURCE_FILES} ${GLSL_SOURCES})
 endif()
 
@@ -159,3 +153,9 @@ target_link_libraries(${PROJNAME} debug
 # copies binaries that need to be put next to the exe files (ZLib, etc.)
 #
 _copy_binaries_to_target( ${PROJNAME} )
+
+# additional copies for standalone run from install folder
+install(FILES ${SPV_OUTPUT} CONFIGURATIONS Release DESTINATION "bin_${ARCH}/SPV_${PROJNAME}")
+install(FILES ${SPV_OUTPUT} CONFIGURATIONS Debug DESTINATION "bin_${ARCH}_debug/SPV_${PROJNAME}")
+install(FILES ${FILELISTOUT} CONFIGURATIONS Debug DESTINATION "bin_${ARCH}_debug")
+install(FILES ${FILELISTOUT} CONFIGURATIONS Release DESTINATION "bin_${ARCH}")

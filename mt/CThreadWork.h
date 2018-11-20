@@ -50,7 +50,7 @@
 
 
 
-#if defined IOS || defined ANDROID || defined LINUX
+#if defined IOS || defined ANDROID
 #endif
 
 #ifdef WIN32
@@ -273,7 +273,7 @@ public:
     ~ThreadWorker();
     /// @}
 private:
-	unsigned long		m_workerID;
+    unsigned long        m_workerID;
     std::string         m_threadName;
     CCriticalSection    m_threadNameSec;
     CEvent              m_doneEvent;
@@ -302,7 +302,7 @@ public:
     //inline void SetWaitAleratbleOnExit(bool b) { m_alertableOnExit = b; }
 
     inline TaskQueue& GetTaskQueue() { return m_invoker; }
-	inline int GetWorkerID() { return m_workerID; }
+    inline int GetWorkerID() { return m_workerID; }
 
     const std::string& GetThreadName()/* const*/;
     void SetThreadName(const std::string& n);

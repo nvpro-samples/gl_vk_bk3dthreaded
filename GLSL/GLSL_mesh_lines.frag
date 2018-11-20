@@ -16,7 +16,6 @@ layout(std140, set= DSET_OBJECT , binding= BINDING_MATERIAL ) uniform materialBu
 //layout(std140, set= DSET_GLOBAL , binding= BINDING_LIGHT ) uniform lightBuffer {
 //   uniform vec3 dir;
 //} light;
-layout(location=1) in  vec3 N;
 layout(location=0) out vec4 outColor;
 void main() {
 

@@ -1,29 +1,29 @@
-/*-----------------------------------------------------------------------
-    Copyright (c) 2016, NVIDIA. All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions
-    are met:
-     * Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
-     * Neither the name of its contributors may be used to endorse 
-       or promote products derived from this software without specific
-       prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-    PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-    CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-    EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-    PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-    PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-    OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    feedback to tlorach@nvidia.com (Tristan Lorach)
-*/ //--------------------------------------------------------------------
+/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 #define USEWORKERS
 #define MAXCMDBUFFERS 100
 #ifdef USEWORKERS
@@ -41,31 +41,20 @@ using namespace nv_math;
 
 #include "GLSLShader.h"
 #include "gl_nv_command_list.h"
-#include "nv_helpers_gl/profilertimersgl.hpp"
+#include "nv_helpers_gl/profilertimers_gl.hpp"
 
-#include "nv_helpers_gl/WindowInertiaCamera.h"
+#include <nv_helpers/appwindowcamerainertia.hpp>
 
 #include "helper_fbo.h"
-
-#include "svcmfcui.h"
-#ifdef USESVCUI
-#   define  LOGFLUSH()  { g_pWinHandler->HandleMessageLoop_OnePass(); }
-#else
-#   define  LOGFLUSH()
-#endif
 
 #ifndef NOGZLIB
 #   include "zlib.h"
 #endif
 #include "bk3dEx.h" // a baked binary format for few models
 
-#if 1//def SUPPORT_PROFILE
 #define PROFILE_SECTION(name)   nv_helpers::Profiler::Section _tempTimer(g_profiler ,name, NULL)
+#define PROFILE_SECTION_CMD(name, cmd)  nv_helpers::Profiler::Section _tempTimer(g_profiler, name, NULL, false, (cmd))
 #define PROFILE_SPLIT()         g_profiler.accumulationSplit()
-#else
-#define PROFILE_SECTION(name)
-#define PROFILE_SPLIT()
-#endif
 
 //
 // For the case where we work with Descriptor Sets (Vulkan)
@@ -131,7 +120,7 @@ extern nv_helpers::Profiler  g_profiler;
 
 extern bool         g_bDisplayObject;
 extern GLuint       g_MaxBOSz;
-extern bool			g_bDisplayGrid;
+extern bool            g_bDisplayGrid;
 
 extern MatrixBufferGlobal g_globalMatrices;
 
@@ -143,12 +132,12 @@ class Bk3dModel;
 class Renderer
 {
 public:
-	Renderer() {}
-	virtual ~Renderer() {}
-	virtual const char *getName() = 0;
-	virtual bool valid() = 0;
-	virtual bool initGraphics(int w, int h, int MSAA) = 0;
-	virtual bool terminateGraphics() = 0;
+    Renderer() {}
+    virtual ~Renderer() {}
+    virtual const char *getName() = 0;
+    virtual bool valid() = 0;
+    virtual bool initGraphics(int w, int h, int MSAA) = 0;
+    virtual bool terminateGraphics() = 0;
     virtual bool initThreadLocalVars(int threadId) = 0;
     virtual void releaseThreadLocalVars() = 0;
     virtual void destroyCommandBuffers(bool bAll) = 0;
@@ -158,13 +147,13 @@ public:
     virtual bool attachModel(Bk3dModel* pModel) = 0;
     virtual bool detachModels() = 0;
 
-	virtual bool initResourcesModel(Bk3dModel* pModel) = 0;
+    virtual bool initResourcesModel(Bk3dModel* pModel) = 0;
 
-	virtual bool buildPrimaryCmdBuffer() = 0;
+    virtual bool buildPrimaryCmdBuffer() = 0;
     // bufIdx: index of cmdBuffer to create, containing mesh mstart to mend-1 (for testing concurrent cmd buffer creation)
-	virtual bool buildCmdBufferModel(Bk3dModel* pModelcmd, int bufIdx=0, int mstart=0, int mend=-1) = 0;
+    virtual bool buildCmdBufferModel(Bk3dModel* pModelcmd, int bufIdx=0, int mstart=0, int mend=-1) = 0;
     virtual void consolidateCmdBuffersModel(Bk3dModel* pModelcmd, int numCmdBuffers) = 0;
-	virtual bool deleteCmdBufferModel(Bk3dModel* pModel) = 0;
+    virtual bool deleteCmdBufferModel(Bk3dModel* pModel) = 0;
 
     virtual bool updateForChangedRenderTarget(Bk3dModel* pModel) = 0;
 
@@ -186,8 +175,8 @@ public:
     //
     virtual nv_helpers::Profiler::GPUInterface* getTimerInterface() { return NULL; };
 };
-extern Renderer*	g_renderers[10];
-extern int			g_numRenderers;
+extern Renderer*    g_renderers[10];
+extern int            g_numRenderers;
 
 //------------------------------------------------------------------------------
 // Class for Object (made of 1 to N meshes)
@@ -219,7 +208,7 @@ public:
 
     Stats m_stats;
 
-    Renderer*	        m_pRenderer;
+    Renderer*            m_pRenderer;
     void*               m_pRendererData;
     
     bool updateForChangedRenderTarget();
@@ -234,6 +223,6 @@ extern std::vector<Bk3dModel*> g_bk3dModels;
 
 #define FOREACHMODEL(cmd) {\
 for (int m = 0; m<g_bk3dModels.size(); m++) {\
-	g_bk3dModels[m]->cmd; \
+    g_bk3dModels[m]->cmd; \
 }\
 }
