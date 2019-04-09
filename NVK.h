@@ -76,11 +76,17 @@
 #include <string>
 #include <vulkan/vulkan.h>
 
-#include <nv_helpers_vk/swapchain_vk.hpp>
+#include <nvvk/swapchain_vk.hpp>
+#include <nvvk/contextwindow_vk.hpp>
 //------------------------------------------------------------------------------
 // Forward declarations
 //------------------------------------------------------------------------------
-struct WINinternal;
+struct NVPWindowInternal;
+namespace nvvk
+{
+  class ContextWindowVK;
+  class SwapChain;
+}
 
 //------------------------------------------------------------------------------
 // Vulkan functions in a more "friendly" way
@@ -244,7 +250,7 @@ public:
     };
 
     bool              m_deviceExternal;
-    nv_helpers_vk::SwapChain*     m_swapChain;
+    nvvk::SwapChain*     m_swapChain;
     VkDevice          m_device;
     VkInstance        m_instance;
     //vk_ext_debug_report.h:
@@ -275,7 +281,7 @@ public:
     //
     // Initialization utilities
     //
-    bool utInitialize(bool bValidationLayer = false, WINinternal *pwinInternal = NULL);
+    bool utInitialize(bool bValidationLayer, nvvk::ContextWindowVK *pwinInternalVK = NULL);
     bool utDestroy();
     //
     // ut... : methods that don't really correspond to VK API

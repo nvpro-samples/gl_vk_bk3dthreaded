@@ -26,7 +26,7 @@
  */
 #ifndef __HELPERFBO__
 #define __HELPERFBO__
-#include <nv_helpers_gl/extensions_gl.hpp>
+#include <nvgl/extensions_gl.hpp>
 namespace fbo
 {
     inline bool CheckStatus()

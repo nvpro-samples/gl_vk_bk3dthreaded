@@ -153,7 +153,7 @@ typedef HANDLE                            NMutexHandle;
 //#    define NXPROFILEFUNC(name) NXProfileFunc nxProfileMe(name, 0xFF0000FF)
 //#    define NXPROFILEFUNCCOL(name, c) NXProfileFunc nxProfileMe(name, c)
 //#    define NXPROFILEFUNCCOL2(name, c, p) NXProfileFunc nxProfileMe(name, c, p)
-#include "nv_helpers/nsightevents.h"
+#include "nvh/nsightevents.h"
 #else
 #    define NX_RANGE int
 #    define NX_MARK(name)

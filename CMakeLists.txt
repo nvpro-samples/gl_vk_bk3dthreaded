@@ -4,8 +4,6 @@ Project(${PROJNAME})
 Message(STATUS "-------------------------------")
 Message(STATUS "Processing Project ${PROJNAME}:")
 
-SET(MODEL_DOWNLOAD_MORE OFF CACHE BOOL "CHECK IT if you want to download more models" )
-SET(MODEL_DOWNLOAD_SUBMARINE ON CACHE BOOL "CHECKED to download Submarine default 3D model needed for this demo" )
 #####################################################################################
 # offer the choice of having shared_sources as a sub-folder... good for packaging a sample
 #
@@ -58,16 +56,15 @@ unset(FILELISTOUT)
 set(FILELIST
 "SubMarine_134.bk3d.gz"
 )
-if(${MODEL_DOWNLOAD_SUBMARINE})
-  _download_files(
-    "${FILELIST}"
-    "http://developer.download.nvidia.com/ProGraphics/nvpro-samples"
-    ${DOWNLOAD_TARGET_DIR}
-    0
-    FILELISTOUT
-  )
-endif()
-if(${MODEL_DOWNLOAD_MORE})
+_download_files(
+  "${FILELIST}"
+  "http://developer.download.nvidia.com/ProGraphics/nvpro-samples"
+  ${DOWNLOAD_TARGET_DIR}
+  0
+  FILELISTOUT
+)
+# you can download more :
+if(0)
   set(FILELIST 
   "Jet_134.bk3d.gz"
   "Driveline_v134.bk3d.gz"
@@ -105,14 +102,14 @@ source_group(GLSL_Files FILES ${GLSL_SOURCES})
 # additional files from helpers
 #
 #LIST(APPEND COMMON_SOURCE_FILES 
-#  ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/WindowInertiaCamera.h
-#  ${BASE_DIRECTORY}/shared_sources/nv_helpers/TimeSampler.h
-#  ${BASE_DIRECTORY}/shared_sources/nv_helpers/InertiaCamera.h
-#  ${BASE_DIRECTORY}/shared_sources/nv_math/nv_math.inl
-#  ${BASE_DIRECTORY}/shared_sources/nv_math/nv_math.h
-#  ${BASE_DIRECTORY}/shared_sources/nv_math/nv_math_types.h
-#  ${BASE_DIRECTORY}/shared_sources/nv_helpers/profiler.hpp
-#  ${BASE_DIRECTORY}/shared_sources/nv_helpers/profiler.cpp
+#  ${BASE_DIRECTORY}/shared_sources/nvgl/WindowInertiaCamera.h
+#  ${BASE_DIRECTORY}/shared_sources/nvh/TimeSampler.h
+#  ${BASE_DIRECTORY}/shared_sources/nvh/InertiaCamera.h
+#  ${BASE_DIRECTORY}/shared_sources/nvmath/nvmath.inl
+#  ${BASE_DIRECTORY}/shared_sources/nvmath/nvmath.h
+#  ${BASE_DIRECTORY}/shared_sources/nvmath/nvmath_types.h
+#  ${BASE_DIRECTORY}/shared_sources/nvh/profiler.hpp
+#  ${BASE_DIRECTORY}/shared_sources/nvh/profiler.cpp
 #)
 #####################################################################################
 # Executable
@@ -122,12 +119,11 @@ if(WIN32 AND NOT GLUT_FOUND)
   add_definitions(/wd4996) #remove printf warning
   add_definitions(/wd4244) #remove double to float conversion warning
   add_definitions(/wd4305) #remove double to float truncation warning
-  add_executable(${PROJNAME} WIN32 ${SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOURCE_FILES} ${GLSL_SOURCES})
 else()
   # allow gcc to be tolerant on some issues. TODO:should remove this option
   add_definitions(-fpermissive)
-  add_executable(${PROJNAME} ${SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOURCE_FILES} ${GLSL_SOURCES})
 endif()
+add_executable(${PROJNAME} ${SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOURCE_FILES} ${GLSL_SOURCES})
 
 #####################################################################################
 # common source code needed for this sample

@@ -90,3 +90,4 @@ Here are more details in separate sub-sections :
 : based on "Thread-workers", and how to use Vulkan in this case
 * [Results / performances](https://github.com/nvpro-samples/gl_vk_bk3dthreaded/blob/master/doc/Results.md "Results")
 * [NSight captures](https://github.com/nvpro-samples/gl_vk_bk3dthreaded/blob/master/doc/NSight_Captures.md "NSight captures") : some NSight captures showing what is happening
+

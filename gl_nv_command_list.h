@@ -28,7 +28,7 @@
 #ifndef NV_COMMANDLIST_H__
 #define NV_COMMANDLIST_H__
 
-#include <nv_helpers_gl/extensions_gl.hpp>
+#include <nvgl/extensions_gl.hpp>
 
 
 #  if defined(__MINGW32__) || defined(__CYGWIN__)

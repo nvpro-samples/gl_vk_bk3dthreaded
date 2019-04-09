@@ -38,7 +38,7 @@
 
 #include <stdio.h>
 #include "CThreadWork.h"
-#include "nv_helpers/nvprint.hpp"
+#include "nvh/nvprint.hpp"
 
 //#ifdef ANDROID
 //#pragma mark - Android defs

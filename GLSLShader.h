@@ -28,7 +28,7 @@
 #ifdef WIN32
 #  include <windows.h>
 #endif
-#include <nv_helpers_gl/extensions_gl.hpp>
+#include <nvgl/extensions_gl.hpp>
 #include <vector>
 #include <string>
 

@@ -28,7 +28,7 @@
 #include <string.h>
 #include <string>
 #include <fstream>
-#include "nv_helpers/nvprint.hpp"
+#include "nvh/nvprint.hpp"
 
 GLSLShader::GLSLShader()
 {
