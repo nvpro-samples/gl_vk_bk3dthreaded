@@ -156,7 +156,7 @@ public:
     virtual bool updateForChangedRenderTarget(Bk3dModel* pModel) = 0;
 
 
-    virtual void displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection) = 0;
+    virtual void displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection, bool bTimingGlitch) = 0;
     virtual void displayEnd() 
     {}
     virtual void displayGrid(const InertiaCamera& camera, const mat4f projection) = 0;

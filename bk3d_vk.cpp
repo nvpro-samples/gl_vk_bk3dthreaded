@@ -59,7 +59,7 @@
 #define WINDOWINERTIACAMERA_EXTERN
 #define EMUCMDLIST_EXTERN
 #include "gl_vk_bk3dthreaded.h"
-#include "nvh/nv_dds.h"
+#include <fileformats/nv_dds.h>
 
 #include <nvvk/profiler_vk.hpp>
 
@@ -250,7 +250,7 @@ public:
 
   virtual bool updateForChangedRenderTarget(Bk3dModel* pModel);
 
-  virtual void displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection);
+  virtual void displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection, bool bTimingGlitch);
   virtual void displayEnd();
   virtual void displayGrid(const InertiaCamera& camera, const mat4f projection);
   virtual void displayBk3dModel(Bk3dModel* pModel, const mat4f& cameraView, const mat4f projection, unsigned char topologies);
@@ -325,7 +325,7 @@ bool load_binary(std::string& name, std::string& data)
   std::vector<std::string> paths;
   paths.push_back(name);
   paths.push_back(std::string("GLSL/") + name);
-  paths.push_back(std::string(NVPWindow::sysExePath() + "/" + PROJECT_RELDIRECTORY + "GLSL/") + name);
+  paths.push_back(std::string(NVPSystem::exePath() + "/" + PROJECT_RELDIRECTORY + "GLSL/") + name);
   paths.push_back(std::string("../GLSL/") + name);  // for when working directory in Debug is $(ProjectDir)
   paths.push_back(std::string("../../" PROJECT_NAME "/GLSL/") + name);          // for when using $(TargetDir)
   paths.push_back(std::string("../../shipped/" PROJECT_NAME "/GLSL/") + name);  // for when using $(TargetDir)
@@ -656,7 +656,7 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
   std::vector<std::string> paths;
   std::string              name("GLSL/noise64x64_RGB.dds");
   paths.push_back(name);
-  paths.push_back(NVPWindow::sysExePath() + std::string(PROJECT_RELDIRECTORY) + name);
+  paths.push_back(NVPSystem::exePath() + std::string(PROJECT_RELDIRECTORY) + name);
   //paths.push_back(std::string(PROJECT_ABSDIRECTORY) + name);
   for(int i = 0; i < paths.size(); i++)
   {
@@ -936,7 +936,7 @@ bool RendererVk::buildPrimaryCmdBuffer()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void RendererVk::displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection)
+void RendererVk::displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection, bool bTimingGlitch)
 {
   if(m_bValid == false)
     return;
@@ -966,9 +966,10 @@ void RendererVk::displayStart(const mat4f& world, const InertiaCamera& camera, c
 
   m_cmdScene.cmdExecuteCommands(1, m_cmdSyncAndViewport);
   m_cmdScene.cmdUpdateBuffer(m_matrix.buffer, 0, sizeof(g_globalMatrices), (uint32_t*)&g_globalMatrices);
+  float r = 0.0f; //bTimingGlitch ? 1.0f : 0.0f;
   m_cmdScene.cmdBeginRenderPass(
       NVK::RenderPassBeginInfo(renderPass, framebuffer, viewRect,
-                               NVK::ClearValue(NVK::ClearColorValue(0.0f, 0.1f, 0.15f, 1.0f))(
+                               NVK::ClearValue(NVK::ClearColorValue(r, 0.1f, 0.15f, 1.0f))(
                                    NVK::ClearDepthStencilValue(1.0, 0))(NVK::ClearColorValue(0.0f, 0.1f, 0.15f, 1.0f))),
       VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 }

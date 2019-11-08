@@ -34,8 +34,8 @@ _add_project_definitions(${PROJNAME})
 #
 _add_package_OpenGL()
 _add_package_VulkanSDK()
-_add_package_ZLIB()
 _add_package_ImGUI()
+_add_package_ZLIB()
 
 #####################################################################################
 # process the rest of some cmake code that needs to be done *after* the packages add

@@ -136,23 +136,23 @@ class MyWindow : public AppWindowCameraInertia
 {
 public:
   ImGuiH::Registry      m_guiRegistry;
-  nvgl::ContextWindowGL m_contextWindowGL;
+  nvgl::ContextWindow m_contextWindowGL;
 
   MyWindow();
 
-  bool create(int posX, int posY, int width, int height, const char* title, const nvgl::ContextFlagsGL& context);
+  bool open(int posX, int posY, int width, int height, const char* title, const nvgl::ContextWindowCreateInfo& context);
   void processUI(int width, int height, double dt);
 
-  virtual void shutdown() override;
-  virtual void reshape(int w = 0, int h = 0) override;
+  virtual void onWindowClose() override;
+  virtual void onWindowResize(int w = 0, int h = 0) override;
   //virtual void motion(int x, int y) override;
   //virtual void mousewheel(short delta) override;
   //virtual void mouse(NVPWindow::MouseButton button, ButtonAction action, int mods, int x, int y) override;
   //virtual void menu(int m) override;
-  virtual void keyboard(MyWindow::KeyCode key, ButtonAction action, int mods, int x, int y) override;
-  virtual void keyboardchar(unsigned char key, int mods, int x, int y) override;
+  virtual void onKeyboard(MyWindow::KeyCode key, ButtonAction action, int mods, int x, int y) override;
+  virtual void onKeyboardChar(unsigned char key, int mods, int x, int y) override;
   //virtual void idle() override;
-  virtual void display() override;
+  virtual void onWindowRefresh() override;
 };
 
 MyWindow::MyWindow()
@@ -437,9 +437,12 @@ void MyWindow::processUI(int width, int height, double dt)
 
     int avg = 10;
 
-    if(g_profiler.getAveragedFrames("scene") % avg == avg - 1)
+    if(g_profiler.getTotalFrames() % avg == avg - 1)
     {
-      g_profiler.getAveragedValues("scene", g_statsCpuTime, g_statsGpuTime);
+      nvh::Profiler::TimerInfo info;
+      g_profiler.getTimerInfo("scene", info);
+      g_statsCpuTime = info.cpu.average;
+      g_statsGpuTime = info.gpu.average;
     }
 
     float gpuTimeF = float(g_statsGpuTime);
@@ -457,11 +460,11 @@ void MyWindow::processUI(int width, int height, double dt)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool MyWindow::create(int posX, int posY, int width, int height, const char* title, const nvgl::ContextFlagsGL& context)
+bool MyWindow::open(int posX, int posY, int width, int height, const char* title, const nvgl::ContextWindowCreateInfo& context)
 {
-  if(!AppWindowCameraInertia::create(posX, posY, width, height, title))
+  if(!AppWindowCameraInertia::open(posX, posY, width, height, title))
     return false;
-  m_contextWindowGL.init(&context, this);
+  m_contextWindowGL.init(&context, m_internal, title);
   ImGui::InitGL();
   //
   // UI
@@ -485,21 +488,21 @@ bool MyWindow::create(int posX, int posY, int width, int height, const char* tit
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void MyWindow::shutdown()
+void MyWindow::onWindowClose()
 {
-  AppWindowCameraInertia::shutdown();
+  AppWindowCameraInertia::onWindowClose();
 }
 
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void MyWindow::reshape(int w, int h)
+void MyWindow::onWindowResize(int w, int h)
 {
   if(w == 0)
-    w = m_windowSize[0];
+    w = getWidth();
   if(h == 0)
-    h = m_windowSize[1];
-  AppWindowCameraInertia::reshape(w, h);
+    h = getHeight();
+  AppWindowCameraInertia::onWindowResize(w, h);
   if(s_pCurRenderer)
   {
     if(s_pCurRenderer->bFlipViewport())
@@ -527,9 +530,9 @@ void MyWindow::reshape(int w, int h)
 //
 //------------------------------------------------------------------------------
 #define KEYTAU 0.10f
-void MyWindow::keyboard(NVPWindow::KeyCode key, MyWindow::ButtonAction action, int mods, int x, int y)
+void MyWindow::onKeyboard(NVPWindow::KeyCode key, MyWindow::ButtonAction action, int mods, int x, int y)
 {
-  AppWindowCameraInertia::keyboard(key, action, mods, x, y);
+  AppWindowCameraInertia::onKeyboard(key, action, mods, x, y);
 
   if(action == MyWindow::BUTTON_RELEASE)
     return;
@@ -548,9 +551,9 @@ void MyWindow::keyboard(NVPWindow::KeyCode key, MyWindow::ButtonAction action, i
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void MyWindow::keyboardchar(unsigned char key, int mods, int x, int y)
+void MyWindow::onKeyboardChar(unsigned char key, int mods, int x, int y)
 {
-  AppWindowCameraInertia::keyboardchar(key, mods, x, y);
+  AppWindowCameraInertia::onKeyboardChar(key, mods, x, y);
   switch(key)
   {
     case '1':
@@ -853,14 +856,14 @@ void waitRefreshCmdBuffersDone(int totalTasks)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void MyWindow::display()
+void MyWindow::onWindowRefresh()
 {
   if(!s_pCurRenderer)
     return;
 
   if(g_bRefreshCmdBuffers || (g_bRefreshCmdBuffersCounter > 0))
     resetCommandBuffersPool();
-  AppWindowCameraInertia::display();
+  AppWindowCameraInertia::onWindowRefresh();
   if(!s_pCurRenderer->valid())
   {
     glClearColor(0.5, 0.0, 0.0, 0.0);
@@ -868,7 +871,7 @@ void MyWindow::display()
     m_contextWindowGL.swapBuffers();
     return;
   }
-  float dt = (float)m_realtime.getTiming();
+  float dt = (float)m_realtime.getFrameDT();
   //
   // Simple camera change for animation
   //
@@ -913,7 +916,7 @@ void MyWindow::display()
       // This might initiate a primary command-buffer (in Vulkan renderer)
       //
       {
-        s_pCurRenderer->displayStart(mW, m_camera, m_projection);
+        s_pCurRenderer->displayStart(mW, m_camera, m_projection, m_timingGlitch);
       }
       //
       // kick a bunch of workers to update the command-buffers
@@ -1047,7 +1050,7 @@ void readConfigFile(const char* fname)
 //------------------------------------------------------------------------------
 int main(int argc, const char** argv)
 {
-  NVPWindow::System system(argv[0], PROJECT_NAME);
+  NVPSystem system(argv[0], PROJECT_NAME);
 
   // you can create more than only one
   static MyWindow myWindow;
@@ -1055,7 +1058,7 @@ int main(int argc, const char** argv)
   // -------------------------------
   // Basic OpenGL settings
   //
-  nvgl::ContextFlagsGL context(4,      //major;
+  nvgl::ContextWindowCreateInfo context(4,      //major;
                                3,      //minor;
                                false,  //core;
                                1,      //MSAA;
@@ -1070,7 +1073,7 @@ int main(int argc, const char** argv)
   // -------------------------------
   // Create the window
   //
-  if(!myWindow.create(0, 0, 1280, 720, "gl_vk_bk3dthreaded", context))
+  if(!myWindow.open(0, 0, 1280, 720, "gl_vk_bk3dthreaded", context))
   {
     LOGE("Failed to initialize the sample\n");
     return false;
@@ -1185,11 +1188,11 @@ int main(int argc, const char** argv)
   //
   // reshape will setup the first windows size and related stuff: main command-buffer, for example
   //
-  myWindow.reshape();
+  myWindow.onWindowResize();
   // -------------------------------
   // Message pump loop
   //
-  while(MyWindow::sysPollEvents(false))
+  while (myWindow.pollEvents())
   {
 #ifdef USEWORKERS
     // manage possible tasks, queued for this main thread
@@ -1200,7 +1203,7 @@ int main(int argc, const char** argv)
 #endif
 
     if(myWindow.idle())
-      myWindow.display();
+      myWindow.onWindowRefresh();
 
     if(myWindow.m_guiRegistry.checkValueChange(SCALAR_NCMDBUF))
     {
@@ -1226,7 +1229,7 @@ int main(int argc, const char** argv)
       s_pCurRenderer = g_renderers[s_curRenderer];  // s_curRenderer setup by ImGui
       s_pCurRenderer->initGraphics(myWindow.getWidth(), myWindow.getHeight(), g_MSAA);
       initThreadLocalVars();
-      myWindow.reshape(myWindow.getWidth(), myWindow.getHeight());
+      myWindow.onWindowResize(myWindow.getWidth(), myWindow.getHeight());
       for(int m = 0; m < g_bk3dModels.size(); m++)
       {
         s_pCurRenderer->attachModel(g_bk3dModels[m]);

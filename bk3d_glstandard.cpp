@@ -305,7 +305,7 @@ public:
 
   virtual bool invalidateCmdBufferGrid();
 
-  virtual void displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection);
+  virtual void displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection, bool bTimingGlitch);
   virtual void displayEnd();
   virtual void displayGrid(const InertiaCamera& camera, const mat4f projection);
   virtual void displayBk3dModel(Bk3dModel* pModel, const mat4f& cameraView, const mat4f projection, unsigned char topologies);
@@ -470,7 +470,7 @@ bool RendererStandard::buildCmdBufferGrid()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void RendererStandard::displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection)
+void RendererStandard::displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection, bool bTimingGlitch)
 {
   m_slot = m_profilerGL.beginSection("scene");
 
@@ -479,6 +479,8 @@ void RendererStandard::displayStart(const mat4f& world, const InertiaCamera& cam
   glEnable(GL_MULTISAMPLE);
   glViewport(0, 0, m_winSize[0], m_winSize[1]);
 
+  float r = 0.0f; //bTimingGlitch ? 1.0f : 0.0f;
+  glClearColor(r, 0.1f, 0.15f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
   glEnable(GL_DEPTH_TEST);
   //glDepthFunc(GL_LEQUAL);
@@ -602,7 +604,6 @@ bool RendererStandard::initGraphics(int w, int h, int MSAA)
   //
   // Misc OGL setup
   //
-  glClearColor(0.0f, 0.1f, 0.15f, 1.0f);
   glGenVertexArrays(1, &s_vao);
   glBindVertexArray(s_vao);
   //
