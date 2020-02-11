@@ -30,6 +30,7 @@
 
 //#pragma mark - Ring Buffer // MacOSX thing
 #include <algorithm>
+#include <cstddef>
 
 /******************************************************************************/
 /**

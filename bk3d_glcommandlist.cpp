@@ -35,6 +35,12 @@
 #define GRIDSZ 1.0f
 #define CROSSSZ 0.01f
 
+#ifdef _WIN32
+#define DEBUGBREAK() DebugBreak()
+#else
+#define DEBUGBREAK() __builtin_trap()
+#endif
+
 namespace glcmdlist {
 #include "gl_nv_commandlist_helpers.h"
 
@@ -540,7 +546,7 @@ void cleanTokenBufferGrid()
 {
   glDeleteBuffers(1, &grid::tokenBuffer.bufferID);
   grid::tokenBuffer.bufferID   = 0;
-  grid::tokenBuffer.bufferAddr = NULL;
+  grid::tokenBuffer.bufferAddr = 0;
   grid::tokenBuffer.data.clear();
   grid::command.release();
 }
@@ -679,7 +685,7 @@ void RendererCMDList::updateViewport(GLint x, GLint y, GLsizei width, GLsizei he
   fboMakeResourcesResident();
   // could have way more commands here...
   // ...
-  if(g_tokenBufferViewport.bufferAddr == NULL)
+  if(g_tokenBufferViewport.bufferAddr == 0)
   {
     // first time: create
     g_tokenBufferViewport.data = buildViewportCommand(x, y, width, height);
@@ -1260,18 +1266,18 @@ bool Bk3dModelCMDList::buildCmdBuffer(RendererCMDList* pRenderer, int bufIdx, in
           break;
         case GL_QUADS:
           //m_pGenericModel->m_stats.primitives += pPG->indexCount/4;
-          DebugBreak();
+          DEBUGBREAK();
           break;
         case GL_QUAD_STRIP:
-          //m_pGenericModel->m_stats.primitives += pPG->indexCount-3;
-          DebugBreak();
+          //m_pGenericModel->m_stats.primitives += pPG->indexCount-3;          
+          DEBUGBREAK();
           break;
         case GL_POINTS:
           //m_pGenericModel->m_stats.primitives += pPG->indexCount;
-          DebugBreak();
+          DEBUGBREAK();
           break;
         default:
-          DebugBreak();
+          DEBUGBREAK();
           // not-handled cases...
           break;
       }
@@ -1279,7 +1285,7 @@ bool Bk3dModelCMDList::buildCmdBuffer(RendererCMDList* pRenderer, int bufIdx, in
         prevState = curState;
       if(prevState != curState)
       {
-        m_commandModel2[bufIdx].pushBatch(prevState, FBO, NULL, NULL, (GLsizei)m_tokenBufferModel2[bufIdx].size() - tokenTableOffset);
+        m_commandModel2[bufIdx].pushBatch(prevState, FBO, 0, NULL, (GLsizei)m_tokenBufferModel2[bufIdx].size() - tokenTableOffset);
         offsets.push_back(tokenTableOffset);
         // new offset
         tokenTableOffset = (GLsizei)m_tokenBufferModel2[bufIdx].size();
@@ -1328,7 +1334,7 @@ bool Bk3dModelCMDList::buildCmdBuffer(RendererCMDList* pRenderer, int bufIdx, in
         // not-handled cases...
         break;
     }
-    m_commandModel2[bufIdx].pushBatch(curState, FBO, NULL, NULL, (GLsizei)m_tokenBufferModel2[bufIdx].size() - tokenTableOffset);
+    m_commandModel2[bufIdx].pushBatch(curState, FBO, 0, NULL, (GLsizei)m_tokenBufferModel2[bufIdx].size() - tokenTableOffset);
     offsets.push_back(tokenTableOffset);
 
     // new offset and ptr

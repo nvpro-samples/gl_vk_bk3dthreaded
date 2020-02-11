@@ -925,8 +925,9 @@ bool NVK::utInitialize(bool bValidationLayer, WindowSurface* pWindowSurface)
         m_DebugReportMessage = NULL;//pwinInternalVK->m_DebugReportMessage;
         m_gpu.device = pContext->m_physicalDevice;
         m_gpu.memoryProperties = pContext->m_physicalInfo.memoryProperties;
-        m_gpu.properties = pContext->m_physicalInfo.properties;
-        m_gpu.features2 = pContext->m_physicalInfo.features2;
+        m_gpu.properties = pContext->m_physicalInfo.properties10;
+        m_gpu.features2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+        m_gpu.features2.features = pContext->m_physicalInfo.features10;
         m_gpu.queueProperties = pContext->m_physicalInfo.queueProperties;
         //m_gpu.graphics_queue_family_index = pwinInternalVK->m_gpu.graphics_queue_family_index;
         m_queue = pContext->m_queueGCT;

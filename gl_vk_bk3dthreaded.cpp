@@ -65,13 +65,6 @@ MatrixBufferGlobal g_globalMatrices;
 
 std::vector<Bk3dModel*> g_bk3dModels;
 
-#define FOREACHMODEL(cmd)                                                                                              \
-  {                                                                                                                    \
-    for(int m = 0; m < g_bk3dModels.size(); m++)                                                                       \
-    {                                                                                                                  \
-      g_bk3dModels[m]->cmd;                                                                                            \
-    }                                                                                                                  \
-  }
 static int s_curObject = 0;
 
 template <typename T, size_t N>
@@ -89,13 +82,13 @@ struct CameraAnim
 };
 static CameraAnim s_cameraAnim[] = {
     // pos                    target                   time to wait
-    vec3f(-0.43, -0.20, -0.01), vec3f(-0.14, -0.34, 0.40), 3.0, vec3f(0.00, -0.36, 0.15),  vec3f(0.01, -0.40, 0.39),  2,
-    vec3f(0.15, -0.38, 0.23),   vec3f(0.16, -0.40, 0.38),  2,   vec3f(0.30, -0.37, 0.22),  vec3f(0.31, -0.39, 0.38),  2,
-    vec3f(0.60, -0.37, 0.32),   vec3f(0.35, -0.41, 0.41),  2,   vec3f(0.24, -0.39, 0.26),  vec3f(0.23, -0.40, 0.35),  2,
-    vec3f(0.26, -0.41, 0.37),   vec3f(0.23, -0.40, 0.37),  2,   vec3f(0.09, -0.40, 0.36),  vec3f(0.05, -0.40, 0.37),  2,
-    vec3f(-0.01, -0.38, 0.39),  vec3f(-0.07, -0.38, 0.39), 2,   vec3f(-0.18, -0.38, 0.38), vec3f(-0.11, -0.38, 0.40), 2,
-    vec3f(-0.12, -0.37, 0.41),  vec3f(-0.06, -0.37, 0.43), 2,   vec3f(-0.12, -0.29, 0.41), vec3f(-0.12, -0.30, 0.41), 1,
-    vec3f(-0.25, -0.12, 0.25),  vec3f(-0.11, -0.37, 0.40), 2,
+    {vec3f(-0.43, -0.20, -0.01), vec3f(-0.14, -0.34, 0.40), 3.0}, {vec3f(0.00, -0.36, 0.15),  vec3f(0.01, -0.40, 0.39),  2},
+    {vec3f(0.15, -0.38, 0.23),   vec3f(0.16, -0.40, 0.38),  2},   {vec3f(0.30, -0.37, 0.22),  vec3f(0.31, -0.39, 0.38),  2},
+    {vec3f(0.60, -0.37, 0.32),   vec3f(0.35, -0.41, 0.41),  2},   {vec3f(0.24, -0.39, 0.26),  vec3f(0.23, -0.40, 0.35),  2},
+    {vec3f(0.26, -0.41, 0.37),   vec3f(0.23, -0.40, 0.37),  2},   {vec3f(0.09, -0.40, 0.36),  vec3f(0.05, -0.40, 0.37),  2},
+    {vec3f(-0.01, -0.38, 0.39),  vec3f(-0.07, -0.38, 0.39), 2},   {vec3f(-0.18, -0.38, 0.38), vec3f(-0.11, -0.38, 0.40), 2},
+    {vec3f(-0.12, -0.37, 0.41),  vec3f(-0.06, -0.37, 0.43), 2},   {vec3f(-0.12, -0.29, 0.41), vec3f(-0.12, -0.30, 0.41), 1},
+    {vec3f(-0.25, -0.12, 0.25),  vec3f(-0.11, -0.37, 0.40), 2},
 };
 
 static int   s_cameraAnimItem      = 0;
@@ -462,7 +455,7 @@ void MyWindow::processUI(int width, int height, double dt)
 //------------------------------------------------------------------------------
 bool MyWindow::open(int posX, int posY, int width, int height, const char* title, const nvgl::ContextWindowCreateInfo& context)
 {
-  if(!AppWindowCameraInertia::open(posX, posY, width, height, title))
+  if(!AppWindowCameraInertia::open(posX, posY, width, height, title, true))
     return false;
   m_contextWindowGL.init(&context, m_internal, title);
   ImGui::InitGL();

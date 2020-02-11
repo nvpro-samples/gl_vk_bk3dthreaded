@@ -44,11 +44,11 @@
 #define COLOR_CYAN    0xFF00FFFF
 #define COLOR_CYAN2   0xFF00AAAA
 
-#if defined ANDROID
+#if defined ANDROID || defined __GNUC__
 #define __forceinline inline
 #endif
 
-#if defined IOS || defined ANDROID
+#if defined IOS || defined ANDROID || defined __GNUC__
   #include <stdint.h>
   typedef unsigned char uchar;
   typedef uint16_t  ushort;
@@ -67,7 +67,7 @@
   typedef signed   __int64  int64;
 #endif
 
-#if defined IOS || defined ANDROID
+#if defined IOS || defined ANDROID || defined LINUX
 #include <pthread.h>
 #include <semaphore.h>
 
@@ -316,7 +316,7 @@ protected:
     void DeleteEvent();
 
     NEventHandle m_event;
-#if defined IOS || defined ANDROID
+#if defined IOS || defined ANDROID || defined LINUX
     // pthread is retarded and their condition signaling involves both a condition variable and a mutex
     mutable pthread_mutex_t m_mutex;
     mutable bool m_signaled;

@@ -65,6 +65,11 @@
 
 #include "mt/CThreadWork.h"
 
+#ifdef _WIN32
+#define DEBUGBREAK() DebugBreak()
+#else
+#define DEBUGBREAK() __builtin_trap()
+#endif
 ///////////////////////////////////////////////////////////////////////////////
 // VULKAN: NVK.inl > vkfnptrinline.h > vulkannv.h > vulkan.h
 //
@@ -319,7 +324,7 @@ public:
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool load_binary(std::string& name, std::string& data)
+bool load_binary(const std::string& name, std::string& data)
 {
   FILE*                    fd = NULL;
   std::vector<std::string> paths;
@@ -1184,8 +1189,10 @@ void RendererVk::releaseThreadLocalVars()
   if(cmdPoolStatic)
     cmdPoolStatic.destroyCommandPool();
   cmdPoolStatic = VK_NULL_HANDLE;
-  if(m_perThreadData)
-    delete m_perThreadData;
+  if (m_perThreadData)
+  {
+    delete (PerThreadData*)m_perThreadData;
+  }
   m_perThreadData = NULL;
 }
 //------------------------------------------------------------------------------
@@ -1951,7 +1958,7 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk* pRendererVk, NVK::CommandBuffer& cmd
             }
             break;
           default:
-            DebugBreak();
+            DEBUGBREAK();
             // not-handled cases...
             break;
         }

@@ -446,9 +446,9 @@ public:
             VkDeviceSize                                bufferOffset,
             uint32_t                                    bufferRowLength,
             uint32_t                                    bufferImageHeight,
-            ImageSubresourceLayers                    &imageSubresource,
-            Offset3D                                  &imageOffset,
-            Extent3D                                  &imageExtent,
+            ImageSubresourceLayers const              &imageSubresource,
+            Offset3D const                            &imageOffset,
+            Extent3D const                            &imageExtent,
             int miplevel = 0, int layer = 0)
         {
             operator()(bufferOffset, bufferRowLength, bufferImageHeight, imageSubresource, imageOffset, imageExtent, miplevel, layer);
@@ -457,9 +457,9 @@ public:
             VkDeviceSize                                bufferOffset,
             uint32_t                                    bufferRowLength,
             uint32_t                                    bufferImageHeight,
-            ImageSubresourceLayers                    &imageSubresource,
-            Offset3D                                  &imageOffset,
-            Extent3D                                  &imageExtent,
+            ImageSubresourceLayers const              &imageSubresource,
+            Offset3D const                            &imageOffset,
+            Extent3D const                            &imageExtent,
             int miplevel = 0, int layer = 0)
         {
             VkBufferImageCopy b = {bufferOffset, bufferRowLength, bufferImageHeight, imageSubresource, imageOffset, imageExtent};
@@ -476,14 +476,18 @@ public:
             VkDeviceSize                                bufferOffset,
             uint32_t                                    bufferRowLength,
             uint32_t                                    bufferImageHeight,
-            ImageSubresourceLayers                    &imageSubresource,
-            Offset3D                                  &imageOffset,
-            Extent3D                                  &imageExtent,
+            ImageSubresourceLayers const              &imageSubresource,
+            Offset3D const                            &imageOffset,
+            Extent3D const                            &imageExtent,
             int miplevel = 0, int layer = 0)
         {
             operator()(bufferOffset, bufferRowLength, bufferImageHeight, imageSubresource, imageOffset, imageExtent, miplevel, layer);
         }
-        inline BufferImageCopy &operator=(const BufferImageCopy &src) { s = src.s; }
+        inline BufferImageCopy& operator=(const BufferImageCopy& src)
+        {
+          s = src.s;
+          return *this;
+        }
         inline size_t size() { return s.size(); }
         inline VkBufferImageCopy* getItem(int i=0) { return &(s[i]); }
         inline const VkBufferImageCopy* getItemCst(int i=0) const { return &(s[i]); }
@@ -1026,6 +1030,7 @@ public:
           s = src.s;
           name = src.name;
           s.pName = name.c_str();
+          return *this;
         }
         PipelineShaderStageCreateInfo(    VkShaderStageFlagBits                       stage,
                                             VkShaderModule                              module,
@@ -1117,6 +1122,7 @@ public:
           s.pViewports = t.getItem(0);
           s.scissorCount = u.size();
           s.pScissors = u.getItem(0);
+          return *this;
         }
         PipelineViewportStateCreateInfo() : t(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f), u(0.0f, 0.0f, 0.0f, 0.0f)
         {
@@ -1693,6 +1699,7 @@ public:
             ss.offset    = offset;
             ss.size      = size;
             s.push_back(ss);
+            return *this;
         };
         BufferMemoryBarrier(VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, 
             uint32_t                                    srcQueueFamilyIndex,
@@ -1787,7 +1794,11 @@ public:
         inline const VkRenderPassBeginInfo* getItemCst() const { return &s; }
         operator VkRenderPassBeginInfo* () { return &s; }
         operator const VkRenderPassBeginInfo* () const { return &s; }
-        RenderPassBeginInfo& operator=(const RenderPassBeginInfo& src) { assert(!"TODO!"); }
+        RenderPassBeginInfo&                operator=(const RenderPassBeginInfo& src)
+        {
+          assert(!"TODO!");
+          return *this;
+        }
     private:
         VkRenderPassBeginInfo s;
         ClearValue t;
@@ -2176,6 +2187,7 @@ public:
             ss.dstAccessMask = dstAccessMask;
             ss.dependencyFlags = dependencyFlags;
             s.push_back(ss);
+            return *this;
         }
         SubpassDependency() {} // allows to reference None of it
         SubpassDependency(SubpassDependency &a) { s = a.s; } // allows to reference None of it
