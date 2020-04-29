@@ -1671,7 +1671,7 @@ bool Bk3dModelVk::initResources(Renderer* pRenderer)
     VkResult    result = VK_SUCCESS;
     bk3d::Mesh* pMesh  = m_pGenericModel->m_meshFile->pMeshes->p[i];
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-    int idx = (int)pMesh->VBOIDX;
+    int idx = uintptr_t(pMesh->VBOIDX);
     curVBO  = m_ObjVBOs[idx];
     curEBO  = m_ObjEBOs[idx];
 #endif
@@ -1681,7 +1681,7 @@ bool Bk3dModelVk::initResources(Renderer* pRenderer)
       bk3d::Slot* pS = pMesh->pSlots->p[s];
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
       result = nvk.utFillBuffer(&pRendererVk->m_perThreadData->m_cmdPoolStatic, pS->vtxBufferSizeBytes, result,
-                                pS->pVtxBufferData, curVBO.buffer, (GLuint)(char*)pS->VBOIDX);
+                                pS->pVtxBufferData, curVBO.buffer, (GLuint)uintptr_t((int *)pS->VBOIDX));
 #else
       VkBuffer buffer = m_memoryVBO.createBufferAllocFill(pRendererVk->m_perThreadData->m_cmdPoolStatic, pS->vtxBufferSizeBytes,
                                                           pS->pVtxBufferData, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -1696,7 +1696,7 @@ bool Bk3dModelVk::initResources(Renderer* pRenderer)
       {
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
         result = nvk.utFillBuffer(&pRendererVk->m_perThreadData->m_cmdPoolStatic, pPG->indexArrayByteSize, result,
-                                  pPG->pIndexBufferData, curEBO.buffer, (GLuint)(char*)pPG->EBOIDX);
+                                  pPG->pIndexBufferData, curEBO.buffer, (GLuint)uintptr_t(pPG->EBOIDX));
 #else
         VkBuffer buffer = m_memoryEBO.createBufferAllocFill(pRendererVk->m_perThreadData->m_cmdPoolStatic, pPG->indexArrayByteSize,
                                                             pPG->pIndexBufferData, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
@@ -1810,7 +1810,7 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk* pRendererVk, NVK::CommandBuffer& cmd
     //
     // get back the buffers that are used by this mesh
     //
-    int idx = (int)pMesh->VBOIDX;
+    int idx = uintptr_t(pMesh->VBOIDX);
     curVBO  = m_ObjVBOs[idx];
     curEBO  = m_ObjEBOs[idx];
 #endif
@@ -1969,7 +1969,7 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk* pRendererVk, NVK::CommandBuffer& cmd
       //
       if(needUpdateDSetOffsets)
       {
-        uint32_t offsets[2] = {curTransf * sizeof(MatrixBufferObject), curMaterial * sizeof(MaterialBuffer)};
+        uint32_t offsets[2] = {static_cast<uint32_t>(curTransf * sizeof(MatrixBufferObject)), static_cast<uint32_t>(curMaterial * sizeof(MaterialBuffer))};
         vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pRendererVk->m_pipelineLayout, DSET_OBJECT,
                                 NDSETOBJECT, m_descriptorSets, 2, offsets);
         // This is not optimal: many vkCmdBindDescriptorSets in cmdBufferSplitTopo[] when not especially needed

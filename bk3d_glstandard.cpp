@@ -771,7 +771,7 @@ bool Bk3dModelStandard::deleteResourcesObject()
       {
         if((pPG->pOwnerOfIB == pPG) || (pPG->pOwnerOfIB == NULL))  // this primitive group doesn't use other's buffer
         {
-          GLuint id    = (GLuint)pPG->userPtr;
+          GLuint id    = (GLuint)uintptr_t(pPG->userPtr);
           pPG->userPtr = NULL;
           glDeleteBuffers(1, &id);
         }
@@ -1045,7 +1045,7 @@ void Bk3dModelStandard::displayObject(Renderer* pRenderer, const mat4f& cameraVi
           }
           if(pPG->pIndexBufferData)
           {
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (GLuint)pPG->userPtr);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (GLuint)uintptr_t(pPG->userPtr));
             glDrawElements(pPG->topologyGL, pPG->indexCount, pPG->indexFormatGL, (const void*)pPG->indexArrayByteOffset);
           }
           else

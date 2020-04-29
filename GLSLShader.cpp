@@ -201,7 +201,7 @@ bool GLSLShader::outputProgramLog(GLuint obj)
     if(len)
     {
         LOGW("Log for %d:\n%s\n\n", obj, buf);
-        if(strstr(buf, "error") > 0)
+        if(strstr(buf, "error") != nullptr)
             return false;
 #    ifdef _DEBUG
         //if(strstr(buf, "error") > 0)
@@ -221,7 +221,7 @@ bool GLSLShader::outputShaderLog(GLuint obj)
     if(len)
     {
         LOGW("Log for %d:\n%s\n\n", obj, buf);
-        if(strstr(buf, "error") > 0)
+        if(strstr(buf, "error") != nullptr)
             return false;
 #    ifdef _DEBUG
         //if(strstr(buf, "error") > 0)

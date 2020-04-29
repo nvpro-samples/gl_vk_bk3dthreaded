@@ -35,10 +35,10 @@
 
 #include <vulkan/vulkan.h>
 
+#include "window_surface_vk.hpp"
 #include <nvvk/error_vk.hpp>
 #include <nvvk/images_vk.hpp>
 #include <nvvk/renderpasses_vk.hpp>
-#include "window_surface_vk.hpp"
 #ifdef _WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
 #else
@@ -46,6 +46,7 @@
 #endif
 #include <GLFW/glfw3native.h>
 
+#include "dedicated_image.h"
 #include <nvvk/structs_vk.hpp>
 
 bool WindowSurface::init(nvvk::Context* pContext, NVPWindow* pWin, int MSAA)
@@ -77,23 +78,23 @@ bool WindowSurface::init(nvvk::Context* pContext, NVPWindow* pWin, int MSAA)
     default:
       return false;
   }
-  fb_width          = pWin->getWidth();
-  fb_height         = pWin->getHeight();
+  fb_width   = pWin->getWidth();
+  fb_height  = pWin->getHeight();
   m_pContext = pContext;
 
   // Construct the surface description:
   VkResult result;
 #ifdef _WIN32
   VkWin32SurfaceCreateInfoKHR createInfo = {};
-  createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-  createInfo.pNext = NULL;
-  HINSTANCE hInstance = GetModuleHandle(NULL);
-  createInfo.hinstance = hInstance;
-  createInfo.hwnd = glfwGetWin32Window(pWin->m_internal);
+  createInfo.sType                       = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+  createInfo.pNext                       = NULL;
+  HINSTANCE hInstance                    = GetModuleHandle(NULL);
+  createInfo.hinstance                   = hInstance;
+  createInfo.hwnd                        = glfwGetWin32Window(pWin->m_internal);
   result = vkCreateWin32SurfaceKHR(pContext->m_instance, &createInfo, nullptr, &m_surface);
-#else  // _WIN32
+#else   // _WIN32
   result = glfwCreateWindowSurface(pContext->m_instance, pWin->m_internal, NULL, &m_surface);
-#endif // _WIN32
+#endif  // _WIN32
   assert(result == VK_SUCCESS);
 
   pContext->setGCTQueueWithPresent(m_surface);
@@ -103,8 +104,8 @@ bool WindowSurface::init(nvvk::Context* pContext, NVPWindow* pWin, int MSAA)
   resize(fb_width, fb_height);
   VkDevice device = m_pContext->m_device;
   VkResult err;
-  assert(m_swapChain.getSwapchainImageCount() <= VK_MAX_QUEUED_FRAMES);
-  for(uint32_t i = 0; i < m_swapChain.getSwapchainImageCount(); i++)
+  assert(m_swapChain.getImageCount() <= VK_MAX_QUEUED_FRAMES);
+  for(uint32_t i = 0; i < m_swapChain.getImageCount(); i++)
   {
     {
       VkCommandPoolCreateInfo info = {};
@@ -159,7 +160,7 @@ void WindowSurface::deinit()
       vkDestroyFramebuffer(device, m_framebuffer[i], m_allocator);
     }
   }
-  for(uint32_t i = 0; i < m_swapChain.getSwapchainImageCount(); i++)
+  for(uint32_t i = 0; i < m_swapChain.getImageCount(); i++)
   {
     vkDestroyFence(device, m_fence[i], m_allocator);
     m_fence[i] = VK_NULL_HANDLE;
@@ -567,20 +568,20 @@ bool WindowSurface::hasStencilComponent(VkFormat format)
 //
 void WindowSurface::createDepthResources()
 {
-  VkFormat    depthFormat = nvvk::findDepthFormat(m_pContext->m_physicalDevice);
-  VkImageCreateInfo dsImageInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-  dsImageInfo.imageType = VK_IMAGE_TYPE_2D;
-  dsImageInfo.format = depthFormat;
-  dsImageInfo.extent.width = fb_width;
-  dsImageInfo.extent.height = fb_height;
-  dsImageInfo.extent.depth = 1;
-  dsImageInfo.mipLevels = 1;
-  dsImageInfo.arrayLayers = 1;
-  dsImageInfo.samples = m_samples;
-  dsImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-  dsImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-  dsImageInfo.flags = 0;
-  dsImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  VkFormat          depthFormat = nvvk::findDepthFormat(m_pContext->m_physicalDevice);
+  VkImageCreateInfo dsImageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+  dsImageInfo.imageType         = VK_IMAGE_TYPE_2D;
+  dsImageInfo.format            = depthFormat;
+  dsImageInfo.extent.width      = fb_width;
+  dsImageInfo.extent.height     = fb_height;
+  dsImageInfo.extent.depth      = 1;
+  dsImageInfo.mipLevels         = 1;
+  dsImageInfo.arrayLayers       = 1;
+  dsImageInfo.samples           = m_samples;
+  dsImageInfo.tiling            = VK_IMAGE_TILING_OPTIMAL;
+  dsImageInfo.usage             = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+  dsImageInfo.flags             = 0;
+  dsImageInfo.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
 
   nvvk::DedicatedImage image;
   image.init(m_pContext->m_device, m_pContext->m_physicalDevice, dsImageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -596,19 +597,19 @@ void WindowSurface::createMSAAColorResources()
 {
   if(m_samples == VK_SAMPLE_COUNT_1_BIT)
     return;
-  VkImageCreateInfo cbImageInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-  cbImageInfo.imageType = VK_IMAGE_TYPE_2D;
-  cbImageInfo.format = m_swapChain.getFormat();
-  cbImageInfo.extent.width = fb_width;
-  cbImageInfo.extent.height = fb_height;
-  cbImageInfo.extent.depth = 1;
-  cbImageInfo.mipLevels = 1;
-  cbImageInfo.arrayLayers = 1;
-  cbImageInfo.samples = m_samples;
-  cbImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-  cbImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-  cbImageInfo.flags = 0;
-  cbImageInfo.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  VkImageCreateInfo cbImageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+  cbImageInfo.imageType         = VK_IMAGE_TYPE_2D;
+  cbImageInfo.format            = m_swapChain.getFormat();
+  cbImageInfo.extent.width      = fb_width;
+  cbImageInfo.extent.height     = fb_height;
+  cbImageInfo.extent.depth      = 1;
+  cbImageInfo.mipLevels         = 1;
+  cbImageInfo.arrayLayers       = 1;
+  cbImageInfo.samples           = m_samples;
+  cbImageInfo.tiling            = VK_IMAGE_TILING_OPTIMAL;
+  cbImageInfo.usage             = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+  cbImageInfo.flags             = 0;
+  cbImageInfo.initialLayout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
   nvvk::DedicatedImage image;
   image.init(m_pContext->m_device, m_pContext->m_physicalDevice, cbImageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);

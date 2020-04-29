@@ -50,6 +50,7 @@
 
 #if defined IOS || defined ANDROID || defined __GNUC__
   #include <stdint.h>
+  #include <string.h>
   typedef unsigned char uchar;
   typedef uint16_t  ushort;
   typedef uint32_t  uint;
