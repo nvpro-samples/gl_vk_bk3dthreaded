@@ -337,9 +337,9 @@ bool load_binary(const std::string& name, std::string& data)
   paths.push_back(std::string("SPV_" PROJECT_NAME "/") + name);
   //paths.push_back(std::string(PROJECT_RELDIRECTORY) + name);
   //paths.push_back(std::string(PROJECT_ABSDIRECTORY) + name);
-  for(int i = 0; i < paths.size(); i++)
+  for(size_t i = 0; i < paths.size(); i++)
   {
-    if(fd = fopen(paths[i].c_str(), "rb"))
+    if((fd = fopen(paths[i].c_str(), "rb")) != NULL)
     {
       break;
     }

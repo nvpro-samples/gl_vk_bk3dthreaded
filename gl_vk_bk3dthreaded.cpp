@@ -263,7 +263,7 @@ bool Bk3dModel::loadModel()
   //paths.push_back(std::string(PROJECT_ABSDIRECTORY) + name);
   for(int i = 0; i < m_paths.size(); i++)
   {
-    if(m_meshFile = bk3d::load(m_paths[i].c_str()))
+    if((m_meshFile = bk3d::load(m_paths[i].c_str())))
     {
       break;
     }
@@ -424,7 +424,7 @@ void MyWindow::processUI(int width, int height, double dt)
       // camera help
       //ImGui::SetNextWindowCollapsed(0);
       const char* txt = getHelpText();
-      ImGui::Text(txt);
+      ImGui::Text("%s",txt);
       ImGui::EndChild();
     }
 
@@ -1060,6 +1060,7 @@ int main(int argc, const char** argv)
                                false,  //debug;
                                false,  //robust;
                                false,  //forward;
+                               false,  //stereo
                                NULL    //share;
   );
 
@@ -1069,7 +1070,7 @@ int main(int argc, const char** argv)
   if(!myWindow.open(0, 0, 1280, 720, "gl_vk_bk3dthreaded", context))
   {
     LOGE("Failed to initialize the sample\n");
-    return false;
+    return EXIT_FAILURE;
   }
 
   // -------------------------------
@@ -1090,7 +1091,7 @@ int main(int argc, const char** argv)
     {
       case 'm':
         if(i == argc - 1)
-          return false;
+          return EXIT_FAILURE;
         {
           const char* name = argv[++i];
           LOGI("Load Model set to %s\n", name);
@@ -1285,5 +1286,5 @@ int main(int argc, const char** argv)
 #endif
   
   myWindow.m_contextWindowGL.deinit();
-  return true;
+  return EXIT_SUCCESS;
 }

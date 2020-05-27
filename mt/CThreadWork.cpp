@@ -299,7 +299,7 @@ TaskQueue::TaskQueue(/*CThread **/NThreadHandle thread, CEvent* dataReadyEvent) 
         m_threadID = GetCurrentThreadId();
     m_thread = OpenThread(THREAD_ALL_ACCESS, FALSE, m_threadID);
 #else
-    if(thread == NULL)
+    if(thread == 0)
         m_thread = pthread_self();
     else
         m_thread = thread;
