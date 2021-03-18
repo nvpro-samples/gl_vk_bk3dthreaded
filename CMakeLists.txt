@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 set(PROJNAME gl_vk_bk3dthreaded)
 Project(${PROJNAME})
 Message(STATUS "-------------------------------")
@@ -7,26 +7,20 @@ Message(STATUS "Processing Project ${PROJNAME}:")
 #####################################################################################
 # offer the choice of having shared_sources as a sub-folder... good for packaging a sample
 #
-if(NOT BASE_DIRECTORY) # if not defined, it means this cmake file was called as the first entry point and not included
-  # check if the external repository is outside or inside the project (as a sub-module)
-  # testing the file CMakeLists_include.txt because when sub-modules are not cloned, the folders are still there...
-  # we also assume here that if shared_sources is there, shared_external is, too...
-  SET(BASE_DIRECTORY "" CACHE FILEPATH "folder containing shared_sources")
-  SET(ADD_SUBDIR_BELOW 1)
-  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/shared_sources/CMakeLists_include.txt)
-    SET(BASE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-  elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../shared_sources/CMakeLists_include.txt)
-    SET(BASE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..)
-  elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources/CMakeLists_include.txt)
-    SET(BASE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..)
-  else()
-  endif()
-endif(NOT BASE_DIRECTORY)
+if(NOT BASE_DIRECTORY)
 
-if(EXISTS ${BASE_DIRECTORY}/shared_sources/CMakeLists_include.txt)
-  INCLUDE(${BASE_DIRECTORY}/shared_sources/CMakeLists_include.txt)
+  find_path(BASE_DIRECTORY
+    NAMES shared_sources/cmake/setup.cmake
+    PATHS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/../.. 
+    REQUIRED
+    DOC "Directory containing shared_sources"
+    )
+endif()
+if(EXISTS ${BASE_DIRECTORY}/shared_sources/cmake/setup.cmake)
+  include(${BASE_DIRECTORY}/shared_sources/cmake/setup.cmake)
+  include(${BASE_DIRECTORY}/shared_sources/cmake/utilities.cmake)
 else()
-  Message(FATAL_ERROR "could not find base directory, please set BASE_DIRECTORY to folder containing shared_sources")
+  message(FATAL_ERROR "could not find base directory, please set BASE_DIRECTORY to folder containing shared_sources")
 endif()
     
 _add_project_definitions(${PROJNAME})
@@ -37,6 +31,7 @@ _add_project_definitions(${PROJNAME})
 # add refs  in LIBRARIES_DEBUG
 # add files in PACKAGE_SOURCE_FILES
 #
+#set(USING_OPENGL "YES")
 _add_package_OpenGL()
 _add_package_VulkanSDK()
 _add_package_ImGUI()
@@ -58,19 +53,13 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/VK_nvidia)
 # TODO: we need to put the models online. Should happen next week (>Dec.22)
 #
 unset(FILELISTOUT)
-set(FILELIST
-"SubMarine_134.bk3d.gz"
-)
-_download_files(
-  "${FILELIST}"
-  "http://developer.download.nvidia.com/ProGraphics/nvpro-samples"
-  ${DOWNLOAD_TARGET_DIR}
-  0
-  FILELISTOUT
-)
-# you can download more :
-if(0)
+if(1)
+  set(FILELIST
+  "SubMarine_134.bk3d.gz"
+  )
+else()
   set(FILELIST 
+  "SubMarine_134.bk3d.gz"
   "Jet_134.bk3d.gz"
   "Driveline_v134.bk3d.gz"
   "Body_v134.bk3d.gz"
@@ -79,14 +68,9 @@ if(0)
   "Eiffel_133.bk3d.gz"
   "Smobby_134.bk3d.gz"
   )
-  _download_files(
-    "${FILELIST}"
-    "http://developer.download.nvidia.com/ProGraphics/nvpro-samples"
-    ${DOWNLOAD_TARGET_DIR}
-    0
-    FILELISTOUT
-  )
 endif()
+
+download_files(FILENAMES ${FILELIST})
 #####################################################################################
 # GLSL to SPIR-V custom build
 #
@@ -135,6 +119,7 @@ add_executable(${PROJNAME} ${SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOUR
 #
 source_group(common FILES 
   ${COMMON_SOURCE_FILES}
+  ${PACKAGE_SOURCE_FILES}
 )
 #####################################################################################
 # Linkage
@@ -153,10 +138,8 @@ target_link_libraries(${PROJNAME} debug
 #####################################################################################
 # copies binaries that need to be put next to the exe files (ZLib, etc.)
 #
-_copy_binaries_to_target( ${PROJNAME} )
+_finalize_target( ${PROJNAME} )
 
 # additional copies for standalone run from install folder
 install(FILES ${SPV_OUTPUT} CONFIGURATIONS Release DESTINATION "bin_${ARCH}/SPV_${PROJNAME}")
 install(FILES ${SPV_OUTPUT} CONFIGURATIONS Debug DESTINATION "bin_${ARCH}_debug/SPV_${PROJNAME}")
-install(FILES ${FILELISTOUT} CONFIGURATIONS Debug DESTINATION "bin_${ARCH}_debug")
-install(FILES ${FILELISTOUT} CONFIGURATIONS Release DESTINATION "bin_${ARCH}")

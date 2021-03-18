@@ -581,7 +581,7 @@ Mesh related structures
 // Optional use of ZLIB
 // 
 #ifndef GFILE
-#ifndef NOGZLIB
+#ifdef NVP_SUPPORTS_GZLIB
 //#pragma message("Using zlib to read bk3d models...")
 #include "zlib.h"
 #define GFILE gzFile
@@ -725,15 +725,11 @@ INLINE static FileHeader * load(const char * fname, void ** pBufferMemory=NULL, 
     fd = GOPEN(fname, "rb");
     if(!fd)
     {
-      EPRINTF((TEXT("Error : couldn't load ") FSTR TEXT("\n"), fname));
-        return NULL;
+      //EPRINTF((TEXT("Error : couldn't load ") FSTR TEXT("\n"), fname));
+      return NULL;
     }
     unsigned LONG realsize = 0;
-#ifdef NOGZLIB
-    fseek(fd, 0, SEEK_END);
-    realsize = ftell(fd);
-    fseek(fd, 0, SEEK_SET);
-#else
+#ifdef NVP_SUPPORTS_GZLIB
     FILE *file = fopen(fname,"rb");
     // http://www.onicos.com/staff/iz/formats/gzip.html header must have 0x1f 0x8b
     unsigned short header;
@@ -746,6 +742,10 @@ INLINE static FileHeader * load(const char * fname, void ** pBufferMemory=NULL, 
         fread(&realsize, 4, 1, file);
     }
     fclose(file);
+#else
+    fseek(fd, 0, SEEK_END);
+    realsize = ftell(fd);
+    fseek(fd, 0, SEEK_SET);
 #endif
     // load the Node, first
     int n = 0;

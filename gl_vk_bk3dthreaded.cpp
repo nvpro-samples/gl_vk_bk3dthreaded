@@ -26,7 +26,7 @@
  */
 #define DEFAULT_RENDERER 2
 #include "gl_vk_bk3dthreaded.h"
-#include <imgui/imgui_impl_gl.h>
+#include <imgui/backends/imgui_impl_gl.h>
 #include <nvgl/contextwindow_gl.hpp>
 
 //-----------------------------------------------------------------------------
@@ -82,13 +82,19 @@ struct CameraAnim
 };
 static CameraAnim s_cameraAnim[] = {
     // pos                    target                   time to wait
-    {vec3f(-0.43, -0.20, -0.01), vec3f(-0.14, -0.34, 0.40), 3.0}, {vec3f(0.00, -0.36, 0.15),  vec3f(0.01, -0.40, 0.39),  2},
-    {vec3f(0.15, -0.38, 0.23),   vec3f(0.16, -0.40, 0.38),  2},   {vec3f(0.30, -0.37, 0.22),  vec3f(0.31, -0.39, 0.38),  2},
-    {vec3f(0.60, -0.37, 0.32),   vec3f(0.35, -0.41, 0.41),  2},   {vec3f(0.24, -0.39, 0.26),  vec3f(0.23, -0.40, 0.35),  2},
-    {vec3f(0.26, -0.41, 0.37),   vec3f(0.23, -0.40, 0.37),  2},   {vec3f(0.09, -0.40, 0.36),  vec3f(0.05, -0.40, 0.37),  2},
-    {vec3f(-0.01, -0.38, 0.39),  vec3f(-0.07, -0.38, 0.39), 2},   {vec3f(-0.18, -0.38, 0.38), vec3f(-0.11, -0.38, 0.40), 2},
-    {vec3f(-0.12, -0.37, 0.41),  vec3f(-0.06, -0.37, 0.43), 2},   {vec3f(-0.12, -0.29, 0.41), vec3f(-0.12, -0.30, 0.41), 1},
-    {vec3f(-0.25, -0.12, 0.25),  vec3f(-0.11, -0.37, 0.40), 2},
+    {vec3f(-0.43, -0.20, -0.01), vec3f(-0.14, -0.34, 0.40), 3.0},
+    {vec3f(0.00, -0.36, 0.15), vec3f(0.01, -0.40, 0.39), 2},
+    {vec3f(0.15, -0.38, 0.23), vec3f(0.16, -0.40, 0.38), 2},
+    {vec3f(0.30, -0.37, 0.22), vec3f(0.31, -0.39, 0.38), 2},
+    {vec3f(0.60, -0.37, 0.32), vec3f(0.35, -0.41, 0.41), 2},
+    {vec3f(0.24, -0.39, 0.26), vec3f(0.23, -0.40, 0.35), 2},
+    {vec3f(0.26, -0.41, 0.37), vec3f(0.23, -0.40, 0.37), 2},
+    {vec3f(0.09, -0.40, 0.36), vec3f(0.05, -0.40, 0.37), 2},
+    {vec3f(-0.01, -0.38, 0.39), vec3f(-0.07, -0.38, 0.39), 2},
+    {vec3f(-0.18, -0.38, 0.38), vec3f(-0.11, -0.38, 0.40), 2},
+    {vec3f(-0.12, -0.37, 0.41), vec3f(-0.06, -0.37, 0.43), 2},
+    {vec3f(-0.12, -0.29, 0.41), vec3f(-0.12, -0.30, 0.41), 1},
+    {vec3f(-0.25, -0.12, 0.25), vec3f(-0.11, -0.37, 0.40), 2},
 };
 
 static int   s_cameraAnimItem      = 0;
@@ -128,7 +134,7 @@ void initThreadLocalVars();
 class MyWindow : public AppWindowCameraInertia
 {
 public:
-  ImGuiH::Registry      m_guiRegistry;
+  ImGuiH::Registry    m_guiRegistry;
   nvgl::ContextWindow m_contextWindowGL;
 
   MyWindow();
@@ -151,7 +157,7 @@ public:
 MyWindow::MyWindow()
     : AppWindowCameraInertia(vec3f(-0.43, -0.20, -0.01), vec3f(-0.14, -0.34, 0.40)
 
-      )
+    )
 {
 }
 
@@ -255,12 +261,12 @@ bool Bk3dModel::loadModel()
   LOGI("Loading Mesh %s..\n", m_name.c_str());
   std::vector<std::string> m_paths;
   m_paths.push_back(m_name);
+  m_paths.push_back(std::string("media/") + m_name);
   m_paths.push_back(std::string("downloaded_resources/") + m_name);
   m_paths.push_back(std::string("../downloaded_resources/") + m_name);
   m_paths.push_back(std::string("../../downloaded_resources/") + m_name);
   m_paths.push_back(std::string("../../../downloaded_resources/") + m_name);
   //paths.push_back(std::string(PROJECT_RELDIRECTORY) + name);
-  //paths.push_back(std::string(PROJECT_ABSDIRECTORY) + name);
   for(int i = 0; i < m_paths.size(); i++)
   {
     if((m_meshFile = bk3d::load(m_paths[i].c_str())))
@@ -424,7 +430,7 @@ void MyWindow::processUI(int width, int height, double dt)
       // camera help
       //ImGui::SetNextWindowCollapsed(0);
       const char* txt = getHelpText();
-      ImGui::Text("%s",txt);
+      ImGui::Text("%s", txt);
       ImGui::EndChild();
     }
 
@@ -992,16 +998,12 @@ void readConfigFile(const char* fname)
   //  if(!fp)
   //  {
   //      std::string modelPathName;
-  //      modelPathName = std::string(PROJECT_RELDIRECTORY) + std::string(fname);
+  //      modelPathName = NVPSystem::exePath() + std::string(PROJECT_RELDIRECTORY) + std::string(fname);
   //      fp = fopen(modelPathName.c_str(), "r");
   //      if(!fp)
   //      {
-  //          modelPathName = std::string(PROJECT_ABSDIRECTORY) + std::string(fname);
-  //          fp = fopen(modelPathName.c_str(), "r");
-  //          if(!fp) {
   //              LOGE("Couldn't Load %s\n", fname);
   //              return;
-  //          }
   //      }
   //  }
   //  int nModels = 0;
@@ -1043,7 +1045,7 @@ void readConfigFile(const char* fname)
 //------------------------------------------------------------------------------
 int main(int argc, const char** argv)
 {
-  NVPSystem system(argv[0], PROJECT_NAME);
+  NVPSystem system(PROJECT_NAME);
 
   // you can create more than only one
   static MyWindow myWindow;
@@ -1052,16 +1054,16 @@ int main(int argc, const char** argv)
   // Basic OpenGL settings
   //
   nvgl::ContextWindowCreateInfo context(4,      //major;
-                               3,      //minor;
-                               false,  //core;
-                               1,      //MSAA;
-                               24,     //depth bits
-                               8,      //stencil bits
-                               false,  //debug;
-                               false,  //robust;
-                               false,  //forward;
-                               false,  //stereo
-                               NULL    //share;
+                                        3,      //minor;
+                                        false,  //core;
+                                        1,      //MSAA;
+                                        24,     //depth bits
+                                        8,      //stencil bits
+                                        false,  //debug;
+                                        false,  //robust;
+                                        false,  //forward;
+                                        false,  //stereo
+                                        NULL    //share;
   );
 
   // -------------------------------
@@ -1118,8 +1120,7 @@ int main(int argc, const char** argv)
         g_MSAA = atoi(argv[++i]);
         LOGI("g_MSAA set to %d\n", g_MSAA);
         break;
-      case 'i':
-      {
+      case 'i': {
         const char* name = argv[++i];
         LOGI("Load Model set to %s\n", name);
         readConfigFile(name);
@@ -1143,12 +1144,10 @@ int main(int argc, const char** argv)
 // -------------------------------
 // Model init
 //
-#ifdef NOGZLIB
-#define MODELNAME "SubMarine_134.bk3d"  //"Smobby_134.bk3d"
+#ifdef NVP_SUPPORTS_GZLIB
+#define MODELNAME "SubMarine_134.bk3d.gz"
 #else
-//#define MODELNAME "Smobby_134.bk3d.gz"
-#define MODELNAME "SubMarine_134.bk3d.gz"  //"Smobby_134.bk3d.gz"
-//#   define MODELNAME "Driveline_v134.bk3d.gz"
+#define MODELNAME "SubMarine_134.bk3d"
 #endif
   if(g_bk3dModels.empty())
   {
@@ -1186,7 +1185,7 @@ int main(int argc, const char** argv)
   // -------------------------------
   // Message pump loop
   //
-  while (myWindow.pollEvents())
+  while(myWindow.pollEvents())
   {
 #ifdef USEWORKERS
     // manage possible tasks, queued for this main thread
@@ -1263,9 +1262,9 @@ int main(int argc, const char** argv)
       }
     }
   }  // while(MyWindow::sysPollEvents(false) )
-// -------------------------------
-// Terminate
-//
+     // -------------------------------
+     // Terminate
+     //
 
   releaseThreadLocalVars();
   s_pCurRenderer->terminateGraphics();
@@ -1284,7 +1283,7 @@ int main(int argc, const char** argv)
   //
   terminateThreads();
 #endif
-  
+
   myWindow.m_contextWindowGL.deinit();
   return EXIT_SUCCESS;
 }

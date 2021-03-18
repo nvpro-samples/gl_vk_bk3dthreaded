@@ -1,8 +1,0 @@
-[submodule "shared_sources"]
-	path = shared_sources
-	url = git@github.com:nvpro-samples/shared_sources.git
-	branch = gl_vk_bk3dthreaded
-[submodule "shared_external"]
-	path = shared_external
-	url = git@github.com:nvpro-samples/shared_external.git
-	branch = gl_vk_bk3dthreaded

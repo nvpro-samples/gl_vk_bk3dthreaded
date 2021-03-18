@@ -335,8 +335,6 @@ bool load_binary(const std::string& name, std::string& data)
   paths.push_back(std::string("../../" PROJECT_NAME "/GLSL/") + name);          // for when using $(TargetDir)
   paths.push_back(std::string("../../shipped/" PROJECT_NAME "/GLSL/") + name);  // for when using $(TargetDir)
   paths.push_back(std::string("SPV_" PROJECT_NAME "/") + name);
-  //paths.push_back(std::string(PROJECT_RELDIRECTORY) + name);
-  //paths.push_back(std::string(PROJECT_ABSDIRECTORY) + name);
   for(size_t i = 0; i < paths.size(); i++)
   {
     if((fd = fopen(paths[i].c_str(), "rb")) != NULL)
@@ -662,7 +660,6 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
   std::string              name("GLSL/noise64x64_RGB.dds");
   paths.push_back(name);
   paths.push_back(NVPSystem::exePath() + std::string(PROJECT_RELDIRECTORY) + name);
-  //paths.push_back(std::string(PROJECT_ABSDIRECTORY) + name);
   for(int i = 0; i < paths.size(); i++)
   {
     if(image.load(paths[i].c_str()))

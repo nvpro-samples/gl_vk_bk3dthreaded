@@ -47,7 +47,7 @@ using namespace nvmath;
 
 #include "helper_fbo.h"
 
-#ifndef NOGZLIB
+#ifdef NVP_SUPPORTS_GZLIB
 #   include "zlib.h"
 #endif
 #include "bk3dEx.h" // a baked binary format for few models

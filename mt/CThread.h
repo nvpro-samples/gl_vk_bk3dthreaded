@@ -105,7 +105,7 @@ typedef __declspec(align(4)) LONG         NInterlockedValue;
 //NOTE pthread_mutex is much slower than Win32 Critical sections... to see
 typedef HANDLE                            NMutexHandle;
 
-#ifdef SUPPORT_NVTOOLSEXT
+#ifdef NVP_SUPPORTS_NVTOOLSEXT
 //#    include "nvToolsExt.h"
 //#    define NX_RANGE nvtxRangeId_t
 //#    define NX_MARK(name) nvtxMark(name)

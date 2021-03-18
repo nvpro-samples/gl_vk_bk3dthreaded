@@ -39,6 +39,9 @@
 #include <nvvk/error_vk.hpp>
 #include <nvvk/images_vk.hpp>
 #include <nvvk/renderpasses_vk.hpp>
+
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
 #ifdef _WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
 #else
