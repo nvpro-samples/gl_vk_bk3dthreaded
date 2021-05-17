@@ -5,22 +5,22 @@ Message(STATUS "-------------------------------")
 Message(STATUS "Processing Project ${PROJNAME}:")
 
 #####################################################################################
-# offer the choice of having shared_sources as a sub-folder... good for packaging a sample
+# offer the choice of having nvpro_core as a sub-folder... good for packaging a sample
 #
 if(NOT BASE_DIRECTORY)
 
   find_path(BASE_DIRECTORY
-    NAMES shared_sources/cmake/setup.cmake
+    NAMES nvpro_core/cmake/setup.cmake
     PATHS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/../.. 
     REQUIRED
-    DOC "Directory containing shared_sources"
+    DOC "Directory containing nvpro_core"
     )
 endif()
-if(EXISTS ${BASE_DIRECTORY}/shared_sources/cmake/setup.cmake)
-  include(${BASE_DIRECTORY}/shared_sources/cmake/setup.cmake)
-  include(${BASE_DIRECTORY}/shared_sources/cmake/utilities.cmake)
+if(EXISTS ${BASE_DIRECTORY}/nvpro_core/cmake/setup.cmake)
+  include(${BASE_DIRECTORY}/nvpro_core/cmake/setup.cmake)
+  include(${BASE_DIRECTORY}/nvpro_core/cmake/utilities.cmake)
 else()
-  message(FATAL_ERROR "could not find base directory, please set BASE_DIRECTORY to folder containing shared_sources")
+  message(FATAL_ERROR "could not find base directory, please set BASE_DIRECTORY to folder containing nvpro_core")
 endif()
     
 _add_project_definitions(${PROJNAME})
@@ -39,7 +39,7 @@ _add_package_ZLIB()
 
 #####################################################################################
 # process the rest of some cmake code that needs to be done *after* the packages add
-_add_shared_sources_lib()
+_add_nvpro_core_lib()
 
 #####################################################################################
 # Source files for this project
@@ -91,14 +91,14 @@ source_group(GLSL_Files FILES ${GLSL_SOURCES})
 # additional files from helpers
 #
 #LIST(APPEND COMMON_SOURCE_FILES 
-#  ${BASE_DIRECTORY}/shared_sources/nvgl/WindowInertiaCamera.h
-#  ${BASE_DIRECTORY}/shared_sources/nvh/TimeSampler.h
-#  ${BASE_DIRECTORY}/shared_sources/nvh/InertiaCamera.h
-#  ${BASE_DIRECTORY}/shared_sources/nvmath/nvmath.inl
-#  ${BASE_DIRECTORY}/shared_sources/nvmath/nvmath.h
-#  ${BASE_DIRECTORY}/shared_sources/nvmath/nvmath_types.h
-#  ${BASE_DIRECTORY}/shared_sources/nvh/profiler.hpp
-#  ${BASE_DIRECTORY}/shared_sources/nvh/profiler.cpp
+#  ${BASE_DIRECTORY}/nvpro_core/nvgl/WindowInertiaCamera.h
+#  ${BASE_DIRECTORY}/nvpro_core/nvh/TimeSampler.h
+#  ${BASE_DIRECTORY}/nvpro_core/nvh/InertiaCamera.h
+#  ${BASE_DIRECTORY}/nvpro_core/nvmath/nvmath.inl
+#  ${BASE_DIRECTORY}/nvpro_core/nvmath/nvmath.h
+#  ${BASE_DIRECTORY}/nvpro_core/nvmath/nvmath_types.h
+#  ${BASE_DIRECTORY}/nvpro_core/nvh/profiler.hpp
+#  ${BASE_DIRECTORY}/nvpro_core/nvh/profiler.cpp
 #)
 #####################################################################################
 # Executable
@@ -127,12 +127,12 @@ source_group(common FILES
 target_link_libraries(${PROJNAME} optimized
     ${LIBRARIES_OPTIMIZED}
     ${PLATFORM_LIBRARIES}
-    shared_sources
+    nvpro_core
 )
 target_link_libraries(${PROJNAME} debug
     ${LIBRARIES_DEBUG}
     ${PLATFORM_LIBRARIES}
-    shared_sources
+    nvpro_core
 )
 
 #####################################################################################

@@ -12,12 +12,7 @@ For now, I am sorry to say that the sample might only run on Windows. I didn't c
 This sample requires the following:
 
 - LunarG SDK v1.0.3.1 : just install it from https://vulkan.lunarg.com : cmake should be able to locate it
-- [shared sources](https://github.com/nvpro-samples/shared_sources) : this folder contains few helper files and additional cmake information needed to build the project
-- [shared external](https://github.com/nvpro-samples/shared_external) : this folder a is a convenient way to gather all external tool that our samples rely on. Rather than trying to find back the right versions of zlib, AntTweakbar etc, this folder contains all the needed external projects that our samples need:
-	- zlib: to read gz files (3D model(s) )
-	- SvcMfCUI: a simple UI based on Windows MFC. No fancy but convenient
-	- AntTweakBar (not used in this sample... yet. SvcMfCUI used instead)
-	- Optionally: NSight nvTX custom markers
+- [shared sources](https://github.com/nvpro-samples/nvpro_core) : this folder contains few helper files and additional cmake information needed to build the project
 -  the submarine model: when you will configure the project with cmake, cmake script will perform a *wget* to get the model and store it locally: `MODEL_DOWNLOAD_SUBMARINE` Checked. The model is 32Mb and will be stored in a shared folder called `downloaded_resources`
 
 Optionally, be aware that other *bk3d* models could be used in this sample. But to avoid heavy download, only the submarine will be taken by default. Check `MODEL_DOWNLOAD_MORE` On for more models...  
