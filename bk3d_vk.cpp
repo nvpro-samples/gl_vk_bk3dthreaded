@@ -322,12 +322,12 @@ bool load_binary(const std::string& name, std::string& data)
   FILE*                    fd = NULL;
   std::vector<std::string> paths;
   paths.push_back(name);
-  paths.push_back(std::string("GLSL/") + name);
+  paths.push_back(std::string("./GLSL/") + name);
   paths.push_back(std::string(NVPSystem::exePath() + "/" + PROJECT_RELDIRECTORY + "GLSL/") + name);
   paths.push_back(std::string("../GLSL/") + name);  // for when working directory in Debug is $(ProjectDir)
   paths.push_back(std::string("../../" PROJECT_NAME "/GLSL/") + name);          // for when using $(TargetDir)
   paths.push_back(std::string("../../shipped/" PROJECT_NAME "/GLSL/") + name);  // for when using $(TargetDir)
-  paths.push_back(std::string("SPV_" PROJECT_NAME "/") + name);
+  paths.push_back(std::string("./SPV_" PROJECT_NAME "/") + name);
   for(size_t i = 0; i < paths.size(); i++)
   {
     if((fd = fopen(paths[i].c_str(), "rb")) != NULL)
