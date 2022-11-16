@@ -22,7 +22,7 @@
 #else
 #include <unistd.h>
 #include <sys/types.h>
-#ifndef ANDROID
+#ifdef IOS
 #   include <sys/sysctl.h>
 #endif
 #include <sys/time.h>
