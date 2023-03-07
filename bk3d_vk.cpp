@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2016-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1493,7 +1493,7 @@ bool Bk3dModelVk::initResources(Renderer* pRenderer)
     m_uboMaterial.buffer = nvk.utCreateAndFillBuffer(&pRendererVk->m_perThreadData->m_cmdPoolStatic, m_uboMaterial.Sz,
                                                      m_pGenericModel->m_material, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                      m_uboMaterial.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    LOGI("%d materials stored in %d Kb\n", m_pGenericModel->m_meshFile->pMaterials->nMaterials, (m_uboMaterial.Sz + 512) / 1024);
+    LOGI("%d materials stored in %zu Kb\n", m_pGenericModel->m_meshFile->pMaterials->nMaterials, (m_uboMaterial.Sz + 512) / 1024);
   }
 
   //
@@ -1511,7 +1511,7 @@ bool Bk3dModelVk::initResources(Renderer* pRenderer)
         nvk.utCreateAndFillBuffer(&pRendererVk->m_perThreadData->m_cmdPoolStatic, m_uboObjectMatrices.Sz,
                                   m_pGenericModel->m_objectMatrices, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                   m_uboObjectMatrices.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    LOGI("%d matrices stored in %d Kb\n", m_pGenericModel->m_meshFile->pTransforms->nBones, (m_uboObjectMatrices.Sz + 512) / 1024);
+    LOGI("%d matrices stored in %zu Kb\n", m_pGenericModel->m_meshFile->pTransforms->nBones, (m_uboObjectMatrices.Sz + 512) / 1024);
   }
   //
   // DescriptorSet allocation
@@ -1697,7 +1697,7 @@ bool Bk3dModelVk::initResources(Renderer* pRenderer)
     }
   }
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
-  LOGI("meshes: %d in :%d VBOs (%f Mb) and %d EBOs (%f Mb) \n", m_pGenericModel->m_meshFile->pMeshes->n, m_ObjVBOs.size(),
+  LOGI("meshes: %d in :%zu VBOs (%f Mb) and %zu EBOs (%f Mb) \n", m_pGenericModel->m_meshFile->pMeshes->n, m_ObjVBOs.size(),
        (float)totalVBOSz / (float)(1024 * 1024), m_ObjEBOs.size(), (float)totalEBOSz / (float)(1024 * 1024));
 #else
   LOGI("meshes: %d in : %f Mb VBO and %f Mb EBO \n", m_pGenericModel->m_meshFile->pMeshes->n,

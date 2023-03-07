@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2016-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -273,7 +273,7 @@ TaskQueue::TaskQueue() :
     m_dataReadyEvent(NULL),
 #endif
     m_taskCount(0),
-    m_thread(NULL)
+    m_thread(0)
     {}
 
 TaskQueue::TaskQueue(/*CThread **/NThreadHandle thread, CEvent* dataReadyEvent) : 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2016-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1566,7 +1566,7 @@ bool Bk3dModelCMDList::initResourcesObject()
     }
     //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }
-  LOGI("meshes: %d in :%d VBOs (%f Mb) and %d EBOs (%f Mb) \n", m_pGenericModel->m_meshFile->pMeshes->n, m_ObjVBOs.size(),
+  LOGI("meshes: %d in :%zu VBOs (%f Mb) and %zu EBOs (%f Mb) \n", m_pGenericModel->m_meshFile->pMeshes->n, m_ObjVBOs.size(),
        (float)totalVBOSz / (float)(1024 * 1024), m_ObjEBOs.size(), (float)totalEBOSz / (float)(1024 * 1024));
   return true;
 }
