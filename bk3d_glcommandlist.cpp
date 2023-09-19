@@ -284,7 +284,7 @@ private:
   GLuint m_stateObjMeshTri;
   GLuint m_stateObjMeshLine;
 
-  nvgl::ProfilerGL m_profilerGL;
+  nvgl::ProfilerGL         m_profilerGL;
   nvh::Profiler::SectionID m_slot;
 
 public:
@@ -352,7 +352,7 @@ private:
   CommandStatesBatch m_commandModel2[MAXCMDBUFFERS];
   std::string        m_tokenBufferModel2[MAXCMDBUFFERS];  // contains the commands to send to the GPU for setup and draw
   CommandStatesBatch m_commandModel;  // used to gather the GPU pointers of a single batch and where states/fbos do change
-  TokenBuffer        m_tokenBufferModel;  // contains the commands to send to the GPU for setup and draw
+  TokenBuffer m_tokenBufferModel;     // contains the commands to send to the GPU for setup and draw
 
   std::vector<BufO> m_ObjVBOs;
   std::vector<BufO> m_ObjEBOs;
@@ -458,6 +458,7 @@ void RendererCMDList::fboFinish()
     fbo::detachDSTTexture(m_FBO, m_MSAA);
     m_FBO = 0;
   }
+  fbo::bind(0);
   fbo::deleteFBO(m_FBO);
 }
 void RendererCMDList::fboMakeResourcesResident()
@@ -608,7 +609,7 @@ void RendererCMDList::displayStart(const mat4f& world, const InertiaCamera& came
   glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
   glEnable(GL_MULTISAMPLE);
   glViewport(0, 0, m_winSize[0], m_winSize[1]);
-  float r = 0.0f; //bTimingGlitch ? 1.0f : 0.0f;
+  float r = 0.0f;  //bTimingGlitch ? 1.0f : 0.0f;
   glClearColor(r, 0.1f, 0.15f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
@@ -1262,7 +1263,7 @@ bool Bk3dModelCMDList::buildCmdBuffer(RendererCMDList* pRenderer, int bufIdx, in
           DEBUGBREAK();
           break;
         case GL_QUAD_STRIP:
-          //m_pGenericModel->m_stats.primitives += pPG->indexCount-3;          
+          //m_pGenericModel->m_stats.primitives += pPG->indexCount-3;
           DEBUGBREAK();
           break;
         case GL_POINTS:

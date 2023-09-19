@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2016-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -391,8 +391,8 @@ void RendererStandard::fboFinish()
     fbo::detachDSTTexture(m_FBO, m_MSAA);
     m_FBO = 0;
   }
+  fbo::bind(0);
   fbo::deleteFBO(m_FBO);
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 //------------------------------------------------------------------------------
@@ -472,7 +472,7 @@ void RendererStandard::displayStart(const mat4f& world, const InertiaCamera& cam
   glEnable(GL_MULTISAMPLE);
   glViewport(0, 0, m_winSize[0], m_winSize[1]);
 
-  float r = 0.0f; //bTimingGlitch ? 1.0f : 0.0f;
+  float r = 0.0f;  //bTimingGlitch ? 1.0f : 0.0f;
   glClearColor(r, 0.1f, 0.15f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
   glEnable(GL_DEPTH_TEST);
