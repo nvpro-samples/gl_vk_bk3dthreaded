@@ -17,6 +17,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <glm/gtc/type_ptr.hpp>
+
 #define EXTERNSVCUI
 #define WINDOWINERTIACAMERA_EXTERN
 #define EMUCMDLIST_EXTERN
@@ -236,7 +238,7 @@ struct BufO
 BufO g_uboMatrix = {0, 0, 0};
 BufO g_uboLight  = {0, 0, 0};
 
-static LightBuffer s_light = {vec3f(0, 0.707, 0.707)};
+static LightBuffer s_light = {glm::vec3(0, 0.707, 0.707)};
 
 static GLuint s_vao = 0;
 
@@ -319,10 +321,10 @@ public:
 
   virtual bool updateForChangedRenderTarget(Bk3dModel* pModel);
 
-  virtual void displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection, bool bTimingGlitch);
+  virtual void displayStart(const glm::mat4& world, const InertiaCamera& camera, const glm::mat4& projection, bool bTimingGlitch);
   virtual void displayEnd();
-  virtual void displayGrid(const InertiaCamera& camera, const mat4f projection);
-  virtual void displayBk3dModel(Bk3dModel* pModel, const mat4f& cameraView, const mat4f projection, unsigned char topologies);
+  virtual void displayGrid(const InertiaCamera& camera, const glm::mat4 projection);
+  virtual void displayBk3dModel(Bk3dModel* pModel, const glm::mat4& cameraView, const glm::mat4 projection, unsigned char topologies);
   virtual void blitToBackbuffer();
 
   virtual void updateViewport(GLint x, GLint y, GLsizei width, GLsizei height);
@@ -393,7 +395,7 @@ public:
   void   consolidateCmdBuffers(int numCmdBuffers);
   bool   initResourcesObject();
   bool   deleteResourcesObject();
-  void   displayObject(Renderer* pRenderer, const mat4f& cameraView, const mat4f projection, unsigned char topologies);
+  void displayObject(Renderer* pRenderer, const glm::mat4& cameraView, const glm::mat4 projection, unsigned char topologies);
 
 };  //Class Bk3dModelCMDList
 GLSLShader Bk3dModelCMDList::shader;
@@ -502,18 +504,18 @@ bool RendererCMDList::initResourcesGrid()
   // Grid floor
   //
   glCreateBuffers(1, &grid::vbo);
-  vec3f* data = new vec3f[GRIDDEF * 4];
-  vec3f* p    = data;
-  int    j    = 0;
+  glm::vec3* data = new glm::vec3[GRIDDEF * 4];
+  glm::vec3* p    = data;
+  int        j    = 0;
   for(int i = 0; i < GRIDDEF; i++)
   {
-    *(p++) = vec3f(-GRIDSZ, 0.0, GRIDSZ * (-1.0f + 2.0f * (float)i / (float)GRIDDEF));
-    *(p++) = vec3f(GRIDSZ * (1.0f - 2.0f / (float)GRIDDEF), 0.0, GRIDSZ * (-1.0f + 2.0f * (float)i / (float)GRIDDEF));
-    *(p++) = vec3f(GRIDSZ * (-1.0f + 2.0f * (float)i / (float)GRIDDEF), 0.0, -GRIDSZ);
-    *(p++) = vec3f(GRIDSZ * (-1.0f + 2.0f * (float)i / (float)GRIDDEF), 0.0, GRIDSZ * (1.0f - 2.0f / (float)GRIDDEF));
+    *(p++) = glm::vec3(-GRIDSZ, 0.0, GRIDSZ * (-1.0f + 2.0f * (float)i / (float)GRIDDEF));
+    *(p++) = glm::vec3(GRIDSZ * (1.0f - 2.0f / (float)GRIDDEF), 0.0, GRIDSZ * (-1.0f + 2.0f * (float)i / (float)GRIDDEF));
+    *(p++) = glm::vec3(GRIDSZ * (-1.0f + 2.0f * (float)i / (float)GRIDDEF), 0.0, -GRIDSZ);
+    *(p++) = glm::vec3(GRIDSZ * (-1.0f + 2.0f * (float)i / (float)GRIDDEF), 0.0, GRIDSZ * (1.0f - 2.0f / (float)GRIDDEF));
   }
-  grid::vboSz = sizeof(vec3f) * GRIDDEF * 4;
-  glNamedBufferData(grid::vbo, grid::vboSz, data[0].vec_array, GL_STATIC_DRAW);
+  grid::vboSz = sizeof(glm::vec3) * GRIDDEF * 4;
+  glNamedBufferData(grid::vbo, grid::vboSz, glm::value_ptr(data[0]), GL_STATIC_DRAW);
   // make the buffer resident and get its pointer
   glGetNamedBufferParameterui64vNV(grid::vbo, GL_BUFFER_GPU_ADDRESS_NV, &grid::vboAddr);
   glMakeNamedBufferResidentNV(grid::vbo, GL_READ_ONLY);
@@ -522,12 +524,12 @@ bool RendererCMDList::initResourcesGrid()
   // Target Cross
   //
   glCreateBuffers(1, &grid::vboCross);
-  vec3f crossVtx[6] = {
-      vec3f(-CROSSSZ, 0.0f, 0.0f), vec3f(CROSSSZ, 0.0f, 0.0f),  vec3f(0.0f, -CROSSSZ, 0.0f),
-      vec3f(0.0f, CROSSSZ, 0.0f),  vec3f(0.0f, 0.0f, -CROSSSZ), vec3f(0.0f, 0.0f, CROSSSZ),
+  glm::vec3 crossVtx[6] = {
+      glm::vec3(-CROSSSZ, 0.0f, 0.0f), glm::vec3(CROSSSZ, 0.0f, 0.0f),  glm::vec3(0.0f, -CROSSSZ, 0.0f),
+      glm::vec3(0.0f, CROSSSZ, 0.0f),  glm::vec3(0.0f, 0.0f, -CROSSSZ), glm::vec3(0.0f, 0.0f, CROSSSZ),
   };
-  grid::vboCrossSz = sizeof(vec3f) * 6;
-  glNamedBufferData(grid::vboCross, grid::vboCrossSz, crossVtx[0].vec_array, GL_STATIC_DRAW);
+  grid::vboCrossSz = sizeof(glm::vec3) * 6;
+  glNamedBufferData(grid::vboCross, grid::vboCrossSz, glm::value_ptr(crossVtx[0]), GL_STATIC_DRAW);
   // make the buffer resident and get its pointer
   glGetNamedBufferParameterui64vNV(grid::vboCross, GL_BUFFER_GPU_ADDRESS_NV, &grid::vboCrossAddr);
   glMakeNamedBufferResidentNV(grid::vboCross, GL_READ_WRITE);
@@ -602,7 +604,7 @@ bool RendererCMDList::buildPrimaryCmdBuffer()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void RendererCMDList::displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection, bool bTimingGlitch)
+void RendererCMDList::displayStart(const glm::mat4& world, const InertiaCamera& camera, const glm::mat4& projection, bool bTimingGlitch)
 {
   m_slot = m_profilerGL.beginSection("scene");
 
@@ -630,25 +632,25 @@ void RendererCMDList::blitToBackbuffer()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void RendererCMDList::displayGrid(const InertiaCamera& camera, const mat4f projection)
+void RendererCMDList::displayGrid(const InertiaCamera& camera, const glm::mat4 projection)
 {
   const nvgl::ProfilerGL::Section profile(m_profilerGL, "display.Grid");
   //
   // Update what is inside buffers
   //
   g_globalMatrices.mVP = projection * camera.m4_view;
-  g_globalMatrices.mW  = mat4f(array16_id);
+  g_globalMatrices.mW  = glm::mat4(1);
   glNamedBufferSubData(g_uboMatrix.Id, 0, sizeof(g_globalMatrices), &g_globalMatrices);
   //
   // The cross vertex change is an example on how command-list are compatible with changing
   // what is inside the vertex buffers. VBOs are outside of the token buffers...
   //
-  const vec3f& p           = camera.curFocusPos;
-  vec3f        crossVtx[6] = {
-      vec3f(p.x - CROSSSZ, p.y, p.z), vec3f(p.x + CROSSSZ, p.y, p.z), vec3f(p.x, p.y - CROSSSZ, p.z),
-      vec3f(p.x, p.y + CROSSSZ, p.z), vec3f(p.x, p.y, p.z - CROSSSZ), vec3f(p.x, p.y, p.z + CROSSSZ),
+  const glm::vec3& p           = camera.curFocusPos;
+  glm::vec3        crossVtx[6] = {
+      glm::vec3(p.x - CROSSSZ, p.y, p.z), glm::vec3(p.x + CROSSSZ, p.y, p.z), glm::vec3(p.x, p.y - CROSSSZ, p.z),
+      glm::vec3(p.x, p.y + CROSSSZ, p.z), glm::vec3(p.x, p.y, p.z - CROSSSZ), glm::vec3(p.x, p.y, p.z + CROSSSZ),
   };
-  glNamedBufferSubData(grid::vboCross, 0, sizeof(vec3f) * 6, crossVtx);
+  glNamedBufferSubData(grid::vboCross, 0, sizeof(glm::vec3) * 6, crossVtx);
   //
   // execute the commands from the token buffer
   //
@@ -862,7 +864,7 @@ bool RendererCMDList::initGraphics(int w, int h, int MSAA)
     // Again here we know that the grid has a specific vertex Input format
     //
     glEnableVertexAttribArray(0);
-    glBindVertexBuffer(0, grid::vbo, 0, sizeof(vec3f));
+    glBindVertexBuffer(0, grid::vbo, 0, sizeof(glm::vec3));
     glVertexAttribFormat(0, 3, GL_FLOAT, GL_FALSE, 0);
     for(int i = 1; i < 16; i++)
       glDisableVertexAttribArray(i);
@@ -977,7 +979,7 @@ bool RendererCMDList::updateForChangedRenderTarget(Bk3dModel* pModel)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void RendererCMDList::displayBk3dModel(Bk3dModel* pGenericModel, const mat4f& cameraView, const mat4f projection, unsigned char topologies)
+void RendererCMDList::displayBk3dModel(Bk3dModel* pGenericModel, const glm::mat4& cameraView, const glm::mat4 projection, unsigned char topologies)
 
 {
   const nvgl::ProfilerGL::Section profile(m_profilerGL, "display.Bk3dModel");
@@ -1575,17 +1577,17 @@ bool Bk3dModelCMDList::initResourcesObject()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void Bk3dModelCMDList::displayObject(Renderer* pRenderer, const mat4f& cameraView, const mat4f projection, unsigned char topologies)
+void Bk3dModelCMDList::displayObject(Renderer* pRenderer, const glm::mat4& cameraView, const glm::mat4 projection, unsigned char topologies)
 {
   RendererCMDList* pRendererCmdList = static_cast<RendererCMDList*>(pRenderer);
 
-  g_globalMatrices.mVP = projection * cameraView;
-  g_globalMatrices.mW  = mat4f(array16_id);
-  cameraView.get_translation(g_globalMatrices.eyePos);
-  //g_globalMatrices.mW.rotate(nv_to_rad*180.0f, vec3f(0,1,0));
-  g_globalMatrices.mW.rotate(-nv_to_rad * 90.0f, vec3f(1, 0, 0));
-  g_globalMatrices.mW.translate(-m_pGenericModel->m_posOffset);
-  g_globalMatrices.mW.scale(m_pGenericModel->m_scale);
+  g_globalMatrices.mVP    = projection * cameraView;
+  g_globalMatrices.mW     = glm::mat4(1);
+  g_globalMatrices.eyePos = cameraView[3];
+  //g_globalMatrices.mW.rotate(nv_to_rad*180.0f, glm::vec3(0,1,0));
+  g_globalMatrices.mW = glm::rotate(g_globalMatrices.mW, -glm::radians(90.0f), glm::vec3(1, 0, 0));
+  g_globalMatrices.mW = glm::translate(g_globalMatrices.mW, -m_pGenericModel->m_posOffset);
+  g_globalMatrices.mW = glm::scale(g_globalMatrices.mW, glm::vec3(m_pGenericModel->m_scale));
   glNamedBufferSubData(g_uboMatrix.Id, 0, sizeof(g_globalMatrices), &g_globalMatrices);
 
   //

@@ -17,6 +17,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <glm/gtc/type_ptr.hpp>
+
+
 #define DEFAULT_RENDERER 2
 #include "gl_vk_bk3dthreaded.h"
 #include <imgui/backends/imgui_impl_gl.h>
@@ -70,24 +73,24 @@ inline size_t array_size(T (&x)[N])
 //
 struct CameraAnim
 {
-  vec3f eye, focus;
-  float sleep;
+  glm::vec3 eye, focus;
+  float     sleep;
 };
 static CameraAnim s_cameraAnim[] = {
     // pos                    target                   time to wait
-    {vec3f(-0.43, -0.20, -0.01), vec3f(-0.14, -0.34, 0.40), 3.0},
-    {vec3f(0.00, -0.36, 0.15), vec3f(0.01, -0.40, 0.39), 2},
-    {vec3f(0.15, -0.38, 0.23), vec3f(0.16, -0.40, 0.38), 2},
-    {vec3f(0.30, -0.37, 0.22), vec3f(0.31, -0.39, 0.38), 2},
-    {vec3f(0.60, -0.37, 0.32), vec3f(0.35, -0.41, 0.41), 2},
-    {vec3f(0.24, -0.39, 0.26), vec3f(0.23, -0.40, 0.35), 2},
-    {vec3f(0.26, -0.41, 0.37), vec3f(0.23, -0.40, 0.37), 2},
-    {vec3f(0.09, -0.40, 0.36), vec3f(0.05, -0.40, 0.37), 2},
-    {vec3f(-0.01, -0.38, 0.39), vec3f(-0.07, -0.38, 0.39), 2},
-    {vec3f(-0.18, -0.38, 0.38), vec3f(-0.11, -0.38, 0.40), 2},
-    {vec3f(-0.12, -0.37, 0.41), vec3f(-0.06, -0.37, 0.43), 2},
-    {vec3f(-0.12, -0.29, 0.41), vec3f(-0.12, -0.30, 0.41), 1},
-    {vec3f(-0.25, -0.12, 0.25), vec3f(-0.11, -0.37, 0.40), 2},
+    {glm::vec3(-0.43, -0.20, -0.01), glm::vec3(-0.14, -0.34, 0.40), 3.0},
+    {glm::vec3(0.00, -0.36, 0.15), glm::vec3(0.01, -0.40, 0.39), 2},
+    {glm::vec3(0.15, -0.38, 0.23), glm::vec3(0.16, -0.40, 0.38), 2},
+    {glm::vec3(0.30, -0.37, 0.22), glm::vec3(0.31, -0.39, 0.38), 2},
+    {glm::vec3(0.60, -0.37, 0.32), glm::vec3(0.35, -0.41, 0.41), 2},
+    {glm::vec3(0.24, -0.39, 0.26), glm::vec3(0.23, -0.40, 0.35), 2},
+    {glm::vec3(0.26, -0.41, 0.37), glm::vec3(0.23, -0.40, 0.37), 2},
+    {glm::vec3(0.09, -0.40, 0.36), glm::vec3(0.05, -0.40, 0.37), 2},
+    {glm::vec3(-0.01, -0.38, 0.39), glm::vec3(-0.07, -0.38, 0.39), 2},
+    {glm::vec3(-0.18, -0.38, 0.38), glm::vec3(-0.11, -0.38, 0.40), 2},
+    {glm::vec3(-0.12, -0.37, 0.41), glm::vec3(-0.06, -0.37, 0.43), 2},
+    {glm::vec3(-0.12, -0.29, 0.41), glm::vec3(-0.12, -0.30, 0.41), 1},
+    {glm::vec3(-0.25, -0.12, 0.25), glm::vec3(-0.11, -0.37, 0.40), 2},
 };
 
 static int   s_cameraAnimItem      = 0;
@@ -148,7 +151,7 @@ public:
 };
 
 MyWindow::MyWindow()
-    : AppWindowCameraInertia(vec3f(-0.43, -0.20, -0.01), vec3f(-0.14, -0.34, 0.40)
+    : AppWindowCameraInertia(glm::vec3(-0.43, -0.20, -0.01), glm::vec3(-0.14, -0.34, 0.40)
 
     )
 {
@@ -225,7 +228,7 @@ bool Bk3dModel::updateForChangedRenderTarget()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-Bk3dModel::Bk3dModel(const char* name, vec3f* pPos, float* pScale)
+Bk3dModel::Bk3dModel(const char* name, glm::vec3* pPos, float* pScale)
 {
   assert(name);
   m_name                 = std::string(name);
@@ -234,7 +237,7 @@ Bk3dModel::Bk3dModel(const char* name, vec3f* pPos, float* pScale)
   m_material             = NULL;
   m_materialNItems       = 0;
   m_meshFile             = NULL;
-  m_posOffset            = pPos ? *pPos : vec3f(0, 0, 0);
+  m_posOffset            = pPos ? *pPos : glm::vec3(0, 0, 0);
   m_scale                = pScale ? *pScale : 0.0f;
   m_pRenderer            = NULL;
 }
@@ -328,11 +331,11 @@ bool Bk3dModel::loadModel()
       // this is for now a fake material: very few items (diffuse)
       // in a real application, material information could contain more
       // we'd need 16 vec4 to fill 256 bytes
-      memcpy(m_material[i].diffuse.vec_array, m_meshFile->pMaterials->pMaterials[i]->Diffuse(), sizeof(vec3f));
+      memcpy(glm::value_ptr(m_material[i].diffuse), m_meshFile->pMaterials->pMaterials[i]->Diffuse(), sizeof(glm::vec3));
       //...
       // hack for visual result...
       if(length(m_material[i].diffuse) <= 0.1f)
-        m_material[i].diffuse = vec3f(1, 1, 1);
+        m_material[i].diffuse = glm::vec3(1, 1, 1);
     }
   }
   //
@@ -345,7 +348,7 @@ bool Bk3dModel::loadModel()
     for(int i = 0; i < m_meshFile->pTransforms->nBones; i++)
     {
       // 256 bytes aligned...
-      memcpy(m_objectMatrices[i].mO.mat_array, m_meshFile->pTransforms->pBones[i]->Matrix().m, sizeof(mat4f));
+      memcpy(glm::value_ptr(m_objectMatrices[i].mO), m_meshFile->pTransforms->pBones[i]->Matrix().m, sizeof(glm::mat4));
     }
   }
   return true;
@@ -499,7 +502,7 @@ void MyWindow::onWindowResize(int w, int h)
   {
     if(s_pCurRenderer->bFlipViewport())
     {
-      m_projection *= nvmath::scale_mat4(nvmath::vec3(1, -1, 1));
+      m_projection *= glm::scale(glm::mat4(1), glm::vec3(1, -1, 1));
     }
     //
     // update the token buffer in which the viewport setup happens for token rendering
@@ -531,7 +534,7 @@ void MyWindow::onKeyboard(NVPWindow::KeyCode key, MyWindow::ButtonAction action,
   switch(key)
   {
     case NVPWindow::KEY_F1:
-      LOGI("Camera: vec3f(%.2f,%.2f,%.2f), vec3f(%.2f,%.2f,%.2f)\n ", m_camera.eyePos.x, m_camera.eyePos.y,
+      LOGI("Camera: glm::vec3(%.2f,%.2f,%.2f), glm::vec3(%.2f,%.2f,%.2f)\n ", m_camera.eyePos.x, m_camera.eyePos.y,
            m_camera.eyePos.z, m_camera.focusPos.x, m_camera.focusPos.y, m_camera.focusPos.z);
       break;
     //...
@@ -894,14 +897,13 @@ void MyWindow::onWindowRefresh()
   {
     PROFILE_SECTION("frame");
 
-    mat4f mW;
+    glm::mat4 mW(1);
     // somehow a hack for the CAD models to be back on better scale and orientation
-    mW.identity();
     if(!g_bk3dModels.empty())
     {
-      mW.rotate(-nv_to_rad * 90.0f, vec3f(1, 0, 0));
-      mW.translate(-g_bk3dModels[0]->m_posOffset);
-      mW.scale(g_bk3dModels[0]->m_scale);
+      mW = glm::rotate(mW, -glm::radians(90.0f), glm::vec3(1, 0, 0));
+      mW = glm::translate(mW, -g_bk3dModels[0]->m_posOffset);
+      mW = glm::scale(mW, glm::vec3(g_bk3dModels[0]->m_scale));
     }
     {
       //
@@ -1006,7 +1008,7 @@ void readConfigFile(const char* fname)
   //  for(int i=0; i<nModels; i++)
   //  {
   //      char name[200];
-  //      vec3f pos;
+  //      glm::vec3 pos;
   //      float scale;
   //      res = fscanf(fp, "%s\n", &name);
   //      if(res != 1) { LOGE("Error during parsing\n"); return; }

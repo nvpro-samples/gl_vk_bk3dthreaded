@@ -78,7 +78,7 @@ static GLuint s_vboGridSz;
 static GLuint s_vboCross;
 static GLuint s_vboCrossSz;
 
-static LightBuffer s_light = {vec3f(0.4f, 0.8f, 0.3f)};
+static LightBuffer s_light = {glm::vec3(0.4f, 0.8f, 0.3f)};
 
 static GLuint s_vao = 0;
 
@@ -248,10 +248,10 @@ public:
 
   virtual bool updateForChangedRenderTarget(Bk3dModel* pModel);
 
-  virtual void displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection, bool bTimingGlitch);
+  virtual void displayStart(const glm::mat4& world, const InertiaCamera& camera, const glm::mat4& projection, bool bTimingGlitch);
   virtual void displayEnd();
-  virtual void displayGrid(const InertiaCamera& camera, const mat4f projection);
-  virtual void displayBk3dModel(Bk3dModel* pModel, const mat4f& cameraView, const mat4f projection, unsigned char topologies);
+  virtual void displayGrid(const InertiaCamera& camera, const glm::mat4 projection);
+  virtual void displayBk3dModel(Bk3dModel* pModel, const glm::mat4& cameraView, const glm::mat4 projection, unsigned char topologies);
   virtual void blitToBackbuffer();
 
   virtual void updateViewport(GLint x, GLint y, GLsizei width, GLsizei height);
@@ -307,7 +307,7 @@ public:
   void consolidateCmdBuffers(int numCmdBuffers);
   bool initResources(Renderer* pRenderer);
   bool releaseResources(Renderer* pRenderer);
-  void displayObject(Renderer* pRenderer, const mat4f& cameraView, const mat4f projection, unsigned char topologies);
+  void displayObject(Renderer* pRenderer, const glm::mat4& cameraView, const glm::mat4 projection, unsigned char topologies);
   Bk3dModel* getGenericModel() { return m_pGenericModel; }
 
   friend class RendererVk;
@@ -508,7 +508,7 @@ bool RendererVk::initRenderpassDependent(int w, int h, int MSAA)
   // GRID gfx pipeline
   //
   m_pipelineGrid = nvk.createGraphicsPipeline(NVK::GraphicsPipelineCreateInfo(m_pipelineLayout, m_scenePass)(NVK::PipelineVertexInputStateCreateInfo(
-      NVK::VertexInputBindingDescription(0 /*binding*/, sizeof(vec3f) /*stride*/, VK_VERTEX_INPUT_RATE_VERTEX),
+      NVK::VertexInputBindingDescription(0 /*binding*/, sizeof(glm::vec3) /*stride*/, VK_VERTEX_INPUT_RATE_VERTEX),
       NVK::VertexInputAttributeDescription(0 /*location*/, 0 /*binding*/, VK_FORMAT_R32G32B32_SFLOAT, 0)  // pos
       ))(NVK::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_LIST, VK_FALSE))(
       NVK::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT,
@@ -534,12 +534,12 @@ bool RendererVk::initRenderpassDependent(int w, int h, int MSAA)
       VK_SHADER_STAGE_FRAGMENT_BIT,
       nvk.createShaderModule(spv_GLSL_mesh_lines_frag.c_str(), spv_GLSL_mesh_lines_frag.size()), "main");
   NVK::PipelineVertexInputStateCreateInfo vkPipelineVertexInputStateCreateInfo(
-      NVK::VertexInputBindingDescription(0 /*binding*/, 2 * sizeof(vec3f) /*stride*/, VK_VERTEX_INPUT_RATE_VERTEX),
+      NVK::VertexInputBindingDescription(0 /*binding*/, 2 * sizeof(glm::vec3) /*stride*/, VK_VERTEX_INPUT_RATE_VERTEX),
       NVK::VertexInputAttributeDescription(0 /*location*/, 0 /*binding*/, VK_FORMAT_R32G32B32_SFLOAT, 0 /*offset*/)  // pos
-      (1 /*location*/, 0 /*binding*/, VK_FORMAT_R32G32B32_SFLOAT, sizeof(vec3f) /*offset*/)  // normal
+      (1 /*location*/, 0 /*binding*/, VK_FORMAT_R32G32B32_SFLOAT, sizeof(glm::vec3) /*offset*/)  // normal
   );
   NVK::PipelineVertexInputStateCreateInfo vkPipelineVertexInputStateCreateInfoLine(
-      NVK::VertexInputBindingDescription(0 /*binding*/, sizeof(vec3f) /*stride*/, VK_VERTEX_INPUT_RATE_VERTEX),
+      NVK::VertexInputBindingDescription(0 /*binding*/, sizeof(glm::vec3) /*stride*/, VK_VERTEX_INPUT_RATE_VERTEX),
       NVK::VertexInputAttributeDescription(0 /*location*/, 0 /*binding*/, VK_FORMAT_R32G32B32_SFLOAT, 0 /*offset*/)  // pos
   );
 
@@ -737,7 +737,7 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
   //--------------------------------------------------------------------------
   // Buffers for general UBOs
   //
-  m_matrix.Sz = sizeof(vec4f) * 4 * 2;
+  m_matrix.Sz = sizeof(glm::vec4) * 4 * 2;
   m_matrix.buffer = nvk.utCreateAndFillBuffer(&m_perThreadData->m_cmdPoolStatic, m_matrix.Sz, NULL, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                               m_matrix.bufferMem, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
   //--------------------------------------------------------------------------
@@ -931,7 +931,7 @@ bool RendererVk::buildPrimaryCmdBuffer()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void RendererVk::displayStart(const mat4f& world, const InertiaCamera& camera, const mat4f& projection, bool bTimingGlitch)
+void RendererVk::displayStart(const glm::mat4& world, const InertiaCamera& camera, const glm::mat4& projection, bool bTimingGlitch)
 {
   if(m_bValid == false)
     return;
@@ -1028,7 +1028,7 @@ void RendererVk::blitToBackbuffer()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void RendererVk::displayGrid(const InertiaCamera& camera, const mat4f projection)
+void RendererVk::displayGrid(const InertiaCamera& camera, const glm::mat4 projection)
 {
   if(m_bValid == false)
     return;
@@ -1370,7 +1370,7 @@ bool RendererVk::updateForChangedRenderTarget(Bk3dModel* pModel)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void RendererVk::displayBk3dModel(Bk3dModel* pGenericModel, const mat4f& cameraView, const mat4f projection, unsigned char topologies)
+void RendererVk::displayBk3dModel(Bk3dModel* pGenericModel, const glm::mat4& cameraView, const glm::mat4 projection, unsigned char topologies)
 {
   if(m_bValid == false)
     return;
@@ -1524,8 +1524,8 @@ bool Bk3dModelVk::initResources(Renderer* pRenderer)
   // later we will update the ones local to objects
   //
   // TODO TODO TODO: we should use only one NVK::DescriptorBufferInfo as before
-  NVK::DescriptorBufferInfo descBuffers  = NVK::DescriptorBufferInfo(m_uboObjectMatrices.buffer, 0, sizeof(mat4f));
-  NVK::DescriptorBufferInfo descBuffers2 = NVK::DescriptorBufferInfo(m_uboMaterial.buffer, 0, sizeof(vec4f));
+  NVK::DescriptorBufferInfo descBuffers  = NVK::DescriptorBufferInfo(m_uboObjectMatrices.buffer, 0, sizeof(glm::mat4));
+  NVK::DescriptorBufferInfo descBuffers2 = NVK::DescriptorBufferInfo(m_uboMaterial.buffer, 0, sizeof(glm::vec4));
 
   nvk.updateDescriptorSets(NVK::WriteDescriptorSet(m_descriptorSets[0], BINDING_MATRIXOBJ, 0, descBuffers,
                                                    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)(
@@ -2063,7 +2063,7 @@ bool Bk3dModelVk::buildCmdBuffer(Renderer* pRenderer, int bufIdx, int mstart, in
 //----------------------------------------------------------------------------------------
 // In Vulkan, this display command will be for "recording" to a primary command buffer
 //----------------------------------------------------------------------------------------
-void Bk3dModelVk::displayObject(Renderer* pRenderer, const mat4f& cameraView, const mat4f projection, unsigned char topologies)
+void Bk3dModelVk::displayObject(Renderer* pRenderer, const glm::mat4& cameraView, const glm::mat4 projection, unsigned char topologies)
 {
   RendererVk*     pRendererVk = static_cast<RendererVk*>(pRenderer);
   VkCommandBuffer pCmd        = pRendererVk->m_cmdScene;
