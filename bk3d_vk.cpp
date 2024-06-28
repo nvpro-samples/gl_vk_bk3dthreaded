@@ -52,6 +52,7 @@
 #define WINDOWINERTIACAMERA_EXTERN
 #define EMUCMDLIST_EXTERN
 #include "gl_vk_bk3dthreaded.h"
+#include <fileformats/texture_formats.h>
 #include <fileformats/nv_dds.h>
 
 #include <nvvk/profiler_vk.hpp>
@@ -484,11 +485,11 @@ bool RendererVk::initRenderpassDependent(int w, int h, int MSAA)
   NVK::PipelineColorBlendStateCreateInfo    vkPipelineColorBlendStateCreateInfo(
       VK_FALSE /*logicOpEnable*/, VK_LOGIC_OP_NO_OP,
       NVK::PipelineColorBlendAttachmentState(VK_FALSE /*blendEnable*/, VK_BLEND_FACTOR_ZERO /*srcBlendColor*/,
-                                             VK_BLEND_FACTOR_ZERO /*destBlendColor*/, VK_BLEND_OP_ADD /*blendOpColor*/,
-                                             VK_BLEND_FACTOR_ZERO /*srcBlendAlpha*/,
-                                             VK_BLEND_FACTOR_ZERO /*destBlendAlpha*/, VK_BLEND_OP_ADD /*blendOpAlpha*/,
-                                             VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
-                                                 | VK_COLOR_COMPONENT_A_BIT /*colorWriteMask*/),
+                                                VK_BLEND_FACTOR_ZERO /*destBlendColor*/, VK_BLEND_OP_ADD /*blendOpColor*/,
+                                                VK_BLEND_FACTOR_ZERO /*srcBlendAlpha*/,
+                                                VK_BLEND_FACTOR_ZERO /*destBlendAlpha*/, VK_BLEND_OP_ADD /*blendOpAlpha*/,
+                                                VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
+                                                    | VK_COLOR_COMPONENT_A_BIT /*colorWriteMask*/),
       NVK::Float4()  //blendConst[4]
   );
   NVK::PipelineDepthStencilStateCreateInfo vkPipelineDepthStencilStateCreateInfo(VK_TRUE,  //depthTestEnable
@@ -512,9 +513,8 @@ bool RendererVk::initRenderpassDependent(int w, int h, int MSAA)
       NVK::VertexInputAttributeDescription(0 /*location*/, 0 /*binding*/, VK_FORMAT_R32G32B32_SFLOAT, 0)  // pos
       ))(NVK::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_LIST, VK_FALSE))(
       NVK::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT,
-                                         nvk.createShaderModule(spv_GLSL_grid_vert.c_str(), spv_GLSL_grid_vert.size()),
-                                         "main"))(vkPipelineViewportStateCreateInfo)(vkPipelineRasterStateCreateInfo)(
-      vkPipelineMultisampleStateCreateInfo)(NVK::PipelineShaderStageCreateInfo(
+                                         nvk.createShaderModule(spv_GLSL_grid_vert.c_str(), spv_GLSL_grid_vert.size()), "main"))(
+      vkPipelineViewportStateCreateInfo)(vkPipelineRasterStateCreateInfo)(vkPipelineMultisampleStateCreateInfo)(NVK::PipelineShaderStageCreateInfo(
       VK_SHADER_STAGE_FRAGMENT_BIT, nvk.createShaderModule(spv_GLSL_grid_frag.c_str(), spv_GLSL_grid_frag.size()),
       "main"))(vkPipelineColorBlendStateCreateInfo)(vkPipelineDepthStencilStateCreateInfo)(dynamicStateCreateInfo));
   //
@@ -525,11 +525,9 @@ bool RendererVk::initRenderpassDependent(int w, int h, int MSAA)
   NVK::PipelineShaderStageCreateInfo vkPipelineShaderStageCreateInfoVtx(
       VK_SHADER_STAGE_VERTEX_BIT, nvk.createShaderModule(spv_GLSL_mesh_vert.c_str(), spv_GLSL_mesh_vert.size()), "main");
   NVK::PipelineShaderStageCreateInfo vkPipelineShaderStageCreateInfoFrag(
-      VK_SHADER_STAGE_FRAGMENT_BIT, nvk.createShaderModule(spv_GLSL_mesh_frag.c_str(), spv_GLSL_mesh_frag.size()),
-      "main");
+      VK_SHADER_STAGE_FRAGMENT_BIT, nvk.createShaderModule(spv_GLSL_mesh_frag.c_str(), spv_GLSL_mesh_frag.size()), "main");
   NVK::PipelineShaderStageCreateInfo vkPipelineShaderStageCreateInfoVtxLine(
-      VK_SHADER_STAGE_VERTEX_BIT,
-      nvk.createShaderModule(spv_GLSL_mesh_lines_vert.c_str(), spv_GLSL_mesh_lines_vert.size()), "main");
+      VK_SHADER_STAGE_VERTEX_BIT, nvk.createShaderModule(spv_GLSL_mesh_lines_vert.c_str(), spv_GLSL_mesh_lines_vert.size()), "main");
   NVK::PipelineShaderStageCreateInfo vkPipelineShaderStageCreateInfoFragLine(
       VK_SHADER_STAGE_FRAGMENT_BIT,
       nvk.createShaderModule(spv_GLSL_mesh_lines_frag.c_str(), spv_GLSL_mesh_lines_frag.size()), "main");
@@ -544,46 +542,36 @@ bool RendererVk::initRenderpassDependent(int w, int h, int MSAA)
   );
 
 
-  m_pipelineMeshTri = nvk.createGraphicsPipeline(NVK::GraphicsPipelineCreateInfo(m_pipelineLayout, m_scenePass)(
-      vkPipelineVertexInputStateCreateInfo)(NVK::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE))(
-      NVK::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT,
-                                         nvk.createShaderModule(spv_GLSL_mesh_vert.c_str(), spv_GLSL_mesh_vert.size()),
-                                         "main"))(vkPipelineViewportStateCreateInfo)(vkPipelineRasterStateCreateInfo)(
-      vkPipelineMultisampleStateCreateInfo)(NVK::PipelineShaderStageCreateInfo(
+  m_pipelineMeshTri = nvk.createGraphicsPipeline(NVK::GraphicsPipelineCreateInfo(m_pipelineLayout, m_scenePass)(vkPipelineVertexInputStateCreateInfo)(
+      NVK::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE))(NVK::PipelineShaderStageCreateInfo(
+      VK_SHADER_STAGE_VERTEX_BIT, nvk.createShaderModule(spv_GLSL_mesh_vert.c_str(), spv_GLSL_mesh_vert.size()), "main"))(
+      vkPipelineViewportStateCreateInfo)(vkPipelineRasterStateCreateInfo)(vkPipelineMultisampleStateCreateInfo)(NVK::PipelineShaderStageCreateInfo(
       VK_SHADER_STAGE_FRAGMENT_BIT, nvk.createShaderModule(spv_GLSL_mesh_frag.c_str(), spv_GLSL_mesh_frag.size()),
       "main"))(vkPipelineColorBlendStateCreateInfo)(vkPipelineDepthStencilStateCreateInfo)(dynamicStateCreateInfo));
   //
   // create Mesh pipelines
   //
   m_pipelineMeshTriStrip = nvk.createGraphicsPipeline(NVK::GraphicsPipelineCreateInfo(m_pipelineLayout, m_scenePass)(
-      vkPipelineVertexInputStateCreateInfo)(NVK::PipelineInputAssemblyStateCreateInfo(
-      VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP, VK_TRUE))(vkPipelineShaderStageCreateInfoVtx)(vkPipelineViewportStateCreateInfo)(
-      vkPipelineRasterStateCreateInfo)(vkPipelineMultisampleStateCreateInfo)(vkPipelineShaderStageCreateInfoFrag)(
-      vkPipelineColorBlendStateCreateInfo)(vkPipelineDepthStencilStateCreateInfo)(dynamicStateCreateInfo));
+      vkPipelineVertexInputStateCreateInfo)(NVK::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP, VK_TRUE))(
+      vkPipelineShaderStageCreateInfoVtx)(vkPipelineViewportStateCreateInfo)(vkPipelineRasterStateCreateInfo)(vkPipelineMultisampleStateCreateInfo)(vkPipelineShaderStageCreateInfoFrag)(vkPipelineColorBlendStateCreateInfo)(vkPipelineDepthStencilStateCreateInfo)(dynamicStateCreateInfo));
   //
   // create Mesh pipelines
   //
   m_pipelineMeshTriFan = nvk.createGraphicsPipeline(NVK::GraphicsPipelineCreateInfo(m_pipelineLayout, m_scenePass)(
-      vkPipelineVertexInputStateCreateInfoLine)(NVK::PipelineInputAssemblyStateCreateInfo(
-      VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN, VK_TRUE))(vkPipelineShaderStageCreateInfoVtxLine)(vkPipelineViewportStateCreateInfo)(
-      vkPipelineRasterStateCreateInfo)(vkPipelineMultisampleStateCreateInfo)(vkPipelineShaderStageCreateInfoFragLine)(
-      vkPipelineColorBlendStateCreateInfo)(vkPipelineDepthStencilStateCreateInfo)(dynamicStateCreateInfo));
+      vkPipelineVertexInputStateCreateInfoLine)(NVK::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN, VK_TRUE))(
+      vkPipelineShaderStageCreateInfoVtxLine)(vkPipelineViewportStateCreateInfo)(vkPipelineRasterStateCreateInfo)(vkPipelineMultisampleStateCreateInfo)(vkPipelineShaderStageCreateInfoFragLine)(vkPipelineColorBlendStateCreateInfo)(vkPipelineDepthStencilStateCreateInfo)(dynamicStateCreateInfo));
   //
   // create Mesh pipelines
   //
   m_pipelineMeshLine = nvk.createGraphicsPipeline(NVK::GraphicsPipelineCreateInfo(m_pipelineLayout, m_scenePass)(
       vkPipelineVertexInputStateCreateInfoLine)(NVK::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_LIST, VK_FALSE))(
-      vkPipelineShaderStageCreateInfoVtxLine)(vkPipelineViewportStateCreateInfo)(vkPipelineRasterStateCreateInfo)(
-      vkPipelineMultisampleStateCreateInfo)(vkPipelineShaderStageCreateInfoFragLine)(
-      vkPipelineColorBlendStateCreateInfo)(vkPipelineDepthStencilStateCreateInfo)(dynamicStateCreateInfo));
+      vkPipelineShaderStageCreateInfoVtxLine)(vkPipelineViewportStateCreateInfo)(vkPipelineRasterStateCreateInfo)(vkPipelineMultisampleStateCreateInfo)(vkPipelineShaderStageCreateInfoFragLine)(vkPipelineColorBlendStateCreateInfo)(vkPipelineDepthStencilStateCreateInfo)(dynamicStateCreateInfo));
   //
   // create Mesh pipelines
   //
   m_pipelineMeshLineStrip = nvk.createGraphicsPipeline(NVK::GraphicsPipelineCreateInfo(m_pipelineLayout, m_scenePass)(
-      vkPipelineVertexInputStateCreateInfoLine)(NVK::PipelineInputAssemblyStateCreateInfo(
-      VK_PRIMITIVE_TOPOLOGY_LINE_STRIP, VK_TRUE))(vkPipelineShaderStageCreateInfoVtxLine)(vkPipelineViewportStateCreateInfo)(
-      vkPipelineRasterStateCreateInfo)(vkPipelineMultisampleStateCreateInfo)(vkPipelineShaderStageCreateInfoFragLine)(
-      vkPipelineColorBlendStateCreateInfo)(vkPipelineDepthStencilStateCreateInfo)(dynamicStateCreateInfo));
+      vkPipelineVertexInputStateCreateInfoLine)(NVK::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_STRIP, VK_TRUE))(
+      vkPipelineShaderStageCreateInfoVtxLine)(vkPipelineViewportStateCreateInfo)(vkPipelineRasterStateCreateInfo)(vkPipelineMultisampleStateCreateInfo)(vkPipelineShaderStageCreateInfoFragLine)(vkPipelineColorBlendStateCreateInfo)(vkPipelineDepthStencilStateCreateInfo)(dynamicStateCreateInfo));
   return bRes;
 }
 //------------------------------------------------------------------------------
@@ -646,8 +634,9 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
   //--------------------------------------------------------------------------
   // Texture
   //
-  nv_dds::CDDSImage image;
-  ImgO              noiseTex3D;
+  nv_dds::Image         image;
+  nv_dds::ErrorWithText imageLoadError;
+  ImgO                  noiseTex3D;
 
   std::vector<std::string> paths;
   std::string              name("GLSL/noise64x64_RGB.dds");
@@ -655,48 +644,30 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
   paths.push_back(NVPSystem::exePath() + std::string(PROJECT_RELDIRECTORY) + name);
   for(int i = 0; i < paths.size(); i++)
   {
-    if(image.load(paths[i].c_str()))
+    imageLoadError = image.readFromFile(paths[i].c_str(), {});
+    if(!imageLoadError.has_value())
     {
       break;
     }
   }
-  if(!image.is_valid())
+  if(imageLoadError.has_value())
   {
-    assert(!"error in loading texture");
+    LOGE("Error loading texture. The last error message was: %s\n", imageLoadError.value().c_str());
+    return false;
   }
-  VkFormat fmt;
-  //DXT1_RGB                VK_FORMAT_BC1_RGB_UNORM_BLOCK
-  //SRGB_DXT1_RGB           VK_FORMAT_BC1_RGB_SRGB_BLOCK
-  //DXT1_RGBA               VK_FORMAT_BC1_RGBA_UNORM_BLOCK
-  //SRGB_DXT1_RGBA          VK_FORMAT_BC1_RGBA_SRGB_BLOCK
-  //DXT3                    VK_FORMAT_BC2_UNORM_BLOCK
-  //SRGB_DXT3               VK_FORMAT_BC2_SRGB_BLOCK
-  //DXT5                    VK_FORMAT_BC3_UNORM_BLOCK
-  //SRGB_DXT5               VK_FORMAT_BC3_SRGB_BLOCK
-  switch(image.get_internal_format())
+  if(image.getNumFaces() != 1 && image.getNumLayers() != 1)
   {
-    case RED:
-      fmt = VK_FORMAT_R8_UNORM;
-      break;
-    case RG8:
-      fmt = VK_FORMAT_R8G8_UNORM;
-      break;
-    case RGBA8:
-      fmt = VK_FORMAT_R8G8B8A8_UNORM;
-      break;
-    case COMPRESSED_RGBA_S3TC_DXT1_EXT:
-      fmt = VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
-      break;
-    case COMPRESSED_RGBA_S3TC_DXT3_EXT:
-      fmt = VK_FORMAT_BC2_UNORM_BLOCK;
-      break;
-    case COMPRESSED_RGBA_S3TC_DXT5_EXT:
-      fmt = VK_FORMAT_BC3_UNORM_BLOCK;
-      break;
-      assert(!"TODO");
+    LOGE("Error loading texture. This sample assumes that %s has 1 face and 1 array element.\n", name.c_str());
+    return false;
   }
-  noiseTex3D.img = nvk.utCreateImage3D(image.get_width(), image.get_height(), image.get_depth(), noiseTex3D.imgMem, fmt,
-                                       VK_SAMPLE_COUNT_1_BIT, VK_SAMPLE_COUNT_1_BIT, image.get_num_mipmaps() + 1);
+  VkFormat fmt = texture_formats::dxgiToVulkan(image.dxgiFormat);
+  if(fmt == VK_FORMAT_UNDEFINED)
+  {
+    LOGE("Could not find a corresponding Vulkan format for DXGI format %u.\n", image.dxgiFormat);
+    return false;
+  }
+  noiseTex3D.img = nvk.utCreateImage3D(image.getWidth(0), image.getHeight(0), image.getDepth(0), noiseTex3D.imgMem, fmt,
+                                       VK_SAMPLE_COUNT_1_BIT, VK_SAMPLE_COUNT_1_BIT, image.getNumMips());
   noiseTex3D.imgView = nvk.createImageView(NVK::ImageViewCreateInfo(noiseTex3D.img,               // image
                                                                     VK_IMAGE_VIEW_TYPE_3D,        //viewType
                                                                     fmt,                          //format
@@ -710,24 +681,22 @@ bool RendererVk::initGraphics(int w, int h, int MSAA)
   NVK::BufferImageCopy imageCopy;
   unsigned char*       aggregatedMipmaps    = NULL;
   size_t               aggregatedMipmaps_Sz = 0;
-  for(int i = 0; i < image.get_num_mipmaps() + 1; i++)
+  for(uint32_t mip = 0; mip < image.getNumMips(); mip++)
   {
-    const nv_dds::CSurface& imageSurface = image.get_mipmap(i);
-    aggregatedMipmaps_Sz += imageSurface.get_size();
+    aggregatedMipmaps_Sz += image.subresource(mip, 0, 0).data.size();
   }
   aggregatedMipmaps    = new unsigned char[aggregatedMipmaps_Sz];
   aggregatedMipmaps_Sz = 0;
-  for(int i = 0; i < image.get_num_mipmaps() + 1; i++)
+  for(uint32_t mip = 0; mip < image.getNumMips(); mip++)
   {
-    const nv_dds::CSurface& imageSurface = image.get_mipmap(i);
-    memcpy(aggregatedMipmaps + aggregatedMipmaps_Sz, (unsigned char*)imageSurface, imageSurface.get_size());
-    imageCopy.add(aggregatedMipmaps_Sz,       //bufferOffset
-                  0,                          //bufferRowLength
-                  imageSurface.get_height(),  //bufferImageHeight,
-                  NVK::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, i /*mipLevel*/, 0 /*baseArrayLayer*/, 1 /*layerCount*/),  //imageSubresource
-                  NVK::Offset3D(0, 0, 0),
-                  NVK::Extent3D(imageSurface.get_width(), imageSurface.get_height(), imageSurface.get_depth()));
-    aggregatedMipmaps_Sz += imageSurface.get_size();
+    const nv_dds::Subresource& subresource = image.subresource(mip, 0, 0);
+    memcpy(aggregatedMipmaps + aggregatedMipmaps_Sz, subresource.data.data(), subresource.data.size());
+    imageCopy.add(aggregatedMipmaps_Sz,  //bufferOffset
+                  0,                     //bufferRowLength
+                  image.getHeight(mip),  //bufferImageHeight,
+                  NVK::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, mip /*mipLevel*/, 0 /*baseArrayLayer*/, 1 /*layerCount*/),  //imageSubresource
+                  NVK::Offset3D(0, 0, 0), NVK::Extent3D(image.getWidth(mip), image.getHeight(mip), image.getDepth(mip)));
+    aggregatedMipmaps_Sz += subresource.data.size();
   }
   nvk.utFillImage(&m_perThreadData->m_cmdPoolStatic, imageCopy, aggregatedMipmaps, aggregatedMipmaps_Sz, noiseTex3D.img);
   delete[] aggregatedMipmaps;
@@ -961,12 +930,11 @@ void RendererVk::displayStart(const glm::mat4& world, const InertiaCamera& camer
 
   m_cmdScene.cmdExecuteCommands(1, m_cmdSyncAndViewport);
   m_cmdScene.cmdUpdateBuffer(m_matrix.buffer, 0, sizeof(g_globalMatrices), (uint32_t*)&g_globalMatrices);
-  float r = 0.0f; //bTimingGlitch ? 1.0f : 0.0f;
-  m_cmdScene.cmdBeginRenderPass(
-      NVK::RenderPassBeginInfo(renderPass, framebuffer, viewRect,
-                               NVK::ClearValue(NVK::ClearColorValue(r, 0.1f, 0.15f, 1.0f))(
-                                   NVK::ClearDepthStencilValue(1.0, 0))(NVK::ClearColorValue(0.0f, 0.1f, 0.15f, 1.0f))),
-      VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+  float r = 0.0f;  //bTimingGlitch ? 1.0f : 0.0f;
+  m_cmdScene.cmdBeginRenderPass(NVK::RenderPassBeginInfo(renderPass, framebuffer, viewRect,
+                                                         NVK::ClearValue(NVK::ClearColorValue(r, 0.1f, 0.15f, 1.0f))(NVK::ClearDepthStencilValue(
+                                                             1.0, 0))(NVK::ClearColorValue(0.0f, 0.1f, 0.15f, 1.0f))),
+                                VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 }
 //------------------------------------------------------------------------------
 //
@@ -1179,9 +1147,9 @@ void RendererVk::releaseThreadLocalVars()
   if(cmdPoolStatic)
     cmdPoolStatic.destroyCommandPool();
   cmdPoolStatic = VK_NULL_HANDLE;
-  if (m_perThreadData)
+  if(m_perThreadData)
   {
-    delete (PerThreadData*)m_perThreadData;
+    delete(PerThreadData*)m_perThreadData;
   }
   m_perThreadData = NULL;
 }
@@ -1671,7 +1639,7 @@ bool Bk3dModelVk::initResources(Renderer* pRenderer)
       bk3d::Slot* pS = pMesh->pSlots->p[s];
 #ifdef USE_VKCMDBINDVERTEXBUFFERS_OFFSET
       result = nvk.utFillBuffer(&pRendererVk->m_perThreadData->m_cmdPoolStatic, pS->vtxBufferSizeBytes, result,
-                                pS->pVtxBufferData, curVBO.buffer, (GLuint)uintptr_t((int *)pS->VBOIDX));
+                                pS->pVtxBufferData, curVBO.buffer, (GLuint)uintptr_t((int*)pS->VBOIDX));
 #else
       VkBuffer buffer = m_memoryVBO.createBufferAllocFill(pRendererVk->m_perThreadData->m_cmdPoolStatic, pS->vtxBufferSizeBytes,
                                                           pS->pVtxBufferData, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -1959,7 +1927,8 @@ bool Bk3dModelVk::feedCmdBuffer(RendererVk* pRendererVk, NVK::CommandBuffer& cmd
       //
       if(needUpdateDSetOffsets)
       {
-        uint32_t offsets[2] = {static_cast<uint32_t>(curTransf * sizeof(MatrixBufferObject)), static_cast<uint32_t>(curMaterial * sizeof(MaterialBuffer))};
+        uint32_t offsets[2] = {static_cast<uint32_t>(curTransf * sizeof(MatrixBufferObject)),
+                               static_cast<uint32_t>(curMaterial * sizeof(MaterialBuffer))};
         vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pRendererVk->m_pipelineLayout, DSET_OBJECT,
                                 NDSETOBJECT, m_descriptorSets, 2, offsets);
         // This is not optimal: many vkCmdBindDescriptorSets in cmdBufferSplitTopo[] when not especially needed

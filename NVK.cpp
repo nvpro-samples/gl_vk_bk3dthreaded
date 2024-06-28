@@ -673,12 +673,12 @@ VkRenderPass NVK::createRenderPass(NVK::RenderPassCreateInfo& rpinfo)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-VkImage NVK::utCreateImage1D(int                   width,
+VkImage NVK::utCreateImage1D(uint32_t              width,
                              VkDeviceMemory&       colorMemory,
                              VkFormat              format,
                              VkSampleCountFlagBits depthSamples,
                              VkSampleCountFlagBits colorSamples,
-                             int                   mipLevels,
+                             uint32_t              mipLevels,
                              bool                  asAttachment)
 {
   VkImage colorImage;
@@ -720,13 +720,13 @@ VkImage NVK::utCreateImage1D(int                   width,
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-VkImage NVK::utCreateImage2D(int                   width,
-                             int                   height,
+VkImage NVK::utCreateImage2D(uint32_t              width,
+                             uint32_t              height,
                              VkDeviceMemory&       colorMemory,
                              VkFormat              format,
                              VkSampleCountFlagBits depthSamples,
                              VkSampleCountFlagBits colorSamples,
-                             int                   mipLevels,
+                             uint32_t              mipLevels,
                              bool                  asAttachment)
 {
   VkImage colorImage;
@@ -768,14 +768,14 @@ VkImage NVK::utCreateImage2D(int                   width,
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-VkImage NVK::utCreateImage3D(int                   width,
-                             int                   height,
-                             int                   depth,
+VkImage NVK::utCreateImage3D(uint32_t              width,
+                             uint32_t              height,
+                             uint32_t              depth,
                              VkDeviceMemory&       colorMemory,
                              VkFormat              format,
                              VkSampleCountFlagBits depthSamples,
                              VkSampleCountFlagBits colorSamples,
-                             int                   mipLevels,
+                             uint32_t              mipLevels,
                              bool                  asAttachment)
 {
   VkImage colorImage;
@@ -817,12 +817,12 @@ VkImage NVK::utCreateImage3D(int                   width,
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-VkImage NVK::utCreateImageCube(int                   width,
+VkImage NVK::utCreateImageCube(uint32_t              width,
                                VkDeviceMemory&       colorMemory,
                                VkFormat              format,
                                VkSampleCountFlagBits depthSamples,
                                VkSampleCountFlagBits colorSamples,
-                               int                   mipLevels,
+                               uint32_t              mipLevels,
                                bool                  asAttachment)
 {
   VkImage colorImage;
