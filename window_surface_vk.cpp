@@ -43,7 +43,6 @@
 #include <GLFW/glfw3native.h>
 
 #include "dedicated_image.h"
-#include <nvvk/structs_vk.hpp>
 
 bool WindowSurface::init(nvvk::Context* pContext, NVPWindow* pWin, int MSAA)
 {

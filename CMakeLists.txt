@@ -113,6 +113,7 @@ else()
   add_definitions(-fpermissive)
 endif()
 add_executable(${PROJNAME} ${SOURCE_FILES} ${COMMON_SOURCE_FILES} ${PACKAGE_SOURCE_FILES} ${GLSL_SOURCES})
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJNAME})
 
 #####################################################################################
 # common source code needed for this sample
